@@ -7,6 +7,21 @@ const cors = require('cors');
 const token = '8913262769:AAHIqKxQKMl1ANSp-jh6FGkcgLY92W6YhwE';
 const bot = new TelegramBot(token, { polling: true });
 
+// Bot polling xatoliklari (masalan, server bir necha marta ishga tushirilib
+// qolsa "409 Conflict" xatosi chiqadi) serverni yiqitib qo'ymasligi uchun ushlab qolamiz.
+bot.on('polling_error', (err) => {
+  console.error('⚠️  Telegram polling xatosi:', err.code || '', err.message);
+});
+
+// Kutilmagan xatoliklar butun serverni to'xtatib qo'ymasligi uchun (aks holda
+// admin panel "Server xatoligi" ko'rsatib, sayt butunlay ishlamay qolishi mumkin edi).
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️  Kutilmagan xatolik (unhandledRejection):', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('⚠️  Kutilmagan xatolik (uncaughtException):', err);
+});
+
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
@@ -24,7 +39,11 @@ if (!db.pendingUsers) db.pendingUsers = {};
 if (!db.config) db.config = { openRouterKey: '' };
 
 function saveDB() {
-  fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+  try {
+    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+  } catch (e) {
+    console.error('⚠️  DB saqlashda xatolik:', e.message);
+  }
 }
 
 // Bot: /start bosilganda username saqlanadi (lekin kod yuborilmaydi)
@@ -137,6 +156,27 @@ app.post('/api/admin/send-message', async (req, res) => {
   }
 });
 
+// API: Admin - foydalanuvchini butunlay o'chirish
+// (Bot ma'lumoti ham, kutish ro'yxatidagi yozuvi ham o'chadi.
+//  Foydalanuvchi botga qayta /start bossa, yangi foydalanuvchi sifatida qayta paydo bo'ladi.)
+app.post('/api/admin/delete-user', (req, res) => {
+  const { password, username } = req.body;
+  if (password !== '0101') return res.status(403).json({ error: 'Ruxsat yo\'q.' });
+  if (!username) return res.status(400).json({ error: 'Username kiritilmagan.' });
+
+  const key = username.toLowerCase().replace('@', '');
+  if (key === 'abdunurcreator') return res.status(400).json({ error: 'Admin akkauntini o\'chirib bo\'lmaydi.' });
+
+  let found = false;
+  if (db.users[key]) { delete db.users[key]; found = true; }
+  if (db.pendingUsers[key]) { delete db.pendingUsers[key]; found = true; }
+
+  if (!found) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+
+  saveDB();
+  res.json({ success: true, message: `@${username} o'chirildi.` });
+});
+
 // API: Reklamalar
 app.get('/api/ads', (req, res) => {
   res.json({ ads: db.ads || [] });
@@ -197,30 +237,40 @@ const NOOR_SYSTEM_PROMPT = {
 // API: OpenRouter Chat Proxy
 app.post('/api/chat', async (req, res) => {
   const { model, messages } = req.body;
-  
+
+  if (typeof fetch !== 'function') {
+    return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past). AI chat ishlashi uchun Node.js 18 yoki undan yangi versiyasini o\'rnating: https://nodejs.org' });
+  }
+
   if (!db.config.openRouterKey) {
     return res.status(400).json({ error: 'OpenRouter API kaliti o\'rnatilmagan. Admin panel orqali sozlang.' });
   }
 
   try {
     const outgoingMessages = [NOOR_SYSTEM_PROMPT, ...(messages || [])];
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${db.config.openRouterKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'AbdunurCreator'
-      },
-      body: JSON.stringify({
-        model: model || 'google/gemini-2.5-flash:free',
-        messages: outgoingMessages
-      })
-    });
+    let response;
+    try {
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${db.config.openRouterKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'AbdunurCreator'
+        },
+        body: JSON.stringify({
+          model: model || 'openai/gpt-oss-20b:free',
+          messages: outgoingMessages
+        })
+      });
+    } catch (netErr) {
+      console.error('OpenRouterga ulanishda xatolik:', netErr.message);
+      return res.status(502).json({ error: 'OpenRouter serveriga ulanib bo\'lmadi. Internet aloqasini tekshiring: ' + netErr.message });
+    }
 
     const data = await response.json();
     if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || 'OpenRouter xatoligi' });
+      return res.status(response.status).json({ error: data.error?.message || 'OpenRouter xatoligi (status ' + response.status + ')' });
     }
     res.json(data);
   } catch (error) {
@@ -230,7 +280,21 @@ app.post('/api/chat', async (req, res) => {
 });
 
 const PORT = 3000;
-app.listen(PORT, () => {
+const httpServer = app.listen(PORT, () => {
   console.log(`✅ Server ishga tushdi: http://localhost:${PORT}`);
   console.log(`✅ Telegram bot polling boshlandi`);
+});
+
+// Portni tinglashda xato chiqsa (masalan port band bo'lsa), buni ANIQ ko'rsatamiz
+// va dasturni to'xtatamiz — aks holda server "ishlayotgandek" ko'rinib, aslida
+// hech qanday so'rovga javob bermay qoladi (aynan shu holat "Server bilan
+// aloqa yo'q" xatosini keltirib chiqaradi).
+httpServer.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ XATOLIK: ${PORT}-port band! Boshqa node.exe jarayoni allaqachon shu portda ishlamoqda.`);
+    console.error(`   Yechim: Task Manager'da barcha node.exe jarayonlarini to'xtating, so'ng serverni qayta ishga tushiring.`);
+  } else {
+    console.error('❌ Serverni ishga tushirishda xatolik:', err.message);
+  }
+  process.exit(1);
 });

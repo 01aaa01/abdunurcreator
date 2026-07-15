@@ -57,12 +57,30 @@
     <div class="chat-header">
       <span style="font-family: var(--dp); font-weight:600; color: var(--c);">Live AI Assistant</span>
       <select class="chat-select" id="chat-model-select">
-        <option value="openai/gpt-oss-20b:free" selected>Noor-OSS 2.0</option>
-        <option value="google/gemma-4-31b-it:free">Noor-Lite 3.1</option>
-        <option value="qwen/qwen3-next-80b-a3b-instruct:free">Noor-Max 5.0</option>
-        <option value="qwen/qwen3-coder:free">Noor-Coder 4.5</option>
+        <optgroup label="Umumiy suhbat">
+          <option value="openai/gpt-oss-20b:free" selected>Noor-OSS 2.0</option>
+          <option value="openai/gpt-oss-120b:free">Noor-OSS 5.0</option>
+          <option value="meta-llama/llama-3.3-70b-instruct:free">Noor-Lite 3.3</option>
+          <option value="nvidia/nemotron-nano-9b-v2:free">Noor-Swift 1.5</option>
+          <option value="nvidia/nemotron-3-nano-30b-a3b:free">Noor-Swift 2.0</option>
+          <option value="nvidia/nemotron-3-super-120b-a12b:free">Noor-Super 4.2</option>
+          <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Noor-Titan 7.0</option>
+        </optgroup>
+        <optgroup label="Kodlash uchun">
+          <option value="qwen/qwen3-coder:free">Noor-Coder 4.5</option>
+          <option value="poolside/laguna-m.1:free">Noor-Coder 6.0</option>
+          <option value="poolside/laguna-xs-2.1:free">Noor-Coder 3.2</option>
+          <option value="cohere/north-mini-code:free">Noor-Coder 1.0</option>
+        </optgroup>
+        <optgroup label="Rasm/video tushunadigan">
+          <option value="google/gemma-4-31b-it:free">Noor-Vision 4.0</option>
+          <option value="google/gemma-4-26b-a4b-it:free">Noor-Vision 3.5</option>
+          <option value="nvidia/nemotron-nano-12b-v2-vl:free">Noor-Vision 2.0</option>
+          <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">Noor-Think 2.5</option>
+        </optgroup>
       </select>
     </div>
+    <p style="font-family:var(--mn);font-size:.72rem;color:var(--td);padding:0 20px 10px;">Eslatma: bepul modellar OpenRouter tomonidan taqdim etiladi — ba'zida bandlik tufayli javob kechikishi yoki xato qaytishi mumkin. Shunday holatda yuqoridagi ro'yxatdan boshqa modelni tanlang.</p>
     <div class="chat-messages" id="chat-msg-container">
       <div class="chat-msg system">Suhbatni boshlash uchun quyida xabar yozing. Noor AI sizga yordam berishga tayyor.</div>
     </div>

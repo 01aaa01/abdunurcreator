@@ -1,5 +1,14 @@
-// === API BASE URL (fayl to'g'ridan ochilsa ham ishlaydi) ===
-const BASE_URL = 'http://localhost:3000';
+// === API BASE URL ===
+// Sayt qanday ochilishidan qat'i nazar to'g'ri ishlaydi:
+// - Agar fayl to'g'ridan (file://) ochilsa -> localhost:3000 serverga uladi (lokal test uchun)
+// - Agar sayt biror domen/hosting orqali ochilsa (masalan https://sizningdomeningiz.com) ->
+//   o'sha domenning o'zidagi API ga uladi, chunki server statik fayllarni ham,
+//   API'ni ham bir xil manzilda (bir xil origin'da) beradi.
+// Eski versiyada BASE_URL doim 'http://localhost:3000' bo'lgani uchun,
+// sayt boshqa foydalanuvchilarning brauzerida ochilganda ular o'zlarining
+// localhost:3000'iga (ya'ni hech narsaga) ulanishga urinishgan va shu sababli
+// to'g'ri kod kiritsalar ham "Server bilan aloqa yo'q" xatosini olishgan.
+const BASE_URL = (location.protocol === 'file:') ? 'http://localhost:3000' : '';
 
 // === PARALLAX BACKGROUND ===
 const aiNames=['ChatGPT','Midjourney','Kling','Sora','Veo 3','Copilot','DALL-E','Runway','Pika','Higgsfield','Gemini','Claude'];
@@ -110,6 +119,13 @@ async function loadPendingUsers(){
   container.innerHTML='<p style="color:var(--td);font-size:.85rem;">Yuklanmoqda...</p>';
   try{
     const r=await fetch(BASE_URL+'/api/admin/pending?password=0101');
+    if(!r.ok){
+      let msg='';
+      try{const d=await r.json();msg=d.error||'';}catch(e){}
+      container.innerHTML='<p style="color:var(--p);">Server xatoligi ('+r.status+'). '+msg+'</p>';
+      countEl.textContent='';
+      return;
+    }
     const d=await r.json();
     const users=d.users||[];
     countEl.textContent=users.length+' ta foydalanuvchi so\'rov yuborgan';
@@ -119,10 +135,28 @@ async function loadPendingUsers(){
       const el=document.createElement('div');
       el.className='user-item';
       const t=new Date(u.requestedAt).toLocaleString('uz-UZ');
-      el.innerHTML=`<div><div class="uname">@${u.username}</div><div class="utime">${t}</div></div><button class="btn sm" onclick="selectUser('${u.username}')">Xabar yozish</button>`;
+      el.innerHTML=`<div><div class="uname">@${u.username}</div><div class="utime">${t}</div></div><div style="display:flex;gap:6px;"><button class="btn sm" onclick="selectUser('${u.username}')">Xabar yozish</button><button class="btn sm red" title="Foydalanuvchini o'chirish" onclick="deleteUser('${u.username}')">🗑️</button></div>`;
       container.appendChild(el);
     });
-  }catch(e){container.innerHTML='<p style="color:var(--p);">Server xatoligi.</p>';}
+  }catch(e){
+    container.innerHTML='<p style="color:var(--p);">Server bilan bog\'lanib bo\'lmadi: '+(e.message||'noma\'lum xatolik')+'</p>';
+    countEl.textContent='';
+  }
+}
+
+// === USERNI O'CHIRISH ===
+async function deleteUser(username){
+  if(!confirm(`@${username} ni ro'yxatdan butunlay o'chirishga ishonchingiz komilmi?\n(U qayta /start bossa, yangi foydalanuvchi sifatida qayta paydo bo'ladi.)`))return;
+  try{
+    const r=await fetch(BASE_URL+'/api/admin/delete-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:adminPass,username})});
+    const d=await r.json();
+    if(r.ok){
+      if(selectedMsgUser===username){document.getElementById('msg-composer').classList.add('hidden');selectedMsgUser='';}
+      loadPendingUsers();
+    }else{
+      alert(d.error||'O\'chirishda xatolik yuz berdi.');
+    }
+  }catch(e){alert('Server bilan aloqa yo\'q.');}
 }
 
 function selectUser(username){
