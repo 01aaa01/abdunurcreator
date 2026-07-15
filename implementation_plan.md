@@ -10,7 +10,7 @@ Bizning maqsadimiz hozirgi statik `a.html` saytini haqiqiy Telegram botga ulanga
 
 ## Open Questions
 
-- Telegram bot tokeni to'g'ri ishlayotganligiga ishonchingiz komilmi? Manabu token ishlatiladi: `8913262769:AAHIqKxQKMl1ANSp-jh6FGkcgLY92W6YhwE`.
+- Telegram bot tokeni `.env` faylida (`BOT_TOKEN`) saqlanadi — xavfsizlik uchun bu yerdan olib tashlandi va git'ga yuklanmaydi.
 - Ma'lumotlarni vaqtincha faylda (`data.json`) saqlayman (username'lar va reklamalar uchun). Bu hozircha yetarli bo'ladimi?
 
 ## Proposed Changes

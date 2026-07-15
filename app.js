@@ -273,6 +273,110 @@ async function saveConfig() {
   }
 }
 
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Chat javobidagi ```kod``` bloklarini topib, "Ishga tushirish" tugmasi bilan
+// ko'rsatadigan qilib render qiladi (faqat AI javoblari uchun).
+let codeBlockCounter = 0;
+const codeBlocksStore = {};
+const RUNNABLE_LANGS = ['html', 'js', 'javascript', 'css', 'python', 'py'];
+
+function renderAiMessageHTML(text) {
+  const fenceRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  let out = '';
+  let lastIndex = 0;
+  let match;
+  while ((match = fenceRegex.exec(text)) !== null) {
+    out += escapeHtml(text.slice(lastIndex, match.index)).replace(/\n/g, '<br>');
+    const lang = (match[1] || '').toLowerCase();
+    const code = match[2].replace(/\n$/, '');
+    const id = 'cb' + (++codeBlockCounter);
+    codeBlocksStore[id] = { lang, code };
+    const runnable = RUNNABLE_LANGS.includes(lang);
+    out += `<div class="code-block-wrap">
+      <div class="code-block-header"><span class="code-lang">${escapeHtml(lang || 'code')}</span>${runnable ? `<button type="button" class="code-run-btn" onclick="runCodeBlock('${id}')">▶ Ishga tushirish</button>` : ''}</div>
+      <pre class="code-block"><code>${escapeHtml(code)}</code></pre>
+      <div class="code-result hidden" id="result-${id}"></div>
+    </div>`;
+    lastIndex = fenceRegex.lastIndex;
+  }
+  out += escapeHtml(text.slice(lastIndex)).replace(/\n/g, '<br>');
+  return out;
+}
+
+// Pyodide (Python'ni brauzerda WebAssembly orqali ishlatadi) — bepul, backend kerak emas
+let pyodideInstance = null;
+let pyodideLoadingPromise = null;
+function ensurePyodide() {
+  if (pyodideInstance) return Promise.resolve(pyodideInstance);
+  if (pyodideLoadingPromise) return pyodideLoadingPromise;
+  pyodideLoadingPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js';
+    script.onload = async () => {
+      try {
+        pyodideInstance = await loadPyodide();
+        resolve(pyodideInstance);
+      } catch (e) { reject(e); }
+    };
+    script.onerror = () => reject(new Error('Pyodide yuklanmadi (internetni tekshiring).'));
+    document.head.appendChild(script);
+  });
+  return pyodideLoadingPromise;
+}
+
+async function runCodeBlock(id) {
+  const block = codeBlocksStore[id];
+  if (!block) return;
+  const resultEl = document.getElementById('result-' + id);
+  resultEl.classList.remove('hidden');
+  resultEl.innerHTML = '<div class="code-running">⏳ Ishga tushirilmoqda...</div>';
+
+  const lang = block.lang;
+
+  if (lang === 'python' || lang === 'py') {
+    try {
+      const pyodide = await ensurePyodide();
+      let output = '';
+      pyodide.setStdout({ batched: (s) => { output += s + '\n'; } });
+      pyodide.setStderr({ batched: (s) => { output += s + '\n'; } });
+      try {
+        await pyodide.runPythonAsync(block.code);
+      } catch (runErr) {
+        output += '\n❌ ' + runErr.message;
+      }
+      resultEl.innerHTML = `<div class="code-result-label">Natija:</div><pre class="code-output">${escapeHtml(output || '(chiqish yo\'q)')}</pre>`;
+    } catch (loadErr) {
+      resultEl.innerHTML = `<div class="code-result-label err">Python muhitini yuklab bo'lmadi: ${escapeHtml(loadErr.message)}</div>`;
+    }
+    return;
+  }
+
+  // HTML / CSS / JS — sandbox qilingan iframe ichida ishga tushiramiz
+  let srcdoc;
+  if (lang === 'html') {
+    srcdoc = block.code;
+  } else if (lang === 'css') {
+    srcdoc = `<style>${block.code}</style><body style="font-family:sans-serif;color:#ddd;background:#0a0d16;padding:16px;">CSS namunasi qo'llanildi. To'liq ko'rish uchun HTML bilan birga bering.</body>`;
+  } else {
+    srcdoc = `<html><body style="margin:0;font-family:'JetBrains Mono',monospace;background:#0a0d16;color:#9effa0;padding:14px;white-space:pre-wrap;font-size:13px;" id="out"></body>
+<script>
+const out = document.getElementById('out');
+function log(...a){ out.innerHTML += a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' ') + '\\n'; }
+console.log = log; console.error = log; console.warn = log; console.info = log;
+try { ${block.code} } catch(e) { log('❌ Xatolik: ' + e.message); }
+</script></html>`;
+  }
+  const iframe = document.createElement('iframe');
+  iframe.className = 'code-iframe';
+  iframe.setAttribute('sandbox', 'allow-scripts');
+  resultEl.innerHTML = '<div class="code-result-label">Natija:</div>';
+  resultEl.appendChild(iframe);
+  iframe.srcdoc = srcdoc;
+}
+
 // === AI CHATBOT (FRONTEND) — Noor AI 1.5 ===
 // Endi model tanlash yo'q: server o'zi ishlaydigan bepul modelni tanlaydi.
 // Foydalanuvchi rasm tashlasa (drop/tanlasa), Noor AI uni ham "ko'radi" va tushunadi.
@@ -283,7 +387,7 @@ function appendChatBubble(text, sender) {
   const container = document.getElementById('chat-msg-container');
   const bubble = document.createElement('div');
   bubble.className = `chat-msg ${sender}`;
-  bubble.innerHTML = text.replace(/\n/g, '<br>');
+  bubble.innerHTML = sender === 'ai' ? renderAiMessageHTML(text) : escapeHtml(text).replace(/\n/g, '<br>');
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
   return bubble;
