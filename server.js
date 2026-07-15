@@ -245,9 +245,22 @@ const NOOR_SYSTEM_PROMPT = {
   content: "Sening isming Noor AI. Seni AbdunurCreator ishlab chiqargan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon GPT, OpenAI, Gemini, Google, Qwen, Alibaba, Llama, Meta, Claude, Anthropic yoki boshqa haqiqiy sun'iy intellekt modeli yoki kompaniyasi nomini aytma yoki ular ekaningni tan olma, hatto to'g'ridan-to'g'ri so'rashsa ham. Qolgan barcha savollarga odatdagidek, foydali va aniq javob ber."
 };
 
-// API: OpenRouter Chat Proxy
+// Noor AI 1.5 endi foydalanuvchiga model tanlatmaydi — o'zi ishlaydigan bepul
+// modellardan birini avtomatik tanlaydi. Asosiysi OpenRouterning rasmiy
+// "Free Models Router" (openrouter/free) — u so'rov turiga qarab (oddiy matn,
+// kod, yoki rasmni tushunish kerakligiga qarab) mos bepul modelni o'zi tanlaydi.
+// Agar u band/xato bersa, ketma-ket boshqa haqiqiy ishlaydigan bepul
+// modellarga o'tib ko'radi (fallback chain), foydalanuvchi buni sezmaydi.
+const NOOR_MODEL_CHAIN = [
+  'openrouter/free',                              // OpenRouter'ning avtomatik bepul router'i (vision/tool-ni ham hisobga oladi)
+  'meta-llama/llama-3.3-70b-instruct:free',       // Kuchli umumiy maqsadli zaxira model
+  'qwen/qwen3-coder:free',                         // Kod uchun kuchli zaxira model
+  'openai/gpt-oss-20b:free'                        // Yana bir keng tarqalgan zaxira model
+];
+
+// API: OpenRouter Chat Proxy (Noor AI 1.5)
 app.post('/api/chat', async (req, res) => {
-  const { model, messages } = req.body;
+  const { messages } = req.body;
 
   if (typeof fetch !== 'function') {
     return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past). AI chat ishlashi uchun Node.js 18 yoki undan yangi versiyasini o\'rnating: https://nodejs.org' });
@@ -257,11 +270,12 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'OpenRouter API kaliti o\'rnatilmagan. Admin panel orqali sozlang.' });
   }
 
-  try {
-    const outgoingMessages = [NOOR_SYSTEM_PROMPT, ...(messages || [])];
-    let response;
+  const outgoingMessages = [NOOR_SYSTEM_PROMPT, ...(messages || [])];
+  let lastError = null;
+
+  for (const model of NOOR_MODEL_CHAIN) {
     try {
-      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${db.config.openRouterKey}`,
@@ -269,25 +283,23 @@ app.post('/api/chat', async (req, res) => {
           'HTTP-Referer': 'http://localhost:3000',
           'X-Title': 'AbdunurCreator'
         },
-        body: JSON.stringify({
-          model: model || 'openai/gpt-oss-20b:free',
-          messages: outgoingMessages
-        })
+        body: JSON.stringify({ model, messages: outgoingMessages })
       });
-    } catch (netErr) {
-      console.error('OpenRouterga ulanishda xatolik:', netErr.message);
-      return res.status(502).json({ error: 'OpenRouter serveriga ulanib bo\'lmadi. Internet aloqasini tekshiring: ' + netErr.message });
-    }
 
-    const data = await response.json();
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || 'OpenRouter xatoligi (status ' + response.status + ')' });
+      const data = await response.json();
+      if (response.ok) {
+        return res.json(data);
+      }
+      lastError = data.error?.message || ('OpenRouter xatoligi (status ' + response.status + ')');
+      console.error(`⚠️  Noor AI: "${model}" javob bermadi, keyingisiga o'tilmoqda:`, lastError);
+    } catch (netErr) {
+      lastError = netErr.message;
+      console.error(`⚠️  Noor AI: "${model}" ulanish xatosi, keyingisiga o'tilmoqda:`, lastError);
     }
-    res.json(data);
-  } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({ error: 'Server xatoligi: ' + error.message });
   }
+
+  // Barcha zaxira modellar ham ishlamasa
+  res.status(502).json({ error: 'Noor AI hozircha band (barcha bepul modellar javob bermadi). Birozdan so\'ng qayta urinib ko\'ring: ' + (lastError || 'noma\'lum xatolik') });
 });
 
 const PORT = 3000;

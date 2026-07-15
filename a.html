@@ -47,7 +47,7 @@
   <div class="hero">
     <div class="eyebrow">The Future is Now</div>
     <h1>AbdunurCreator × AI</h1>
-    <p>Eng so'nggi sun'iy intellekt vositalari — video, rasm, matn generatsiyasi. Hamma narsani bir joyda toping.</p>
+    <p>Noor AI 1.5 bilan suhbatlashing, rasm yarating va eng so'nggi AI vositalarini bir joyda kashf eting.</p>
     <div class="welcome-tag">Xush kelibsiz, <b id="welcome-name">@user</b></div>
   </div>
 
@@ -56,38 +56,41 @@
   <div class="glass chat-container" style="max-width: 800px; margin: 0 auto 50px;">
     <div class="chat-header">
       <span style="font-family: var(--dp); font-weight:600; color: var(--c);">Live AI Assistant</span>
-      <select class="chat-select" id="chat-model-select">
-        <optgroup label="Umumiy suhbat">
-          <option value="openai/gpt-oss-20b:free" selected>Noor-OSS 2.0</option>
-          <option value="openai/gpt-oss-120b:free">Noor-OSS 5.0</option>
-          <option value="meta-llama/llama-3.3-70b-instruct:free">Noor-Lite 3.3</option>
-          <option value="nvidia/nemotron-nano-9b-v2:free">Noor-Swift 1.5</option>
-          <option value="nvidia/nemotron-3-nano-30b-a3b:free">Noor-Swift 2.0</option>
-          <option value="nvidia/nemotron-3-super-120b-a12b:free">Noor-Super 4.2</option>
-          <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Noor-Titan 7.0</option>
-        </optgroup>
-        <optgroup label="Kodlash uchun">
-          <option value="qwen/qwen3-coder:free">Noor-Coder 4.5</option>
-          <option value="poolside/laguna-m.1:free">Noor-Coder 6.0</option>
-          <option value="poolside/laguna-xs-2.1:free">Noor-Coder 3.2</option>
-          <option value="cohere/north-mini-code:free">Noor-Coder 1.0</option>
-        </optgroup>
-        <optgroup label="Rasm/video tushunadigan">
-          <option value="google/gemma-4-31b-it:free">Noor-Vision 4.0</option>
-          <option value="google/gemma-4-26b-a4b-it:free">Noor-Vision 3.5</option>
-          <option value="nvidia/nemotron-nano-12b-v2-vl:free">Noor-Vision 2.0</option>
-          <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">Noor-Think 2.5</option>
-        </optgroup>
-      </select>
+      <span class="model-badge">✨ Noor AI 1.5</span>
     </div>
-    <p style="font-family:var(--mn);font-size:.72rem;color:var(--td);padding:0 20px 10px;">Eslatma: bepul modellar OpenRouter tomonidan taqdim etiladi — ba'zida bandlik tufayli javob kechikishi yoki xato qaytishi mumkin. Shunday holatda yuqoridagi ro'yxatdan boshqa modelni tanlang.</p>
+    <p style="font-family:var(--mn);font-size:.72rem;color:var(--td);padding:0 20px 10px;">Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.</p>
     <div class="chat-messages" id="chat-msg-container">
-      <div class="chat-msg system">Suhbatni boshlash uchun quyida xabar yozing. Noor AI sizga yordam berishga tayyor.</div>
+      <div class="chat-msg system">Suhbatni boshlash uchun quyida xabar yozing yoki rasm tashlang. Noor AI sizga yordam berishga tayyor.</div>
     </div>
+    <div class="chat-attach-preview hidden" id="chat-attach-preview"></div>
     <div class="chat-input-bar">
-      <input type="text" id="chat-user-input" placeholder="AI ga savol bering..." autocomplete="off">
+      <input type="file" id="chat-attach-input" accept="image/*" class="hidden">
+      <button class="btn sm ghost chat-attach-trigger" id="chat-attach-btn" type="button" title="Rasm biriktirish">📎</button>
+      <input type="text" id="chat-user-input" placeholder="AI ga savol bering yoki rasm tashlang..." autocomplete="off">
       <button class="btn sm" id="chat-send-btn" onclick="sendChatMsg()">Yuborish</button>
     </div>
+  </div>
+
+  <!-- AI IMAGE GENERATION -->
+  <div class="sec-title">🎨 Noor Rasm — AI bilan rasm yaratish</div>
+  <div class="glass imggen-container" style="max-width: 800px; margin: 0 auto 50px;">
+    <p class="sub" style="text-align:left;margin-bottom:18px;">Xohlagan rasmingizni matn bilan tasvirlab bering — bir necha soniyada tayyor bo'ladi. Butunlay bepul va cheksiz (birinchi marta bepul Puter akkauntingizga kirishingiz so'raladi).</p>
+    <div class="field">
+      <label>Model</label>
+      <select class="chat-select" id="imggen-model" style="width:100%;">
+        <option value="google/gemini-3-pro-image-preview">Nano Banana Pro (Gemini) — eng sifatli</option>
+        <option value="black-forest-labs/flux-2-pro">FLUX.2 Pro — badiiy uslublar</option>
+        <option value="openai/gpt-image-2">GPT Image 2</option>
+        <option value="stabilityai/stable-diffusion-3-medium">Stable Diffusion 3 — tezkor</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Rasm tavsifi</label>
+      <textarea id="imggen-prompt" placeholder="Masalan: Tog' cho'qqisida quyosh botayotgan, realistik uslubda..." rows="3"></textarea>
+    </div>
+    <button class="btn" id="imggen-btn">🎨 Yaratish</button>
+    <div class="err" id="imggen-err"></div>
+    <div class="imggen-results" id="imggen-results"></div>
   </div>
 
   <!-- VIDEO AI -->
@@ -321,6 +324,7 @@ function setMsgColor(c){
   r.style.outline=c==='red'?'3px solid #e74c3c':'none';
 }
 </script>
+<script src="https://js.puter.com/v2/"></script>
 <script src="app.js"></script>
 </body>
 </html>

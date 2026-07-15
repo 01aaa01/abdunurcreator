@@ -273,22 +273,87 @@ async function saveConfig() {
   }
 }
 
-// === AI CHATBOT (FRONTEND) ===
+// === AI CHATBOT (FRONTEND) — Noor AI 1.5 ===
+// Endi model tanlash yo'q: server o'zi ishlaydigan bepul modelni tanlaydi.
+// Foydalanuvchi rasm tashlasa (drop/tanlasa), Noor AI uni ham "ko'radi" va tushunadi.
 let chatHistory = [];
+let pendingImage = null; // {dataUrl, name}
+
+function appendChatBubble(text, sender) {
+  const container = document.getElementById('chat-msg-container');
+  const bubble = document.createElement('div');
+  bubble.className = `chat-msg ${sender}`;
+  bubble.innerHTML = text.replace(/\n/g, '<br>');
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+  return bubble;
+}
+
+function appendChatImage(dataUrl) {
+  const container = document.getElementById('chat-msg-container');
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-msg user';
+  bubble.innerHTML = `<img src="${dataUrl}" class="chat-attached-img" alt="Yuklangan rasm">`;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleChatImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  try {
+    const dataUrl = await fileToDataUrl(file);
+    pendingImage = { dataUrl, name: file.name };
+    const preview = document.getElementById('chat-attach-preview');
+    preview.innerHTML = `<img src="${dataUrl}" alt="preview"><button type="button" id="chat-attach-remove" title="Olib tashlash">&times;</button>`;
+    preview.classList.remove('hidden');
+    document.getElementById('chat-attach-remove').addEventListener('click', clearPendingChatImage);
+  } catch (e) {
+    console.error('Rasmni o\'qib bo\'lmadi:', e);
+  }
+}
+
+function clearPendingChatImage() {
+  pendingImage = null;
+  const preview = document.getElementById('chat-attach-preview');
+  preview.innerHTML = '';
+  preview.classList.add('hidden');
+}
 
 async function sendChatMsg() {
   const inputEl = document.getElementById('chat-user-input');
   const sendBtn = document.getElementById('chat-send-btn');
   const container = document.getElementById('chat-msg-container');
-  const modelSelect = document.getElementById('chat-model-select');
-  
-  const text = inputEl.value.trim();
-  if (!text) return;
 
-  // Append user message
-  appendChatBubble(text, 'user');
+  const text = inputEl.value.trim();
+  if (!text && !pendingImage) return;
+
+  // Append user message (rasm bo'lsa alohida ko'rsatamiz)
+  if (pendingImage) appendChatImage(pendingImage.dataUrl);
+  if (text) appendChatBubble(text, 'user');
+
+  // API ga yuboriladigan xabar: rasm bo'lsa, matn + rasm birgalikda (vision)
+  let userContent;
+  if (pendingImage) {
+    userContent = [
+      { type: 'text', text: text || 'Ushbu rasmda nima ko\'rinyapti, tushuntirib ber.' },
+      { type: 'image_url', image_url: { url: pendingImage.dataUrl } }
+    ];
+  } else {
+    userContent = text;
+  }
+  chatHistory.push({ role: 'user', content: userContent });
+
   inputEl.value = '';
-  chatHistory.push({ role: 'user', content: text });
+  clearPendingChatImage();
 
   // Add Typing Indicator
   const typingIndicator = document.createElement('div');
@@ -310,13 +375,10 @@ async function sendChatMsg() {
     const r = await fetch(BASE_URL + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: modelSelect.value,
-        messages: chatHistory
-      })
+      body: JSON.stringify({ messages: chatHistory })
     });
     const d = await r.json();
-    
+
     // Remove Typing Indicator
     const indicator = document.getElementById('chat-typing-indicator');
     if (indicator) indicator.remove();
@@ -340,20 +402,96 @@ async function sendChatMsg() {
   }
 }
 
-function appendChatBubble(text, sender) {
-  const container = document.getElementById('chat-msg-container');
-  const bubble = document.createElement('div');
-  bubble.className = `chat-msg ${sender}`;
-  // Use simple translation for markdown-like returns or breaklines
-  bubble.innerHTML = text.replace(/\n/g, '<br>');
-  container.appendChild(bubble);
-  container.scrollTop = container.scrollHeight;
-}
-
 // Add enter key listener for chat input
 document.getElementById('chat-user-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     sendChatMsg();
   }
+});
+
+// Rasm biriktirish tugmasi va drag-drop
+const chatAttachBtn = document.getElementById('chat-attach-btn');
+const chatAttachInput = document.getElementById('chat-attach-input');
+if (chatAttachBtn && chatAttachInput) {
+  chatAttachBtn.addEventListener('click', () => chatAttachInput.click());
+  chatAttachInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleChatImageFile(e.target.files[0]);
+    e.target.value = '';
+  });
+}
+const chatMsgContainer = document.getElementById('chat-msg-container');
+if (chatMsgContainer) {
+  ['dragover'].forEach(evt => chatMsgContainer.addEventListener(evt, (e) => { e.preventDefault(); chatMsgContainer.classList.add('drag-over'); }));
+  ['dragleave', 'drop'].forEach(evt => chatMsgContainer.addEventListener(evt, (e) => { e.preventDefault(); chatMsgContainer.classList.remove('drag-over'); }));
+  chatMsgContainer.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) handleChatImageFile(file);
+  });
+}
+
+// === RASM YARATISH (Puter.js orqali, bepul, cheksiz) ===
+// Puter.js "User-Pays" modeli bilan ishlaydi: har bir tashrif buyuruvchi birinchi
+// marta rasm yaratganda o'zining bepul Puter akkauntiga kirishi so'raladi (bir marta),
+// shundan keyin cheksiz va bepul rasm generatsiya qila oladi — bizning serverimizga
+// hech qanday API kalit kerak emas.
+const IMG_MODELS = [
+  { id: 'google/gemini-3-pro-image-preview', label: 'Nano Banana Pro (Gemini)' },
+  { id: 'black-forest-labs/flux-2-pro', label: 'FLUX.2 Pro' },
+  { id: 'openai/gpt-image-2', label: 'GPT Image 2' },
+  { id: 'stabilityai/stable-diffusion-3-medium', label: 'Stable Diffusion 3' }
+];
+
+async function generateAiImage() {
+  const promptEl = document.getElementById('imggen-prompt');
+  const modelSelect = document.getElementById('imggen-model');
+  const resultsEl = document.getElementById('imggen-results');
+  const err = document.getElementById('imggen-err');
+  const btn = document.getElementById('imggen-btn');
+
+  const prompt = promptEl.value.trim();
+  err.textContent = '';
+  if (!prompt) { err.textContent = 'Iltimos, rasm tavsifini yozing.'; return; }
+
+  if (typeof puter === 'undefined') {
+    err.textContent = 'Rasm generatsiya xizmati yuklanmadi. Internetni tekshirib, sahifani yangilang.';
+    return;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'imggen-card loading';
+  card.innerHTML = `<div class="imggen-skel"></div><p class="imggen-prompt-txt">${prompt}</p>`;
+  resultsEl.prepend(card);
+
+  btn.disabled = true;
+  btn.textContent = 'Yaratilmoqda...';
+
+  try {
+    const imgEl = await puter.ai.txt2img(prompt, { model: modelSelect.value });
+    card.classList.remove('loading');
+    card.innerHTML = '';
+    imgEl.className = 'imggen-img';
+    card.appendChild(imgEl);
+    const p = document.createElement('p');
+    p.className = 'imggen-prompt-txt';
+    p.textContent = prompt;
+    card.appendChild(p);
+    const dl = document.createElement('a');
+    dl.href = imgEl.src;
+    dl.download = 'noor-ai-image.png';
+    dl.className = 'btn sm ghost imggen-dl';
+    dl.textContent = '⬇️ Yuklab olish';
+    card.appendChild(dl);
+  } catch (e) {
+    card.remove();
+    err.textContent = 'Xatolik yuz berdi: ' + (e?.message || 'Rasm yaratib bo\'lmadi. Boshqa modelni sinab ko\'ring.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🎨 Yaratish';
+  }
+}
+
+document.getElementById('imggen-btn')?.addEventListener('click', generateAiImage);
+document.getElementById('imggen-prompt')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generateAiImage(); }
 });
 
