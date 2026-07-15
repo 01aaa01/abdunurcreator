@@ -1,10 +1,15 @@
+require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 
-const token = '8913262769:AAHIqKxQKMl1ANSp-jh6FGkcgLY92W6YhwE';
+const token = process.env.BOT_TOKEN;
+if (!token) {
+  console.error('❌ XATOLIK: BOT_TOKEN environment o\'zgaruvchisi topilmadi! .env faylga yoki hosting sozlamalariga BOT_TOKEN qo\'shing.');
+  process.exit(1);
+}
 const bot = new TelegramBot(token, { polling: true });
 
 // Bot polling xatoliklari (masalan, server bir necha marta ishga tushirilib
@@ -26,6 +31,12 @@ const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.static(__dirname));
+
+// "/" manziliga kirganda avtomatik a.html'ga yo'naltirish
+// (chunki bosh sahifa fayli index.html emas, a.html deb nomlangan)
+app.get('/', (req, res) => {
+  res.redirect('/a.html');
+});
 
 // DB
 let db = { users: {}, ads: [], pendingUsers: {}, config: { openRouterKey: '' } };
