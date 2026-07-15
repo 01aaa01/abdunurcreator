@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AbdunurCreator — AI Dunyo</title>
+<link rel="icon" type="image/png" href="cat.png">
+<link rel="apple-touch-icon" href="cat.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="liquid-bg"><div class="blob blob1"></div><div class="blob blob2"></div><div class="blob blob3"></div></div>
+<div class="grain"></div>
+<div id="ai-bg"></div>
+
+<!-- ======= LOGIN ======= -->
+<div class="stage" id="stage-login">
+  <div class="glass panel">
+    <div class="logo"><span class="dot"></span>ABDUNURCREATOR</div>
+    <h1 class="title">Kirish</h1>
+    <p class="sub">Avval <a href="https://t.me/abdunurcreator_bot" target="_blank" style="color:var(--c)">@abdunurcreator_bot</a> ga <b>/start</b> yuboring, so'ng username va kodingizni kiriting.</p>
+    <div class="field">
+      <label>Telegram username</label>
+      <span class="prefix">@</span>
+      <input type="text" id="tg-username" class="with-prefix" placeholder="username" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Kod</label>
+      <input type="text" id="login-code" maxlength="6" placeholder="123456" style="text-align:center;letter-spacing:.3em;font-weight:bold;">
+    </div>
+    <button class="btn" id="login-btn">Kirish</button>
+    <div class="err" id="login-err"></div>
+    <p class="hint">Bot kodini yuborganidan keyin shu yerga kiriting.</p>
+  </div>
+</div>
+
+<!-- ======= MAIN ======= -->
+<div class="main-wrap" id="main-content">
+  <div class="nav-bar">
+    <button class="nav-btn glass" id="admin-nav-btn" onclick="openAdminPanel()" style="display:none">⚙️ Admin</button>
+    <button class="nav-btn glass" onclick="logout()">Chiqish</button>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">The Future is Now</div>
+    <h1>AbdunurCreator × AI</h1>
+    <p>Eng so'nggi sun'iy intellekt vositalari — video, rasm, matn generatsiyasi. Hamma narsani bir joyda toping.</p>
+    <div class="welcome-tag">Xush kelibsiz, <b id="welcome-name">@user</b></div>
+  </div>
+
+  <!-- AI CHATBOT TEST SECTION -->
+  <div class="sec-title">🤖 AI Sinab Ko'rish (Jonli Chat)</div>
+  <div class="glass chat-container" style="max-width: 800px; margin: 0 auto 50px;">
+    <div class="chat-header">
+      <span style="font-family: var(--dp); font-weight:600; color: var(--c);">Live AI Assistant</span>
+      <select class="chat-select" id="chat-model-select">
+        <option value="openai/gpt-oss-20b:free" selected>Noor-OSS 2.0</option>
+        <option value="google/gemma-4-31b-it:free">Noor-Lite 3.1</option>
+        <option value="qwen/qwen3-next-80b-a3b-instruct:free">Noor-Max 5.0</option>
+        <option value="qwen/qwen3-coder:free">Noor-Coder 4.5</option>
+      </select>
+    </div>
+    <div class="chat-messages" id="chat-msg-container">
+      <div class="chat-msg system">Suhbatni boshlash uchun quyida xabar yozing. Noor AI sizga yordam berishga tayyor.</div>
+    </div>
+    <div class="chat-input-bar">
+      <input type="text" id="chat-user-input" placeholder="AI ga savol bering..." autocomplete="off">
+      <button class="btn sm" id="chat-send-btn" onclick="sendChatMsg()">Yuborish</button>
+    </div>
+  </div>
+
+  <!-- VIDEO AI -->
+  <div class="sec-title">🎥 Video Yasaydigan AI'lar</div>
+  <div class="grid">
+    <div class="glass card">
+      <div class="ico">✨</div>
+      <h3>Higgsfield</h3>
+      <p>Yuqori sifatli, realistik va kinematografik videolar yaratishga ixtisoslashgan yangi avlod AI. Harakatlar va detallarni nozik tarzda tushunadi.</p>
+      <a href="https://higgsfield.ai" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🎬</div>
+      <h3>Kling AI</h3>
+      <p>Kuaishou tomonidan ishlab chiqilgan kuchli video generatsiya modeli. Uzun va murakkab sahnalarni qoyilmaqom tarzda tasvirlaydi.</p>
+      <a href="https://klingai.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🔮</div>
+      <h3>Google Veo 3</h3>
+      <p>Google DeepMind'ning eng so'nggi va eng kuchli video modeli. Tovush va musiqa bilan birga 1080p sifatdagi videolarni yaratadi.</p>
+      <a href="https://deepmind.google/technologies/veo/" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🚀</div>
+      <h3>Runway Gen-3</h3>
+      <p>Professional video ijodkorlar uchun mo'ljallangan kuchli AI. Kamera harakatlari va effektlarni to'liq nazorat qilish imkoniyati bor.</p>
+      <a href="https://runwayml.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🎭</div>
+      <h3>Pika Labs</h3>
+      <p>Rasmdan va matndan video yaratuvchi ijodiy AI platforma. Real vaqt rejimida video tahrirlash va effektlar qo'shish mumkin.</p>
+      <a href="https://pika.art" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🎨</div>
+      <h3>Luma Dream Machine</h3>
+      <p>Realistik fizika va harakat simulyatsiyasiga ega video AI. Murakkab 3D ko'rinishlarni ham ajoyib tarzda yaratadi.</p>
+      <a href="https://lumalabs.ai/dream-machine" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+  </div>
+
+  <!-- IMAGE AI -->
+  <div class="sec-title">🎨 Rasm Yasaydigan AI'lar</div>
+  <div class="grid">
+    <div class="glass card">
+      <div class="ico">🍌</div>
+      <h3>Ideogram</h3>
+      <p>Matinni rasmda aniq aks ettira oladigan noyob AI. Poster, logo va kreativ dizaynlar uchun juda qulay va tezkor platforma.</p>
+      <a href="https://ideogram.ai" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🤖</div>
+      <h3>ChatGPT (DALL-E 4)</h3>
+      <p>OpenAI'ning eng kuchli chatboti — matn, kod, tahlil va DALL-E 4 orqali professional rasm generatsiyasi. Barcha vazifalar uchun.</p>
+      <a href="https://chatgpt.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🌐</div>
+      <h3>Microsoft Copilot</h3>
+      <p>Internet bilan bog'langan va DALL-E 3 orqali rasm chiza oladigan universal AI yordamchi. Microsoft Office bilan to'liq integratsiya.</p>
+      <a href="https://copilot.microsoft.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">⚡</div>
+      <h3>Midjourney</h3>
+      <p>Dunyodagi eng mashhur va estetik jihatdan yuksak rasm generatsiya AI'si. San'at, fantaziya va professional fotosuratlar uchun ideal.</p>
+      <a href="https://midjourney.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🎯</div>
+      <h3>Adobe Firefly</h3>
+      <p>Adobe'ning kuchli generativ AI vositasi. Photoshop va Illustrator bilan to'liq integratsiya — professional natija kafolatlangan.</p>
+      <a href="https://firefly.adobe.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🧠</div>
+      <h3>Google Imagen 3</h3>
+      <p>Google'ning eng so'nggi rasm generatsiya modeli. Fotorealistik va badiiy tasvirlarni yaratishda eng yuksak sifatni ta'minlaydi.</p>
+      <a href="https://imagen3.withgoogle.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+  </div>
+
+  <!-- TEXT AI -->
+  <div class="sec-title">💬 Matn va Kod AI'lari</div>
+  <div class="grid">
+    <div class="glass card">
+      <div class="ico">🟢</div>
+      <h3>Claude (Anthropic)</h3>
+      <p>Xavfsizlik va intellekt uyg'unligida etakchi AI. Uzoq hujjatlarni o'qib tahlil qilish, kod yozish va murakkab vazifalarni hal qilishda ustun.</p>
+      <a href="https://claude.ai" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">💎</div>
+      <h3>Google Gemini</h3>
+      <p>Google'ning multi-modal AI modeli. Rasm, video, matn va ovozni birga tahlil qilish va ishlov berish imkoniyatiga ega kuchli platforma.</p>
+      <a href="https://gemini.google.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico">🦙</div>
+      <h3>Meta Llama</h3>
+      <p>Meta tomonidan ochiq manbali qilib chiqarilgan kuchli til modeli. O'z serveringizda ishlata olasiz — maxfiylik va nazorat to'liq sizda.</p>
+      <a href="https://llama.meta.com" target="_blank" class="btn">Saytiga o'tish</a>
+    </div>
+  </div>
+
+  <!-- SOCIALS -->
+  <div class="sec-title">Bog'lanish</div>
+  <div class="socials">
+    <a class="social-btn glass" href="https://t.me/abdunurcreator_bot" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 4L2.5 11l6 2.2m12.5-9.2L15 20l-6.5-6.8m12.5-9.2L8.5 13.2" stroke="#6c5ce7" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      Telegram Bot
+    </a>
+    <a class="social-btn glass" href="https://www.instagram.com/abdunurcreator/" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5" stroke="#ff6ec7" stroke-width="1.3"/><circle cx="12" cy="12" r="4" stroke="#ff6ec7" stroke-width="1.3"/><circle cx="17.2" cy="6.8" r="1" fill="#ff6ec7"/></svg>
+      Instagram
+    </a>
+    <a class="social-btn glass" href="https://discord.gg/EXkrvcYwx" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 7.5c-1.4-1-3-1.6-4.6-1.9l-.3.6c1.4.3 2.7.9 3.9 1.7-2-1-4.2-1.5-6.5-1.5s-4.5.5-6.5 1.5c1.2-.8 2.5-1.4 3.9-1.7l-.3-.6C8 5.9 6.4 6.5 5 7.5 3 10.6 2 14.1 2.3 17.5c1.6 1.2 3.2 1.9 4.7 2.4l.6-1c-.8-.3-1.6-.7-2.3-1.2.2-.1.4-.3.6-.4 3.5 1.6 7.4 1.6 10.9 0 .2.1.4.3.6.4-.7.5-1.5.9-2.3 1.2l.6 1c1.5-.5 3.1-1.2 4.7-2.4.4-4-.6-7.4-2.4-10z" stroke="#00d4ff" stroke-width="1.3" stroke-linejoin="round"/><circle cx="9" cy="13" r="1.3" fill="#00d4ff"/><circle cx="15" cy="13" r="1.3" fill="#00d4ff"/></svg>
+      Discord
+    </a>
+  </div>
+
+  <footer>© 2026 ABDUNURCREATOR — AI orqali yaratilgan dunyo</footer>
+</div>
+
+<!-- ======= ADMIN PANEL ======= -->
+<div class="stage hidden" id="stage-admin-dash">
+  <div class="glass panel panel-lg" style="animation:rise .6s cubic-bezier(.2,.8,.2,1);">
+    <div class="logo"><span class="dot"></span>ADMIN PANEL</div>
+    <h1 class="title" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+      AbdunurCreator
+      <!-- Ko'k verified badge -->
+      <svg class="verified-badge" viewBox="0 0 24 24" fill="#1D9BF0"><path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91-1.01-1-2.52-1.27-3.91-.81C14.67 2.88 13.43 2 12 2c-1.43 0-2.67.88-3.34 2.19-1.39-.46-2.9-.2-3.91.81-1 1.01-1.27 2.52-.81 3.91C2.88 9.33 2 10.57 2 12c0 1.43.88 2.67 2.19 3.34-.46 1.39-.2 2.9.81 3.91 1.01 1 2.52 1.27 3.91.81C9.33 21.12 10.57 22 12 22c1.43 0 2.67-.88 3.34-2.19 1.39.46 2.9.2 3.91-.81 1-1.01 1.27-2.52.81-3.91C21.12 14.67 22 13.43 22 12zm-6.16-2.14l-4.45 5.38-2.78-2.77a.75.75 0 0 0-1.06 1.06l3.36 3.36a.75.75 0 0 0 1.09-.04l5-6.06a.75.75 0 0 0-1.16-.93z"/></svg>
+    </h1>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-users" onclick="switchTab('tab-users')">👥 Foydalanuvchilar</button>
+      <button class="tab" id="tab-ads" onclick="switchTab('tab-ads')">📢 Reklama</button>
+      <button class="tab" id="tab-config" onclick="switchTab('tab-config')">⚙️ Sozlamalar</button>
+    </div>
+
+    <!-- USERS SECTION -->
+    <div id="sec-tab-users" class="admin-section">
+      <div class="user-count" id="user-count">Yuklanmoqda...</div>
+      <button class="btn ghost" style="margin:0 0 14px;padding:8px;" onclick="loadPendingUsers()">🔄 Yangilash</button>
+      <div class="user-list" id="user-list-container">
+        <p style="color:var(--td);font-size:.85rem;text-align:center;">Yuklanmoqda...</p>
+      </div>
+
+      <!-- MESSAGE COMPOSER -->
+      <div class="msg-composer hidden" id="msg-composer">
+        <div class="msg-target" id="msg-target-label">Foydalanuvchi tanlang</div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>Username (o'zgartirish mumkin)</label>
+          <span class="prefix">@</span>
+          <input type="text" id="msg-username" class="with-prefix" placeholder="username">
+        </div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>Xabar matni</label>
+          <textarea id="msg-text" placeholder="Xabar yozing..."></textarea>
+        </div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>Kod (ixtiyoriy — kirish kodi yuborish uchun)</label>
+          <input type="text" id="msg-code" maxlength="6" placeholder="123456">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:.72rem;color:var(--td);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-family:var(--mn);">Xabar rangi</label>
+          <div class="btn-row">
+            <button class="btn green sm" id="color-green" onclick="setMsgColor('green')" style="flex:1">✅ Yashil (Kod/Tasdiqlash)</button>
+            <button class="btn red sm" id="color-red" onclick="setMsgColor('red')" style="flex:1">❌ Qizil (Xatolik/Rad etish)</button>
+          </div>
+        </div>
+        <button class="btn" onclick="sendMsg()">📨 Xabar Yuborish</button>
+        <div class="err" id="msg-err"></div>
+        <div class="ok" id="msg-ok"></div>
+      </div>
+    </div>
+
+    <!-- ADS SECTION -->
+    <div id="sec-tab-ads" class="admin-section hidden">
+      <p class="sub" style="text-align:left;">Reklama joylang — barcha obunachilarga bot orqali avtomatik tarqatiladi.</p>
+      <div class="field"><label>Rasm URL</label><input type="text" id="ad-img" placeholder="https://..."></div>
+      <div class="field"><label>Kompaniya nomi</label><input type="text" id="ad-company" placeholder="OpenAI"></div>
+      <div class="field"><label>Kompaniya sayti (link)</label><input type="text" id="ad-link" placeholder="https://openai.com"></div>
+      <div class="field"><label>Reklama matni</label><textarea id="ad-text" placeholder="Reklama haqida..."></textarea></div>
+      <button class="btn" onclick="postAd()">📢 Joylash va Barchaga Yuborish</button>
+      <div class="err" id="ad-err"></div>
+      <div class="ok" id="ad-ok"></div>
+    </div>
+
+    <!-- CONFIG SECTION -->
+    <div id="sec-tab-config" class="admin-section hidden">
+      <p class="sub" style="text-align:left;">Saytda bepul AI chatboti ishlashi uchun OpenRouter API kalitini kiriting.</p>
+      <div class="field">
+        <label>OpenRouter API Key</label>
+        <input type="password" id="config-or-key" placeholder="sk-or-v1-...">
+      </div>
+      <button class="btn" onclick="saveConfig()">💾 Sozlamalarni Saqlash</button>
+      <div class="err" id="config-err"></div>
+      <div class="ok" id="config-ok"></div>
+    </div>
+
+    <button class="btn ghost" onclick="closeAdminPanel()">← Asosiy sahifaga</button>
+  </div>
+</div>
+
+<!-- Floating News -->
+<div class="news-floater" id="news-floater">📰</div>
+
+<!-- Ads Modal -->
+<div class="overlay" id="ads-overlay">
+  <div class="glass ad-modal panel" style="padding:28px 20px;">
+    <button class="close-modal" id="close-ads">&times;</button>
+    <h2 style="font-family:var(--dp);margin-bottom:20px;">📰 Reklamalar</h2>
+    <div id="ads-container"><p style="color:var(--td);text-align:center;">Hali reklama yo'q.</p></div>
+  </div>
+</div>
+
+<script>
+// Inline color button highlight
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('color-green').style.outline='3px solid #00b894';
+});
+function setMsgColor(c){
+  msgColor=c;
+  const g=document.getElementById('color-green');
+  const r=document.getElementById('color-red');
+  g.style.outline=c==='green'?'3px solid #00b894':'none';
+  r.style.outline=c==='red'?'3px solid #e74c3c':'none';
+}
+</script>
+<script src="app.js"></script>
+</body>
+</html>
