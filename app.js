@@ -244,6 +244,7 @@ async function loadConfig() {
     const d = await r.json();
     if (r.ok && d.config) {
       document.getElementById('config-or-key').value = d.config.openRouterKey || '';
+      document.getElementById('config-oc-key').value = d.config.openCodeKey || '';
     }
   } catch (e) {
     console.error('Config yuklash xatosi:', e);
@@ -252,6 +253,7 @@ async function loadConfig() {
 
 async function saveConfig() {
   const openRouterKey = document.getElementById('config-or-key').value.trim();
+  const openCodeKey = document.getElementById('config-oc-key').value.trim();
   const err = document.getElementById('config-err');
   const ok = document.getElementById('config-ok');
   err.textContent = ''; ok.textContent = '';
@@ -260,7 +262,7 @@ async function saveConfig() {
     const r = await fetch(BASE_URL + '/api/admin/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: adminPass, openRouterKey })
+      body: JSON.stringify({ password: adminPass, openRouterKey, openCodeKey })
     });
     const d = await r.json();
     if (r.ok) {
@@ -277,8 +279,8 @@ function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Chat javobidagi ```kod``` bloklarini topib, "Ishga tushirish" tugmasi bilan
-// ko'rsatadigan qilib render qiladi (faqat AI javoblari uchun).
+// Chat javobidagi ```kod``` bloklarini topib, "Ishga tushirish" va "Nusxa"
+// tugmalari bilan ko'rsatadigan qilib render qiladi (faqat AI javoblari uchun).
 let codeBlockCounter = 0;
 const codeBlocksStore = {};
 const RUNNABLE_LANGS = ['html', 'js', 'javascript', 'css', 'python', 'py'];
@@ -296,7 +298,12 @@ function renderAiMessageHTML(text) {
     codeBlocksStore[id] = { lang, code };
     const runnable = RUNNABLE_LANGS.includes(lang);
     out += `<div class="code-block-wrap">
-      <div class="code-block-header"><span class="code-lang">${escapeHtml(lang || 'code')}</span>${runnable ? `<button type="button" class="code-run-btn" onclick="runCodeBlock('${id}')">▶ Ishga tushirish</button>` : ''}</div>
+      <div class="code-block-header"><span class="code-lang">${escapeHtml(lang || 'code')}</span>
+        <span class="code-block-actions">
+          <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">📋 Nusxa</button>
+          ${runnable ? `<button type="button" class="code-run-btn" onclick="runCodeBlock('${id}')">▶ Ishga tushirish</button>` : ''}
+        </span>
+      </div>
       <pre class="code-block"><code>${escapeHtml(code)}</code></pre>
       <div class="code-result hidden" id="result-${id}"></div>
     </div>`;
@@ -304,6 +311,31 @@ function renderAiMessageHTML(text) {
   }
   out += escapeHtml(text.slice(lastIndex)).replace(/\n/g, '<br>');
   return out;
+}
+
+function copyCodeBlock(id, btnEl) {
+  const block = codeBlocksStore[id];
+  if (!block) return;
+  const done = (ok) => {
+    const original = btnEl.textContent;
+    btnEl.textContent = ok ? '✅ Nusxalandi' : '⚠️ Xatolik';
+    setTimeout(() => { btnEl.textContent = original; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(block.code).then(() => done(true)).catch(() => done(false));
+  } else {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = block.code;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done(true);
+    } catch (e) { done(false); }
+  }
 }
 
 // Pyodide (Python'ni brauzerda WebAssembly orqali ishlatadi) — bepul, backend kerak emas
@@ -377,11 +409,34 @@ try { ${block.code} } catch(e) { log('❌ Xatolik: ' + e.message); }
   iframe.srcdoc = srcdoc;
 }
 
-// === AI CHATBOT (FRONTEND) — Noor AI 1.5 ===
+// === AI CHATBOT (FRONTEND) — Noor AI 1.5 / Noor AI 1.0 (Coder) ===
 // Endi model tanlash yo'q: server o'zi ishlaydigan bepul modelni tanlaydi.
 // Foydalanuvchi rasm tashlasa (drop/tanlasa), Noor AI uni ham "ko'radi" va tushunadi.
 let chatHistory = [];
 let pendingImage = null; // {dataUrl, name}
+let currentChatMode = 'general'; // 'general' (Noor AI 1.5) | 'coder' (Noor AI 1.0 Coder)
+
+function setChatMode(mode) {
+  if (mode === currentChatMode) return;
+  currentChatMode = mode;
+  document.querySelectorAll('.model-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  const note = document.getElementById('chat-note');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  if (mode === 'coder') {
+    note.textContent = t('chat.noteCoder', "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan. Kod so'rang, u yozadi, siz sinab ko'rasiz.");
+  } else {
+    note.textContent = t('chat.noteGeneral', "Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.");
+  }
+  // Rejim almashganda suhbat tarixini yangidan boshlaymiz (ikki model bir-biridan mustaqil)
+  chatHistory = [];
+  const container = document.getElementById('chat-msg-container');
+  container.innerHTML = '';
+  appendChatBubble(mode === 'coder'
+    ? "Noor AI 1.0 (Coder) rejimiga o'tdingiz. Qanday kod yozib berish kerak?"
+    : "Noor AI 1.5 rejimiga o'tdingiz. Nima bilan yordam bera olaman?", 'system');
+}
 
 function appendChatBubble(text, sender) {
   const container = document.getElementById('chat-msg-container');
@@ -479,7 +534,7 @@ async function sendChatMsg() {
     const r = await fetch(BASE_URL + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: chatHistory })
+      body: JSON.stringify({ messages: chatHistory, mode: currentChatMode })
     });
     const d = await r.json();
 

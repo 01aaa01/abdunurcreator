@@ -39,7 +39,7 @@ app.get('/', (req, res) => {
 });
 
 // DB
-let db = { users: {}, ads: [], pendingUsers: {}, config: { openRouterKey: '' } };
+let db = { users: {}, ads: [], pendingUsers: {}, config: { openRouterKey: '', openCodeKey: '' } };
 const dbPath = path.join(__dirname, 'data.json');
 
 if (fs.existsSync(dbPath)) {
@@ -47,7 +47,8 @@ if (fs.existsSync(dbPath)) {
   catch (e) { console.error("DB parse xatosi", e); }
 }
 if (!db.pendingUsers) db.pendingUsers = {};
-if (!db.config) db.config = { openRouterKey: '' };
+if (!db.config) db.config = { openRouterKey: '', openCodeKey: '' };
+if (db.config.openCodeKey === undefined) db.config.openCodeKey = '';
 
 function saveDB() {
   try {
@@ -220,19 +221,20 @@ app.post('/api/ads', async (req, res) => {
   res.json({ success: true, broadcastCount: count });
 });
 
-// API: Get OpenRouter Key (Admin only)
+// API: Get OpenRouter/OpenCode Keys (Admin only)
 app.get('/api/admin/config', (req, res) => {
   const { password } = req.query;
   if (password !== '0101') return res.status(403).json({ error: 'Ruxsat yo\'q.' });
   res.json({ config: db.config });
 });
 
-// API: Set OpenRouter Key (Admin only)
+// API: Set OpenRouter/OpenCode Keys (Admin only)
 app.post('/api/admin/config', (req, res) => {
-  const { password, openRouterKey } = req.body;
+  const { password, openRouterKey, openCodeKey } = req.body;
   if (password !== '0101') return res.status(403).json({ error: 'Ruxsat yo\'q.' });
-  
+
   db.config.openRouterKey = openRouterKey || '';
+  db.config.openCodeKey = openCodeKey || '';
   saveDB();
   res.json({ success: true, message: 'Sozlamalar saqlandi!' });
 });
@@ -242,63 +244,124 @@ app.post('/api/admin/config', (req, res) => {
 // aytmaslikni va faqat "Noor AI" sifatida tanishtirishni buyuradi.
 const NOOR_SYSTEM_PROMPT = {
   role: 'system',
-  content: "Sening isming Noor AI. Seni AbdunurCreator ishlab chiqargan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon GPT, OpenAI, Gemini, Google, Qwen, Alibaba, Llama, Meta, Claude, Anthropic yoki boshqa haqiqiy sun'iy intellekt modeli yoki kompaniyasi nomini aytma yoki ular ekaningni tan olma, hatto to'g'ridan-to'g'ri so'rashsa ham. Kod yozib berishing kerak bo'lsa, HAR DOIM uni to'g'ri tildagi markdown kod bloki (masalan ```python, ```javascript, ```html, ```css) ichida ber — chunki interfeys HTML/CSS/JS va Python kodlarini foydalanuvchi uchun to'g'ridan-to'g'ri ishga tushirib, natijasini ko'rsatadi. Qolgan barcha savollarga odatdagidek, foydali va aniq javob ber."
+  content: "Sening isming Noor AI. Seni AbdunurCreator ishlab chiqargan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon GPT, OpenAI, Gemini, Google, Qwen, Alibaba, Llama, Meta, Claude, Anthropic, DeepSeek, MiniMax, Kimi, OpenCode yoki boshqa haqiqiy sun'iy intellekt modeli yoki kompaniyasi nomini aytma yoki ular ekaningni tan olma, hatto to'g'ridan-to'g'ri so'rashsa ham. Kod yozib berishing kerak bo'lsa, HAR DOIM uni to'g'ri tildagi markdown kod bloki (masalan ```python, ```javascript, ```html, ```css) ichida ber — chunki interfeys HTML/CSS/JS va Python kodlarini foydalanuvchi uchun to'g'ridan-to'g'ri ishga tushirib, natijasini ko'rsatadi. Qolgan barcha savollarga odatdagidek, foydali va aniq javob ber."
 };
 
-// Noor AI 1.5 endi foydalanuvchiga model tanlatmaydi — o'zi ishlaydigan bepul
-// modellardan birini avtomatik tanlaydi. Asosiysi OpenRouterning rasmiy
-// "Free Models Router" (openrouter/free) — u so'rov turiga qarab (oddiy matn,
-// kod, yoki rasmni tushunish kerakligiga qarab) mos bepul modelni o'zi tanlaydi.
-// Agar u band/xato bersa, ketma-ket boshqa haqiqiy ishlaydigan bepul
-// modellarga o'tib ko'radi (fallback chain), foydalanuvchi buni sezmaydi.
+const NOOR_CODER_SYSTEM_PROMPT = {
+  role: 'system',
+  content: "Sening isming Noor AI 1.0 (Coder). Seni AbdunurCreator ishlab chiqargan. Sen faqat va faqat kod yozish, kodni tushuntirish, xatolarni topish (debug) va dasturlash bo'yicha savollarga ixtisoslashgansan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI 1.0 (Coder) man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon haqiqiy AI modeli yoki kompaniya nomini aytma (GPT, OpenAI, Claude, Anthropic, Gemini, Google, Qwen, DeepSeek, MiniMax, Kimi, OpenCode va h.k.), hatto to'g'ridan-to'g'ri so'rashsa ham. Kodni HAR DOIM to'g'ri tildagi toza, izohli (chiroyli formatlangan) markdown kod bloki ichida ber (masalan ```python, ```javascript, ```html, ```css) — interfeys bu kodlarni to'g'ridan-to'g'ri ishga tushirib, natijasini ko'rsatadi. Kod bilan birga qisqacha, aniq tushuntirish ham qo'sh."
+};
+
+// Noor AI 1.5 (umumiy) — OpenRouter'ning bepul router'i + zaxira modellar
 const NOOR_MODEL_CHAIN = [
-  'openrouter/free',                              // OpenRouter'ning avtomatik bepul router'i (vision/tool-ni ham hisobga oladi)
-  'meta-llama/llama-3.3-70b-instruct:free',       // Kuchli umumiy maqsadli zaxira model
-  'qwen/qwen3-coder:free',                         // Kod uchun kuchli zaxira model
-  'openai/gpt-oss-20b:free'                        // Yana bir keng tarqalgan zaxira model
+  'openrouter/free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'qwen/qwen3-coder:free',
+  'openai/gpt-oss-20b:free'
 ];
 
-// API: OpenRouter Chat Proxy (Noor AI 1.5)
+// Noor AI 1.0 (Coder) — OpenCode Zen'ning kodlash uchun ixtisoslashgan bepul modellari
+const OPENCODE_MODEL_CHAIN = [
+  'big-pickle',
+  'deepseek-v4-flash-free',
+  'mimo-v2.5-free',
+  'hy3-free',
+  'nemotron-3-ultra-free',
+  'north-mini-code-free'
+];
+// OpenCode kaliti yo'q yoki barchasi ishlamasa, OpenRouter'dagi kodlash modellariga o'tamiz
+const CODER_OPENROUTER_FALLBACK = ['qwen/qwen3-coder:free', 'openrouter/free'];
+
+async function callOpenRouter(model, messages, apiKey) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'http://localhost:3000',
+      'X-Title': 'AbdunurCreator'
+    },
+    body: JSON.stringify({ model, messages })
+  });
+  const data = await response.json();
+  return { ok: response.ok, status: response.status, data };
+}
+
+async function callOpenCodeZen(model, messages, apiKey) {
+  const response = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ model, messages })
+  });
+  const data = await response.json();
+  return { ok: response.ok, status: response.status, data };
+}
+
+// API: OpenRouter/OpenCode Chat Proxy (Noor AI 1.5 / Noor AI 1.0 Coder)
 app.post('/api/chat', async (req, res) => {
-  const { messages } = req.body;
+  const { messages, mode } = req.body;
+  const isCoder = mode === 'coder';
 
   if (typeof fetch !== 'function') {
     return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past). AI chat ishlashi uchun Node.js 18 yoki undan yangi versiyasini o\'rnating: https://nodejs.org' });
   }
 
+  const systemPrompt = isCoder ? NOOR_CODER_SYSTEM_PROMPT : NOOR_SYSTEM_PROMPT;
+  const outgoingMessages = [systemPrompt, ...(messages || [])];
+  let lastError = null;
+
+  // === CODER REJIMI: avval OpenCode Zen, keyin OpenRouter'ga zaxira ===
+  if (isCoder) {
+    if (db.config.openCodeKey) {
+      for (const model of OPENCODE_MODEL_CHAIN) {
+        try {
+          const { ok, status, data } = await callOpenCodeZen(model, outgoingMessages, db.config.openCodeKey);
+          if (ok) return res.json(data);
+          lastError = data.error?.message || ('OpenCode Zen xatoligi (status ' + status + ')');
+          console.error(`⚠️  Noor Coder: "${model}" (OpenCode Zen) javob bermadi:`, lastError);
+        } catch (netErr) {
+          lastError = netErr.message;
+          console.error(`⚠️  Noor Coder: "${model}" ulanish xatosi:`, lastError);
+        }
+      }
+    }
+    // OpenCode kaliti yo'q yoki hammasi ishlamadi -> OpenRouter'dagi kod modellariga o'tamiz
+    if (db.config.openRouterKey) {
+      for (const model of CODER_OPENROUTER_FALLBACK) {
+        try {
+          const { ok, status, data } = await callOpenRouter(model, outgoingMessages, db.config.openRouterKey);
+          if (ok) return res.json(data);
+          lastError = data.error?.message || ('OpenRouter xatoligi (status ' + status + ')');
+          console.error(`⚠️  Noor Coder: "${model}" (OpenRouter zaxira) javob bermadi:`, lastError);
+        } catch (netErr) {
+          lastError = netErr.message;
+        }
+      }
+    }
+    if (!db.config.openCodeKey && !db.config.openRouterKey) {
+      return res.status(400).json({ error: 'Coder rejimi uchun kalit o\'rnatilmagan. Admin panel > Sozlamalar\'da OpenCode Zen yoki OpenRouter kalitini kiriting.' });
+    }
+    return res.status(502).json({ error: 'Noor Coder hozircha band (barcha bepul modellar javob bermadi). Birozdan so\'ng qayta urinib ko\'ring: ' + (lastError || 'noma\'lum xatolik') });
+  }
+
+  // === UMUMIY REJIM (Noor AI 1.5): OpenRouter ===
   if (!db.config.openRouterKey) {
     return res.status(400).json({ error: 'OpenRouter API kaliti o\'rnatilmagan. Admin panel orqali sozlang.' });
   }
-
-  const outgoingMessages = [NOOR_SYSTEM_PROMPT, ...(messages || [])];
-  let lastError = null;
-
   for (const model of NOOR_MODEL_CHAIN) {
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${db.config.openRouterKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'http://localhost:3000',
-          'X-Title': 'AbdunurCreator'
-        },
-        body: JSON.stringify({ model, messages: outgoingMessages })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        return res.json(data);
-      }
-      lastError = data.error?.message || ('OpenRouter xatoligi (status ' + response.status + ')');
+      const { ok, status, data } = await callOpenRouter(model, outgoingMessages, db.config.openRouterKey);
+      if (ok) return res.json(data);
+      lastError = data.error?.message || ('OpenRouter xatoligi (status ' + status + ')');
       console.error(`⚠️  Noor AI: "${model}" javob bermadi, keyingisiga o'tilmoqda:`, lastError);
     } catch (netErr) {
       lastError = netErr.message;
       console.error(`⚠️  Noor AI: "${model}" ulanish xatosi, keyingisiga o'tilmoqda:`, lastError);
     }
   }
-
-  // Barcha zaxira modellar ham ishlamasa
   res.status(502).json({ error: 'Noor AI hozircha band (barcha bepul modellar javob bermadi). Birozdan so\'ng qayta urinib ko\'ring: ' + (lastError || 'noma\'lum xatolik') });
 });
 

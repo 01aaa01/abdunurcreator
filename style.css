@@ -119,7 +119,10 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 
 /* ===== Runnable code blocks in chat (Noor AI writes code, site runs it) ===== */
 .code-block-wrap{margin:10px 0;border-radius:12px;overflow:hidden;border:1px solid var(--gb);background:#0a0d16;max-width:100%;}
-.code-block-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.05);border-bottom:1px solid var(--gb);}
+.code-block-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.05);border-bottom:1px solid var(--gb);flex-wrap:wrap;gap:6px;}
+.code-block-actions{display:flex;gap:6px;}
+.code-copy-btn{width:auto;padding:5px 12px;font-size:.75rem;border-radius:8px;border:1px solid var(--gb);background:rgba(255,255,255,.05);color:var(--td);cursor:pointer;font-family:var(--dp);font-weight:600;transition:background .2s,color .2s;}
+.code-copy-btn:hover{background:rgba(255,255,255,.1);color:var(--t);}
 .code-lang{font-family:var(--mn);font-size:.72rem;color:var(--c);text-transform:uppercase;letter-spacing:.06em;}
 .code-run-btn{width:auto;padding:5px 12px;font-size:.75rem;border-radius:8px;border:1px solid rgba(0,212,255,.35);background:rgba(0,212,255,.1);color:var(--c);cursor:pointer;font-family:var(--dp);font-weight:600;transition:background .2s;}
 .code-run-btn:hover{background:rgba(0,212,255,.2);}
@@ -132,6 +135,18 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 .code-running{font-family:var(--mn);font-size:.8rem;color:var(--td);}
 .code-output{margin:0;font-family:var(--mn);font-size:.8rem;color:#9effa0;white-space:pre-wrap;word-break:break-word;background:#05070d;padding:10px;border-radius:8px;max-height:280px;overflow-y:auto;}
 .code-iframe{width:100%;min-height:180px;border:none;border-radius:8px;background:#fff;}
+
+/* ===== Til almashtirgich (UZ/RU/EN) ===== */
+.lang-switch{display:flex;gap:4px;background:rgba(255,255,255,.05);border:1px solid var(--gb);border-radius:100px;padding:3px;}
+.lang-btn{width:auto;background:none;border:none;color:var(--td);font-family:var(--mn);font-size:.7rem;font-weight:600;padding:5px 10px;border-radius:100px;cursor:pointer;letter-spacing:.04em;}
+.lang-btn.active{background:linear-gradient(135deg,var(--v),var(--c));color:#fff;}
+#lang-switch-login{position:absolute;top:16px;right:16px;}
+.panel{position:relative;}
+
+/* ===== Noor AI model toggle (Umumiy / Coder) ===== */
+.model-toggle{display:flex;gap:4px;background:rgba(255,255,255,.05);border:1px solid var(--gb);border-radius:100px;padding:3px;}
+.model-toggle-btn{width:auto;background:none;border:none;color:var(--td);font-family:var(--mn);font-size:.72rem;font-weight:600;padding:6px 12px;border-radius:100px;cursor:pointer;white-space:nowrap;transition:background .2s,color .2s;}
+.model-toggle-btn.active{background:linear-gradient(135deg,rgba(108,92,231,.9),rgba(0,212,255,.85));color:#fff;}
 
 /* ===== Noor AI model badge (replaces old dropdown) ===== */
 .model-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mn);font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:100px;background:linear-gradient(135deg,rgba(108,92,231,.22),rgba(0,212,255,.18));border:1px solid rgba(0,212,255,.35);color:var(--c);letter-spacing:.02em;}
