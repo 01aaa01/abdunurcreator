@@ -39,7 +39,7 @@ function restoreSession(){
     if(!s||!s.username)return false;
     currentUser=s.username;isAdmin=!!s.admin;
     document.getElementById('welcome-name').textContent='@'+currentUser;
-    document.getElementById('admin-nav-btn').style.display=isAdmin?'block':'none';
+    document.getElementById('admin-nav-btn').style.display=isAdmin?'inline-flex':'none';
     showStage('main-content');
     fetchAds();
     return true;
@@ -55,7 +55,35 @@ function showStage(id){
   if(id==='main-content'){el.classList.add('show');}
 }
 
-// === LOGIN ===
+// === AUTH TABS (Kirish / Ro'yxatdan o'tish) ===
+function switchAuthTab(tab) {
+  document.getElementById('auth-tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('auth-tab-signup').classList.toggle('active', tab === 'signup');
+  document.getElementById('auth-pane-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('auth-pane-signup').classList.toggle('hidden', tab === 'login' ? false : true);
+}
+
+function chooseAuthMethod(paneKind, method) {
+  document.getElementById('login-err').textContent = '';
+  if (paneKind === 'login') {
+    document.getElementById('login-sub-telegram').classList.toggle('hidden', method !== 'telegram');
+    document.getElementById('login-sub-password').classList.toggle('hidden', method !== 'password');
+    if (method === 'google') triggerGoogleSignIn();
+  } else {
+    if (method === 'google') triggerGoogleSignIn();
+  }
+}
+
+function onLoginSuccess(username, admin) {
+  currentUser = username; isAdmin = admin;
+  document.getElementById('welcome-name').textContent = '@' + username;
+  document.getElementById('admin-nav-btn').style.display = isAdmin ? 'inline-flex' : 'none';
+  saveSession(username, isAdmin);
+  showStage('main-content');
+  fetchAds();
+}
+
+// === LOGIN (Telegram OTP) ===
 async function doLogin(){
   const uEl=document.getElementById('tg-username');
   const cEl=document.getElementById('login-code');
@@ -67,19 +95,59 @@ async function doLogin(){
   try{
     const r=await fetch(BASE_URL+'/api/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,code})});
     const d=await r.json();
-    if(r.ok){
-      currentUser=username;isAdmin=d.isAdmin;
-      document.getElementById('welcome-name').textContent='@'+username;
-      if(isAdmin){document.getElementById('admin-nav-btn').style.display='block';}
-      else{document.getElementById('admin-nav-btn').style.display='none';}
-      saveSession(username,isAdmin);
-      showStage('main-content');
-      fetchAds();
-    }else{err.textContent=d.error||'Xatolik.';}
+    if(r.ok){ err.textContent=''; onLoginSuccess(username, d.isAdmin); }
+    else{err.textContent=d.error||'Xatolik.';}
   }catch(e){err.textContent='Server bilan aloqa yo\'q. Node.js server yoniqmi?';}
 }
 document.getElementById('login-btn').addEventListener('click',doLogin);
 document.getElementById('login-code').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// === LOGIN (username/parol) ===
+async function doPasswordLogin() {
+  const identifier = document.getElementById('pw-identifier').value.trim();
+  const password = document.getElementById('pw-password').value;
+  const err = document.getElementById('login-err');
+  if (!identifier || !password) { err.textContent = 'Login va parolni kiriting.'; return; }
+  err.textContent = 'Tekshirilmoqda...';
+  try {
+    const r = await fetch(BASE_URL + '/api/password-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier, password }) });
+    const d = await r.json();
+    if (r.ok) { err.textContent = ''; onLoginSuccess(d.username, d.isAdmin); }
+    else { err.textContent = d.error || 'Xatolik.'; }
+  } catch (e) { err.textContent = 'Server bilan aloqa yo\'q.'; }
+}
+document.getElementById('pw-login-btn').addEventListener('click', doPasswordLogin);
+document.getElementById('pw-password').addEventListener('keydown', e => { if (e.key === 'Enter') doPasswordLogin(); });
+
+// === GOOGLE SIGN-IN ===
+let googleClientIdCache = null;
+async function getGoogleClientId() {
+  if (googleClientIdCache !== null) return googleClientIdCache;
+  try {
+    const r = await fetch(BASE_URL + '/api/google-client-id');
+    const d = await r.json();
+    googleClientIdCache = d.clientId || '';
+  } catch (e) { googleClientIdCache = ''; }
+  return googleClientIdCache;
+}
+async function handleGoogleCredential(response) {
+  const err = document.getElementById('login-err');
+  err.textContent = 'Tekshirilmoqda...';
+  try {
+    const r = await fetch(BASE_URL + '/api/google-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: response.credential }) });
+    const d = await r.json();
+    if (r.ok) { err.textContent = ''; onLoginSuccess(d.username, d.isAdmin); }
+    else { err.textContent = d.error || 'Google orqali kirishda xatolik.'; }
+  } catch (e) { err.textContent = 'Server bilan aloqa yo\'q.'; }
+}
+async function triggerGoogleSignIn() {
+  const err = document.getElementById('login-err');
+  const clientId = await getGoogleClientId();
+  if (!clientId) { err.textContent = 'Google orqali kirish hali serverda sozlanmagan (GOOGLE_CLIENT_ID kerak).'; return; }
+  if (typeof google === 'undefined' || !google.accounts) { err.textContent = 'Google xizmati yuklanmadi, internetni tekshiring.'; return; }
+  google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleCredential });
+  google.accounts.id.prompt();
+}
 
 function logout(){
   currentUser='';isAdmin=false;
@@ -95,12 +163,139 @@ document.addEventListener('DOMContentLoaded',()=>{
   restoreSession();
 });
 
+// === PROFIL (rasm + ism, username o'zgarmaydi) ===
+let pendingProfilePhoto = null;
+async function openProfile() {
+  document.getElementById('profile-username').value = '@' + currentUser;
+  document.getElementById('profile-err').textContent = '';
+  document.getElementById('profile-ok').textContent = '';
+  pendingProfilePhoto = null;
+  try {
+    const r = await fetch(BASE_URL + '/api/profile?username=' + encodeURIComponent(currentUser));
+    const d = await r.json();
+    if (r.ok) {
+      document.getElementById('profile-name').value = d.name || '';
+      if (d.photo) document.getElementById('profile-photo-preview').src = d.photo;
+    }
+  } catch (e) {}
+  document.getElementById('profile-overlay').classList.add('active');
+}
+document.getElementById('profile-photo-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const dataUrl = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(file); });
+  pendingProfilePhoto = dataUrl;
+  document.getElementById('profile-photo-preview').src = dataUrl;
+});
+async function saveProfile() {
+  const name = document.getElementById('profile-name').value.trim();
+  const err = document.getElementById('profile-err');
+  const ok = document.getElementById('profile-ok');
+  err.textContent = ''; ok.textContent = '';
+  try {
+    const body = { username: currentUser, name };
+    if (pendingProfilePhoto) body.photo = pendingProfilePhoto;
+    const r = await fetch(BASE_URL + '/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (r.ok) ok.textContent = 'Saqlandi!';
+    else err.textContent = d.error || 'Xatolik.';
+  } catch (e) { err.textContent = 'Server xatoligi.'; }
+}
+
+// === TO'LIQ EKRANLI CHAT SAHIFASI (ChatGPT/Claude uslubida) ===
+const CHAT_SESSIONS_KEY = 'noor_chat_sessions';
+let chatSessions = [];
+let activeSessionId = null;
+
+function loadSessionsFromStorage() {
+  try { chatSessions = JSON.parse(localStorage.getItem(CHAT_SESSIONS_KEY) || '[]'); } catch (e) { chatSessions = []; }
+}
+function saveSessionsToStorage() {
+  try { localStorage.setItem(CHAT_SESSIONS_KEY, JSON.stringify(chatSessions)); } catch (e) {}
+}
+function renderSidebarSessions() {
+  const wrap = document.getElementById('sidebar-sessions');
+  wrap.innerHTML = '';
+  chatSessions.slice().reverse().forEach(session => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'sidebar-session-item' + (session.id === activeSessionId ? ' active' : '');
+    item.textContent = session.title || 'Yangi suhbat';
+    item.onclick = () => loadChatSession(session.id);
+    wrap.appendChild(item);
+  });
+}
+function startNewChatSession() {
+  const session = { id: 'sess' + Date.now(), title: 'Yangi suhbat', mode: 'general', messages: [] };
+  chatSessions.push(session);
+  saveSessionsToStorage();
+  activeSessionId = session.id;
+  chatHistory = [];
+  currentChatMode = 'general';
+  document.querySelectorAll('.model-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'general'));
+  document.getElementById('chat-msg-container').innerHTML = '';
+  appendChatBubble("Yangi suhbat boshlandi. Nima bilan yordam bera olaman?", 'system');
+  closeCodePanel();
+  renderSidebarSessions();
+}
+function loadChatSession(id) {
+  const session = chatSessions.find(s => s.id === id);
+  if (!session) return;
+  activeSessionId = id;
+  currentChatMode = session.mode || 'general';
+  chatHistory = session.messages || [];
+  document.querySelectorAll('.model-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === currentChatMode));
+  const container = document.getElementById('chat-msg-container');
+  container.innerHTML = '';
+  closeCodePanel();
+  if (chatHistory.length === 0) {
+    appendChatBubble("Suhbatni boshlash uchun quyida xabar yozing.", 'system');
+  } else {
+    chatHistory.forEach(m => {
+      if (m.role === 'user') {
+        const textPart = Array.isArray(m.content) ? (m.content.find(c => c.type === 'text')?.text || '') : m.content;
+        const imgPart = Array.isArray(m.content) ? m.content.find(c => c.type === 'image_url') : null;
+        if (imgPart) appendChatImage(imgPart.image_url.url);
+        if (textPart) appendChatBubble(textPart, 'user');
+      } else if (m.role === 'assistant') {
+        appendChatBubble(m.content, 'ai');
+      }
+    });
+  }
+  renderSidebarSessions();
+}
+function persistActiveSession(title) {
+  const session = chatSessions.find(s => s.id === activeSessionId);
+  if (!session) return;
+  session.messages = chatHistory;
+  session.mode = currentChatMode;
+  if (title && (session.title === 'Yangi suhbat' || !session.title)) session.title = title.slice(0, 40);
+  saveSessionsToStorage();
+  renderSidebarSessions();
+}
+
+function openChatStage() {
+  loadSessionsFromStorage();
+  showStage('stage-chat');
+  if (chatSessions.length === 0 || !activeSessionId) {
+    startNewChatSession();
+  } else {
+    loadChatSession(activeSessionId);
+  }
+}
+function closeChatStage() {
+  showStage('main-content');
+}
+function closeCodePanel() {
+  document.getElementById('chat-code-panel').classList.add('hidden');
+  document.getElementById('code-panel-body').innerHTML = '';
+}
+
 // === ADMIN PANEL ===
 function openAdminPanel(){
   if(!isAdmin){return;}
   showStage('stage-admin-dash');
   loadPendingUsers();
-  loadConfig();
   switchTab('tab-users');
 }
 function closeAdminPanel(){showStage('main-content');}
@@ -236,44 +431,6 @@ async function fetchAds(){
 
 document.getElementById('news-floater').addEventListener('click',()=>document.getElementById('ads-overlay').classList.add('active'));
 document.getElementById('close-ads').addEventListener('click',()=>document.getElementById('ads-overlay').classList.remove('active'));
-
-// === CONFIG MANAGER (ADMIN) ===
-async function loadConfig() {
-  try {
-    const r = await fetch(BASE_URL + '/api/admin/config?password=' + adminPass);
-    const d = await r.json();
-    if (r.ok && d.config) {
-      document.getElementById('config-or-key').value = d.config.openRouterKey || '';
-      document.getElementById('config-oc-key').value = d.config.openCodeKey || '';
-    }
-  } catch (e) {
-    console.error('Config yuklash xatosi:', e);
-  }
-}
-
-async function saveConfig() {
-  const openRouterKey = document.getElementById('config-or-key').value.trim();
-  const openCodeKey = document.getElementById('config-oc-key').value.trim();
-  const err = document.getElementById('config-err');
-  const ok = document.getElementById('config-ok');
-  err.textContent = ''; ok.textContent = '';
-
-  try {
-    const r = await fetch(BASE_URL + '/api/admin/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: adminPass, openRouterKey, openCodeKey })
-    });
-    const d = await r.json();
-    if (r.ok) {
-      ok.textContent = d.message;
-    } else {
-      err.textContent = d.error;
-    }
-  } catch (e) {
-    err.textContent = 'Server xatoligi.';
-  }
-}
 
 function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -414,10 +571,13 @@ try { ${block.code} } catch(e) { log('❌ Xatolik: ' + e.message); }
 // Foydalanuvchi rasm tashlasa (drop/tanlasa), Noor AI uni ham "ko'radi" va tushunadi.
 let chatHistory = [];
 let pendingImage = null; // {dataUrl, name}
-let currentChatMode = 'general'; // 'general' (Noor AI 1.5) | 'coder' (Noor AI 1.0 Coder)
+let currentChatMode = 'general'; // 'general' (1.5) | 'coder' (1.0, matn-only) | 'coder2' (2.0, vision+code)
+
+const CHAT_MODE_LABELS = { general: 'Noor AI 1.5', coder: 'Noor AI 1.0 (Coder)', coder2: 'Noor AI 2.0 (Coder)' };
 
 function setChatMode(mode) {
   if (mode === currentChatMode) return;
+  persistActiveSession();
   currentChatMode = mode;
   document.querySelectorAll('.model-toggle-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
@@ -425,24 +585,65 @@ function setChatMode(mode) {
   const note = document.getElementById('chat-note');
   const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
   if (mode === 'coder') {
-    note.textContent = t('chat.noteCoder', "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan. Kod so'rang, u yozadi, siz sinab ko'rasiz.");
+    note.textContent = t('chat.noteCoder', "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi).");
+  } else if (mode === 'coder2') {
+    note.textContent = t('chat.noteCoder2', "Noor AI 2.0 (Coder) — kod yozadi VA rasm/skrinshotlarni ham tushunadi.");
   } else {
     note.textContent = t('chat.noteGeneral', "Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.");
   }
-  // Rejim almashganda suhbat tarixini yangidan boshlaymiz (ikki model bir-biridan mustaqil)
   chatHistory = [];
   const container = document.getElementById('chat-msg-container');
   container.innerHTML = '';
-  appendChatBubble(mode === 'coder'
-    ? "Noor AI 1.0 (Coder) rejimiga o'tdingiz. Qanday kod yozib berish kerak?"
-    : "Noor AI 1.5 rejimiga o'tdingiz. Nima bilan yordam bera olaman?", 'system');
+  closeCodePanel();
+  appendChatBubble(`${CHAT_MODE_LABELS[mode]} rejimiga o'tdingiz. Nima bilan yordam bera olaman?`, 'system');
+  persistActiveSession();
+}
+
+function renderCodePanel(blocks) {
+  const panel = document.getElementById('chat-code-panel');
+  const body = document.getElementById('code-panel-body');
+  body.innerHTML = '';
+  blocks.forEach(b => {
+    const id = 'cb' + (++codeBlockCounter);
+    codeBlocksStore[id] = b;
+    const runnable = RUNNABLE_LANGS.includes(b.lang);
+    const block = document.createElement('div');
+    block.className = 'code-block-wrap';
+    block.innerHTML = `<div class="code-block-header"><span class="code-lang">${escapeHtml(b.lang || 'code')}</span>
+      <span class="code-block-actions">
+        <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">Nusxa</button>
+        ${runnable ? `<button type="button" class="code-run-btn" onclick="runCodeBlock('${id}')">Ishga tushirish</button>` : ''}
+      </span></div>
+      <pre class="code-block"><code>${escapeHtml(b.code)}</code></pre>
+      <div class="code-result hidden" id="result-${id}"></div>`;
+    body.appendChild(block);
+  });
+  panel.classList.remove('hidden');
+}
+
+function displayAiReply(text) {
+  if (currentChatMode === 'coder' || currentChatMode === 'coder2') {
+    const fenceRegex = /```(\w*)\n?([\s\S]*?)```/g;
+    let match, plain = '', lastIndex = 0;
+    const blocks = [];
+    while ((match = fenceRegex.exec(text)) !== null) {
+      plain += text.slice(lastIndex, match.index);
+      blocks.push({ lang: (match[1] || '').toLowerCase(), code: match[2].replace(/\n$/, '') });
+      lastIndex = fenceRegex.lastIndex;
+    }
+    plain += text.slice(lastIndex);
+    appendChatBubble(plain.trim() || "Kodni o'ng paneldan ko'ring →", 'ai-plain');
+    if (blocks.length) renderCodePanel(blocks);
+  } else {
+    appendChatBubble(text, 'ai');
+  }
 }
 
 function appendChatBubble(text, sender) {
   const container = document.getElementById('chat-msg-container');
   const bubble = document.createElement('div');
-  bubble.className = `chat-msg ${sender}`;
-  bubble.innerHTML = sender === 'ai' ? renderAiMessageHTML(text) : escapeHtml(text).replace(/\n/g, '<br>');
+  bubble.className = `chat-msg ${sender === 'ai-plain' ? 'ai' : sender}`;
+  bubble.innerHTML = (sender === 'ai') ? renderAiMessageHTML(text) : escapeHtml(text).replace(/\n/g, '<br>');
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
   return bubble;
@@ -544,8 +745,9 @@ async function sendChatMsg() {
 
     if (r.ok) {
       const aiReply = d.choices[0].message.content;
-      appendChatBubble(aiReply, 'ai');
+      displayAiReply(aiReply);
       chatHistory.push({ role: 'assistant', content: aiReply });
+      persistActiveSession(text || 'Rasm bilan suhbat');
     } else {
       appendChatBubble('Xatolik: ' + (d.error || 'Ulanib bo\'lmadi.'), 'system');
     }
@@ -568,12 +770,55 @@ document.getElementById('chat-user-input').addEventListener('keydown', (e) => {
   }
 });
 
-// Rasm biriktirish tugmasi va drag-drop
-const chatAttachBtn = document.getElementById('chat-attach-btn');
+// "+" biriktirish menyusi: rasm yuklash, kameraga tushirish, skrinshot — ishlaydi.
+// Fayl yuklash va rasm yaratish hozircha o'chirilgan (keyingi Noor 2.5/rasm integratsiyasi uchun).
+const attachPlusBtn = document.getElementById('chat-attach-btn');
+const attachMenu = document.getElementById('attach-menu');
 const chatAttachInput = document.getElementById('chat-attach-input');
-if (chatAttachBtn && chatAttachInput) {
-  chatAttachBtn.addEventListener('click', () => chatAttachInput.click());
+const chatCameraInput = document.getElementById('chat-camera-input');
+
+if (attachPlusBtn && attachMenu) {
+  attachPlusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    attachMenu.classList.toggle('hidden');
+  });
+  document.addEventListener('click', (e) => {
+    if (!attachMenu.classList.contains('hidden') && !attachMenu.contains(e.target) && e.target !== attachPlusBtn) {
+      attachMenu.classList.add('hidden');
+    }
+  });
+}
+document.getElementById('attach-item-image')?.addEventListener('click', () => { attachMenu.classList.add('hidden'); chatAttachInput.click(); });
+document.getElementById('attach-item-camera')?.addEventListener('click', () => { attachMenu.classList.add('hidden'); chatCameraInput.click(); });
+document.getElementById('attach-item-screenshot')?.addEventListener('click', async () => {
+  attachMenu.classList.add('hidden');
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    const track = stream.getVideoTracks()[0];
+    const capture = new ImageCapture(track);
+    const bitmap = await capture.grabFrame();
+    track.stop();
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width; canvas.height = bitmap.height;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0);
+    const dataUrl = canvas.toDataURL('image/png');
+    pendingImage = { dataUrl, name: 'screenshot.png' };
+    const preview = document.getElementById('chat-attach-preview');
+    preview.innerHTML = `<img src="${dataUrl}" alt="preview"><button type="button" id="chat-attach-remove" title="Olib tashlash">&times;</button>`;
+    preview.classList.remove('hidden');
+    document.getElementById('chat-attach-remove').addEventListener('click', clearPendingChatImage);
+  } catch (e) {
+    console.error('Skrinshot olishda xatolik:', e);
+  }
+});
+if (chatAttachInput) {
   chatAttachInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleChatImageFile(e.target.files[0]);
+    e.target.value = '';
+  });
+}
+if (chatCameraInput) {
+  chatCameraInput.addEventListener('change', (e) => {
     if (e.target.files[0]) handleChatImageFile(e.target.files[0]);
     e.target.value = '';
   });

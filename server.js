@@ -4,6 +4,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const crypto = require('crypto');
 
 const token = process.env.BOT_TOKEN;
 if (!token) {
@@ -11,6 +12,14 @@ if (!token) {
   process.exit(1);
 }
 const bot = new TelegramBot(token, { polling: true });
+
+// AI kalitlari endi admin paneldan emas, .env orqali (git'ga tushmaydi)
+const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
+const OPENCODE_KEY = process.env.OPENCODE_KEY || '';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
+if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
+if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
 
 // Bot polling xatoliklari (masalan, server bir necha marta ishga tushirilib
 // qolsa "409 Conflict" xatosi chiqadi) serverni yiqitib qo'ymasligi uchun ushlab qolamiz.
@@ -29,7 +38,7 @@ process.on('uncaughtException', (err) => {
 
 const app = express();
 app.use(cors({ origin: '*' }));
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 app.use(express.static(__dirname));
 
 // "/" manziliga kirganda avtomatik a.html'ga yo'naltirish
@@ -39,7 +48,7 @@ app.get('/', (req, res) => {
 });
 
 // DB
-let db = { users: {}, ads: [], pendingUsers: {}, config: { openRouterKey: '', openCodeKey: '' } };
+let db = { users: {}, ads: [], pendingUsers: {} };
 const dbPath = path.join(__dirname, 'data.json');
 
 if (fs.existsSync(dbPath)) {
@@ -47,8 +56,6 @@ if (fs.existsSync(dbPath)) {
   catch (e) { console.error("DB parse xatosi", e); }
 }
 if (!db.pendingUsers) db.pendingUsers = {};
-if (!db.config) db.config = { openRouterKey: '', openCodeKey: '' };
-if (db.config.openCodeKey === undefined) db.config.openCodeKey = '';
 
 function saveDB() {
   try {
@@ -58,8 +65,31 @@ function saveDB() {
   }
 }
 
-// Bot: /start bosilganda username saqlanadi (lekin kod yuborilmaydi)
-// Kod faqat admin yuboradi
+// === PAROL YORDAMCHILARI (Node'ning o'zidagi crypto — qo'shimcha paket kerak emas) ===
+function hashPassword(plain, salt) {
+  salt = salt || crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(plain, salt, 64).toString('hex');
+  return { salt, hash };
+}
+function verifyPassword(plain, salt, hash) {
+  const check = crypto.scryptSync(plain, salt, 64).toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(check, 'hex'), Buffer.from(hash, 'hex'));
+}
+function generateReadablePassword() {
+  // Foydalanuvchiga botda yuboriladigan, o'qishga qulay 8 xonali parol
+  return Math.random().toString(36).slice(-4).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+}
+function findUserByIdentifier(identifier) {
+  const id = (identifier || '').trim().toLowerCase().replace('@', '');
+  if (!id) return null;
+  for (const key in db.users) {
+    const u = db.users[key];
+    if (key === id || (u.email && u.email.toLowerCase() === id)) return { key, user: u };
+  }
+  return null;
+}
+
+// Bot: /start bosilganda username saqlanadi, keyin email so'raladi (ixtiyoriy)
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const username = msg.from.username;
@@ -71,23 +101,67 @@ bot.onText(/\/start/, (msg) => {
 
   const key = username.toLowerCase();
 
-  // Foydalanuvchi chat_id ni saqlaymiz
   if (!db.users[key]) {
     db.users[key] = { chatId, username };
   } else {
     db.users[key].chatId = chatId;
   }
+  db.users[key].awaitingEmail = true;
 
-  // pendingUsers ga qo'shamiz (admin ko'radi)
   db.pendingUsers[key] = {
     chatId,
     username,
     requestedAt: new Date().toISOString(),
-    status: 'waiting' // waiting | approved | rejected
+    status: 'waiting'
   };
   saveDB();
 
-  bot.sendMessage(chatId, `👋 Xush kelibsiz, @${username}!\n\nSizning so'rovingiz qabul qilindi. Administrator sizga tez orada kirish kodini yuboradi. Kuting...`);
+  bot.sendMessage(chatId,
+    `👋 Xush kelibsiz, @${username}!\n\nSizning so'rovingiz qabul qilindi. Administrator sizga tez orada kirish kodini yuboradi.\n\nAgar xohlasangiz, saytga tezroq (username+parol bilan) kirish uchun email manzilingizni yuboring:`,
+    { reply_markup: { inline_keyboard: [[{ text: '📪 Emailim yo\'q', callback_data: 'no_email' }]] } }
+  );
+});
+
+function issuePassword(chatId, key, email) {
+  const plainPassword = generateReadablePassword();
+  const { salt, hash } = hashPassword(plainPassword);
+  db.users[key].email = email || db.users[key].email || null;
+  db.users[key].passwordSalt = salt;
+  db.users[key].passwordHash = hash;
+  db.users[key].awaitingEmail = false;
+  saveDB();
+  bot.sendMessage(chatId,
+    `✅ Tushunarli!\n\nSaytga tezroq kirish uchun parolingiz: <b>${plainPassword}</b>\n\nSaytda "Kirish" bo'limida username${email ? ' yoki email' : ''} va shu parol bilan kirishingiz mumkin. Xohlasangiz, keyinroq saytdagi Profil bo'limidan buni o'zgartirishingiz mumkin bo'ladi.`,
+    { parse_mode: 'HTML' }
+  );
+}
+
+bot.on('callback_query', (query) => {
+  const chatId = query.message.chat.id;
+  const username = query.from.username;
+  if (!username) return bot.answerCallbackQuery(query.id);
+  const key = username.toLowerCase();
+  if (query.data === 'no_email' && db.users[key] && db.users[key].awaitingEmail) {
+    issuePassword(chatId, key, null);
+  }
+  bot.answerCallbackQuery(query.id);
+});
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+bot.on('message', (msg) => {
+  if (!msg.text || msg.text.startsWith('/')) return;
+  const username = msg.from.username;
+  if (!username) return;
+  const key = username.toLowerCase();
+  const user = db.users[key];
+  if (user && user.awaitingEmail) {
+    const email = msg.text.trim();
+    if (!EMAIL_RE.test(email)) {
+      bot.sendMessage(msg.chat.id, '⚠️ Bu email manziliga o\'xshamayapti. Qaytadan yuboring, yoki "Emailim yo\'q" tugmasini bosing.');
+      return;
+    }
+    issuePassword(msg.chat.id, key, email);
+  }
 });
 
 // API: Saytga kirish tekshiruvi
@@ -118,6 +192,78 @@ app.post('/api/verify', (req, res) => {
   }
 
   return res.status(400).json({ error: 'Kod noto\'g\'ri. Qaytadan tekshiring.' });
+});
+
+// API: Frontend Google Identity Services'ni ishga tushirish uchun Client ID kerak (maxfiy emas)
+app.get('/api/google-client-id', (req, res) => {
+  res.json({ clientId: GOOGLE_CLIENT_ID });
+});
+
+// API: Username/parol orqali kirish
+app.post('/api/password-login', (req, res) => {
+  const { identifier, password } = req.body;
+  if (!identifier || !password) return res.status(400).json({ error: 'Username/email va parolni kiriting.' });
+
+  if (identifier.toLowerCase().replace('@', '') === 'abdunurcreator' && password === '0101') {
+    return res.json({ success: true, isAdmin: true, username: 'abdunurcreator' });
+  }
+
+  const found = findUserByIdentifier(identifier);
+  if (!found || !found.user.passwordHash) {
+    return res.status(404).json({ error: 'Bu foydalanuvchi uchun parol o\'rnatilmagan. Avval Telegram bot orqali kiring.' });
+  }
+  if (!verifyPassword(password, found.user.passwordSalt, found.user.passwordHash)) {
+    return res.status(400).json({ error: 'Parol noto\'g\'ri.' });
+  }
+  res.json({ success: true, isAdmin: false, username: found.user.username });
+});
+
+// API: Google orqali kirish/ro'yxatdan o'tish (Google Identity Services token'ini tekshiradi)
+app.post('/api/google-login', async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) return res.status(400).json({ error: 'Google token topilmadi.' });
+  if (!GOOGLE_CLIENT_ID) return res.status(400).json({ error: 'Google kirish serverda sozlanmagan (GOOGLE_CLIENT_ID yo\'q).' });
+
+  try {
+    const r = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    const info = await r.json();
+    if (!r.ok || info.aud !== GOOGLE_CLIENT_ID) {
+      return res.status(401).json({ error: 'Google token tasdiqlanmadi.' });
+    }
+    const email = info.email;
+    const key = email.toLowerCase();
+    if (!db.users[key]) {
+      db.users[key] = { username: key, email, name: info.name || '', photo: info.picture || '', chatId: null };
+    } else {
+      db.users[key].email = email;
+      if (!db.users[key].name) db.users[key].name = info.name || '';
+      if (!db.users[key].photo) db.users[key].photo = info.picture || '';
+    }
+    saveDB();
+    res.json({ success: true, isAdmin: false, username: db.users[key].username });
+  } catch (e) {
+    res.status(500).json({ error: 'Google token tekshirishda xatolik: ' + e.message });
+  }
+});
+
+// API: Profil — ism va rasmni yangilash (username o'zgarmaydi)
+app.post('/api/profile', (req, res) => {
+  const { username, name, photo } = req.body;
+  if (!username) return res.status(400).json({ error: 'Username kerak.' });
+  const key = username.toLowerCase().replace('@', '');
+  if (!db.users[key]) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+  if (typeof name === 'string') db.users[key].name = name.slice(0, 60);
+  if (typeof photo === 'string') db.users[key].photo = photo.slice(0, 2_000_000);
+  saveDB();
+  res.json({ success: true, name: db.users[key].name || '', photo: db.users[key].photo || '' });
+});
+
+app.get('/api/profile', (req, res) => {
+  const { username } = req.query;
+  const key = (username || '').toLowerCase().replace('@', '');
+  const u = db.users[key];
+  if (!u) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+  res.json({ name: u.name || '', photo: u.photo || '', email: u.email || '' });
 });
 
 // API: Admin - kutayotgan foydalanuvchilar ro'yxati
@@ -221,23 +367,8 @@ app.post('/api/ads', async (req, res) => {
   res.json({ success: true, broadcastCount: count });
 });
 
-// API: Get OpenRouter/OpenCode Keys (Admin only)
-app.get('/api/admin/config', (req, res) => {
-  const { password } = req.query;
-  if (password !== '0101') return res.status(403).json({ error: 'Ruxsat yo\'q.' });
-  res.json({ config: db.config });
-});
-
-// API: Set OpenRouter/OpenCode Keys (Admin only)
-app.post('/api/admin/config', (req, res) => {
-  const { password, openRouterKey, openCodeKey } = req.body;
-  if (password !== '0101') return res.status(403).json({ error: 'Ruxsat yo\'q.' });
-
-  db.config.openRouterKey = openRouterKey || '';
-  db.config.openCodeKey = openCodeKey || '';
-  saveDB();
-  res.json({ success: true, message: 'Sozlamalar saqlandi!' });
-});
+// (Eslatma: OpenRouter/OpenCode kalitlari endi admin panel orqali emas,
+// .env fayl orqali sozlanadi — har safar qayta kiritish shart emas.)
 
 // Har bir chatga majburan qo'shiladigan yashirin tizim xabari.
 // Bu AI'ga o'zining haqiqiy nomini (GPT, Qwen, Gemini va h.k.) hech qachon
@@ -252,6 +383,11 @@ const NOOR_CODER_SYSTEM_PROMPT = {
   content: "Sening isming Noor AI 1.0 (Coder). Seni AbdunurCreator ishlab chiqargan. Sen faqat va faqat kod yozish, kodni tushuntirish, xatolarni topish (debug) va dasturlash bo'yicha savollarga ixtisoslashgansan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI 1.0 (Coder) man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon haqiqiy AI modeli yoki kompaniya nomini aytma (GPT, OpenAI, Claude, Anthropic, Gemini, Google, Qwen, DeepSeek, MiniMax, Kimi, OpenCode va h.k.), hatto to'g'ridan-to'g'ri so'rashsa ham. Kodni HAR DOIM to'g'ri tildagi toza, izohli (chiroyli formatlangan) markdown kod bloki ichida ber (masalan ```python, ```javascript, ```html, ```css) — interfeys bu kodlarni to'g'ridan-to'g'ri ishga tushirib, natijasini ko'rsatadi. Kod bilan birga qisqacha, aniq tushuntirish ham qo'sh."
 };
 
+const NOOR_CODER2_SYSTEM_PROMPT = {
+  role: 'system',
+  content: "Sening isming Noor AI 2.0 (Coder). Seni AbdunurCreator ishlab chiqargan. Sen kod yozish, kodni tushuntirish, xatolarni topish (debug) bo'yicha ixtisoslashgansan, VA rasm/skrinshotlarni ham to'liq tushuna olasan (masalan xato skrinshoti, dizayn maketi, diagramma). Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI 2.0 (Coder) man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon haqiqiy AI modeli yoki kompaniya nomini aytma (GPT, OpenAI, Claude, Anthropic, Gemini, Google, Qwen, DeepSeek, MiniMax, Kimi, OpenCode va h.k.), hatto to'g'ridan-to'g'ri so'rashsa ham. Kodni HAR DOIM to'g'ri tildagi toza, izohli markdown kod bloki ichida ber (masalan ```python, ```javascript, ```html, ```css). Kod bilan birga qisqacha, aniq tushuntirish ham qo'sh."
+};
+
 // Noor AI 1.5 (umumiy) — OpenRouter'ning bepul router'i + zaxira modellar
 const NOOR_MODEL_CHAIN = [
   'openrouter/free',
@@ -260,7 +396,7 @@ const NOOR_MODEL_CHAIN = [
   'openai/gpt-oss-20b:free'
 ];
 
-// Noor AI 1.0 (Coder) — OpenCode Zen'ning kodlash uchun ixtisoslashgan bepul modellari
+// Noor AI 1.0 (Coder) — OpenCode Zen'ning kodlash uchun ixtisoslashgan bepul modellari (vision yo'q)
 const OPENCODE_MODEL_CHAIN = [
   'big-pickle',
   'deepseek-v4-flash-free',
@@ -271,6 +407,13 @@ const OPENCODE_MODEL_CHAIN = [
 ];
 // OpenCode kaliti yo'q yoki barchasi ishlamasa, OpenRouter'dagi kodlash modellariga o'tamiz
 const CODER_OPENROUTER_FALLBACK = ['qwen/qwen3-coder:free', 'openrouter/free'];
+
+// Noor AI 2.0 (Coder) — kod + rasm/skrinshotni tushunadigan (vision) zanjir
+const CODER2_MODEL_CHAIN = ['openrouter/free', 'qwen/qwen3-coder:free'];
+
+function messagesContainImage(messages) {
+  return (messages || []).some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image_url'));
+}
 
 async function callOpenRouter(model, messages, apiKey) {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -300,69 +443,82 @@ async function callOpenCodeZen(model, messages, apiKey) {
   return { ok: response.ok, status: response.status, data };
 }
 
-// API: OpenRouter/OpenCode Chat Proxy (Noor AI 1.5 / Noor AI 1.0 Coder)
+function fakeChatResponse(text) {
+  return { choices: [{ message: { role: 'assistant', content: text } }] };
+}
+
+// API: OpenRouter/OpenCode Chat Proxy (Noor AI 1.5 / 1.0 Coder / 2.0 Coder)
 app.post('/api/chat', async (req, res) => {
   const { messages, mode } = req.body;
-  const isCoder = mode === 'coder';
 
   if (typeof fetch !== 'function') {
     return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past). AI chat ishlashi uchun Node.js 18 yoki undan yangi versiyasini o\'rnating: https://nodejs.org' });
   }
 
-  const systemPrompt = isCoder ? NOOR_CODER_SYSTEM_PROMPT : NOOR_SYSTEM_PROMPT;
+  // Noor AI 1.0 (Coder) rasm o'qiy olmaydi — 2.0 ni taklif qilib, modelga umuman murojaat qilmaymiz
+  if (mode === 'coder' && messagesContainImage(messages)) {
+    return res.json(fakeChatResponse("Kechirasiz, men (Noor AI 1.0 Coder) rasm o'qiy olmayman. Rasmni tushuntirib berishimni xohlasangiz, iltimos **Noor AI 2.0 (Coder)** rejimini sinab ko'ring."));
+  }
+
+  const systemPrompt = mode === 'coder2' ? NOOR_CODER2_SYSTEM_PROMPT : (mode === 'coder' ? NOOR_CODER_SYSTEM_PROMPT : NOOR_SYSTEM_PROMPT);
   const outgoingMessages = [systemPrompt, ...(messages || [])];
   let lastError = null;
 
-  // === CODER REJIMI: avval OpenCode Zen, keyin OpenRouter'ga zaxira ===
-  if (isCoder) {
-    if (db.config.openCodeKey) {
+  if (mode === 'coder2') {
+    if (OPENROUTER_KEY) {
+      for (const model of CODER2_MODEL_CHAIN) {
+        try {
+          const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
+          if (ok) return res.json(data);
+          lastError = data.error?.message;
+        } catch (e) { lastError = e.message; }
+      }
+    }
+    return res.status(502).json({ error: 'Noor AI 2.0 (Coder) hozircha band. Birozdan so\'ng qayta urinib ko\'ring: ' + (lastError || 'noma\'lum xatolik') });
+  }
+
+  if (mode === 'coder') {
+    if (OPENCODE_KEY) {
       for (const model of OPENCODE_MODEL_CHAIN) {
         try {
-          const { ok, status, data } = await callOpenCodeZen(model, outgoingMessages, db.config.openCodeKey);
+          const { ok, data } = await callOpenCodeZen(model, outgoingMessages, OPENCODE_KEY);
           if (ok) return res.json(data);
-          lastError = data.error?.message || ('OpenCode Zen xatoligi (status ' + status + ')');
+          lastError = data.error?.message;
           console.error(`⚠️  Noor Coder: "${model}" (OpenCode Zen) javob bermadi:`, lastError);
-        } catch (netErr) {
-          lastError = netErr.message;
+        } catch (e) {
+          lastError = e.message;
           console.error(`⚠️  Noor Coder: "${model}" ulanish xatosi:`, lastError);
         }
       }
     }
-    // OpenCode kaliti yo'q yoki hammasi ishlamadi -> OpenRouter'dagi kod modellariga o'tamiz
-    if (db.config.openRouterKey) {
+    if (OPENROUTER_KEY) {
       for (const model of CODER_OPENROUTER_FALLBACK) {
         try {
-          const { ok, status, data } = await callOpenRouter(model, outgoingMessages, db.config.openRouterKey);
+          const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
           if (ok) return res.json(data);
-          lastError = data.error?.message || ('OpenRouter xatoligi (status ' + status + ')');
-          console.error(`⚠️  Noor Coder: "${model}" (OpenRouter zaxira) javob bermadi:`, lastError);
-        } catch (netErr) {
-          lastError = netErr.message;
-        }
+          lastError = data.error?.message;
+        } catch (e) { lastError = e.message; }
       }
     }
-    if (!db.config.openCodeKey && !db.config.openRouterKey) {
-      return res.status(400).json({ error: 'Coder rejimi uchun kalit o\'rnatilmagan. Admin panel > Sozlamalar\'da OpenCode Zen yoki OpenRouter kalitini kiriting.' });
-    }
-    return res.status(502).json({ error: 'Noor Coder hozircha band (barcha bepul modellar javob bermadi). Birozdan so\'ng qayta urinib ko\'ring: ' + (lastError || 'noma\'lum xatolik') });
+    return res.status(502).json({ error: 'Noor Coder hozircha band (barcha bepul modellar javob bermadi): ' + (lastError || 'noma\'lum xatolik') });
   }
 
-  // === UMUMIY REJIM (Noor AI 1.5): OpenRouter ===
-  if (!db.config.openRouterKey) {
-    return res.status(400).json({ error: 'OpenRouter API kaliti o\'rnatilmagan. Admin panel orqali sozlang.' });
+  // === UMUMIY REJIM (Noor AI 1.5) ===
+  if (!OPENROUTER_KEY) {
+    return res.status(500).json({ error: 'Serverda OPENROUTER_KEY sozlanmagan.' });
   }
   for (const model of NOOR_MODEL_CHAIN) {
     try {
-      const { ok, status, data } = await callOpenRouter(model, outgoingMessages, db.config.openRouterKey);
+      const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
       if (ok) return res.json(data);
-      lastError = data.error?.message || ('OpenRouter xatoligi (status ' + status + ')');
+      lastError = data.error?.message;
       console.error(`⚠️  Noor AI: "${model}" javob bermadi, keyingisiga o'tilmoqda:`, lastError);
-    } catch (netErr) {
-      lastError = netErr.message;
+    } catch (e) {
+      lastError = e.message;
       console.error(`⚠️  Noor AI: "${model}" ulanish xatosi, keyingisiga o'tilmoqda:`, lastError);
     }
   }
-  res.status(502).json({ error: 'Noor AI hozircha band (barcha bepul modellar javob bermadi). Birozdan so\'ng qayta urinib ko\'ring: ' + (lastError || 'noma\'lum xatolik') });
+  res.status(502).json({ error: 'Noor AI hozircha band (barcha bepul modellar javob bermadi): ' + (lastError || 'noma\'lum xatolik') });
 });
 
 const PORT = 3000;
