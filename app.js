@@ -1,4 +1,4 @@
-﻿// === API BASE URL ===
+// === API BASE URL ===
 // Sayt qanday ochilishidan qat'i nazar to'g'ri ishlaydi:
 // - Agar fayl to'g'ridan (file://) ochilsa -> localhost:3000 serverga uladi (lokal test uchun)
 // - Agar sayt biror domen/hosting orqali ochilsa (masalan https://sizningdomeningiz.com) ->

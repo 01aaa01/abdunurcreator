@@ -1,4 +1,4 @@
-﻿// ===== NOOR I18N — uz / ru / en =====
+// ===== NOOR I18N — uz / ru / en =====
 // Sayt va admin panel uchun uch tilli tarjima tizimi. Til tanlovi brauzerda
 // (localStorage) saqlanadi, backendga hech narsa yuborilmaydi.
 const NOOR_TRANSLATIONS = {
