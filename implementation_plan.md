@@ -1,68 +1,96 @@
-# AbdunurCreator - Bot Integration & Fullstack Upgrade Plan
+@echo off
+title AbdunurCreator - O'rnatuvchi
+color 0A
+echo.
+echo  ============================================
+echo    AbdunurCreator AI Platform - O'rnatish
+echo  ============================================
+echo.
 
-Bizning maqsadimiz hozirgi statik `a.html` saytini haqiqiy Telegram botga ulangan, reklama tizimiga ega, va yangi AI bo'limlari qo'shilgan to'laqonli web-ilovaga aylantirishdir. 
+:: Node.js borligini tekshirish
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    color 0C
+    echo  [XATO] Node.js topilmadi!
+    echo.
+    echo  Iltimos avval Node.js yuklab oling:
+    echo  https://nodejs.org
+    echo.
+    pause
+    exit /b 1
+)
+echo  [OK] Node.js topildi.
 
-## User Review Required
+:: npm paketlarini o'rnatish
+echo  [...]  Kerakli paketlar o'rnatilmoqda...
+cd /d "%~dp0"
+npm install --silent
+if %errorlevel% neq 0 (
+    color 0C
+    echo  [XATO] npm install bajarilmadi!
+    pause
+    exit /b 1
+)
+echo  [OK] Paketlar o'rnatildi.
 
-> [!IMPORTANT]
-> Loyiha Node.js va Telegram bot API yordamida ishlashi uchun bizga orqa fon (backend) server kerak bo'ladi. Men fayllarni strukturalashtirib, `server.js` ni yarataman. Siz bu rejaga rozi bo'lsangiz, men kodlarni yozishni boshlayman. 
-> Saytning orqa fonidagi (background) rasmlar va dizayn uchun men internetdagi mavjud tekin rasmlar va sifatli CSS animatsiyalaridan foydalanaman.
+:: VBS faylini yaratish (server ko'rinmas ishlaydi)
+echo  [...]  Fon jarayoni sozlanmoqda...
 
-## Open Questions
+set "APPDIR=%~dp0"
+set "VBSFILE=%APPDIR%start-hidden.vbs"
+set "STARTSCRIPT=%APPDIR%start-server.bat"
 
-- Telegram bot tokeni `.env` faylida (`BOT_TOKEN`) saqlanadi — xavfsizlik uchun bu yerdan olib tashlandi va git'ga yuklanmaydi.
-- Ma'lumotlarni vaqtincha faylda (`data.json`) saqlayman (username'lar va reklamalar uchun). Bu hozircha yetarli bo'ladimi?
+:: start-server.bat yaratish
+(
+  echo @echo off
+  echo cd /d "%APPDIR%"
+  echo node server.js
+) > "%STARTSCRIPT%"
 
-## Proposed Changes
+:: start-hidden.vbs yaratish
+(
+  echo Set WshShell = CreateObject^("WScript.Shell"^)
+  echo WshShell.Run """%STARTSCRIPT%""", 0, False
+) > "%VBSFILE%"
 
-### Orqa fon (Backend) va Bot - Node.js
+echo  [OK] Fon jarayoni tayyor.
 
-Serverni Express va `node-telegram-bot-api` yordamida yozamiz.
+:: Windows autostart ga qo'shish (foydalanuvchi login qilganda ishga tushadi)
+echo  [...]  Windows autostart ga qo'shilmoqda...
+set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
+copy /y "%VBSFILE%" "%STARTUP%\AbdunurCreator.vbs" >nul
+echo  [OK] Autostart sozlandi.
 
-#### [NEW] [package.json](file:///c:/Users/user/OneDrive/Desktop/abdunurcreator/package.json)
-- Express, body-parser, va node-telegram-bot-api kutubxonalarini o'z ichiga oladi.
+:: Desktop shortcut yaratish
+echo  [...]  Desktop shortcut yaratilmoqda...
+set "DESKTOP=%USERPROFILE%\Desktop"
+set "SHORTCUTFILE=%DESKTOP%\AbdunurCreator.url"
+(
+  echo [InternetShortcut]
+  echo URL=http://localhost:3000/a.html
+  echo IconFile=shell32.dll
+  echo IconIndex=14
+) > "%SHORTCUTFILE%"
+echo  [OK] Desktop shortcut yaratildi.
 
-#### [NEW] [server.js](file:///c:/Users/user/OneDrive/Desktop/abdunurcreator/server.js)
-- **Bot mantig'i:** `/start` bosilganda tasodifiy 6 xonali kod yaratadi va foydalanuvchiga yuboradi, hamda bu kodni username bilan eslab qoladi.
-- **API `/api/verify`**: Saytdan username va kodni qabul qilib, tekshiradi. Agar to'g'ri bo'lsa, kirishga ruxsat beradi.
-- **API `/api/ads`**: Admin panel orqali yuborilgan reklamalarni saqlaydi va barcha foydalanuvchilarga (`/start` bosganlarga) bot orqali tarqatadi (broadcast). Kompaniya nomi ko'k rangli havola (link) shaklida bo'ladi.
+:: Hozir ham ishga tushirish
+echo  [...]  Server ishga tushirilmoqda...
+start "" /b wscript.exe "%VBSFILE%"
+timeout /t 2 /nobreak >nul
 
-#### [NEW] [data.json](file:///c:/Users/user/OneDrive/Desktop/abdunurcreator/data.json)
-- Foydalanuvchilar (username, chat_id, kod) va reklamalarni saqlash uchun kichik ma'lumotlar bazasi vazifasini bajaradi.
+:: Brauzerni ochish
+start http://localhost:3000/a.html
 
----
-
-### Front-end (Foydalanuvchi interfeysi)
-
-Fayllarni toza bo'lishi uchun `public` jildiga ajratamiz va hozirgi `a.html` ni kengaytiramiz.
-
-#### [MODIFY] [a.html](file:///c:/Users/user/OneDrive/Desktop/abdunurcreator/a.html) -> `public/index.html` ga ko'chiriladi va yangilanadi
-- **Login qismi:** Endi kodni o'zi yaratmaydi, faqat username va botdan kelgan kodni so'raydi. Orqa fonda `/api/verify` ga ulanadi.
-- **Yangi Orqa Fon (Background):** Turli AI vositalarining rasmlari (chiroyli float / parallax effektda) sichqonchaga qarab harakatlanadi.
-- **Admin Panel:**
-  - Admin ismining yoniga "Verified Badge" (ko'k pichka) SVG formati o'rnatiladi.
-  - "Reklama joylash" bo'limi qo'shiladi: Rasm URL, Ma'lumot, Kompaniya nomi va Link so'raladi.
-- **Reklama ko'rish:** Yangi reklama qo'shilganda ekranda 📰 emojisi uchib yuradigan animatsiya bo'ladi. Uni bosganda chiroyli oynada barcha reklamalar ro'yxati chiqadi.
-- **Yangi AI Bo'limlari:**
-  - *Video yasaydigan AI'lar*: Higgsfield, Kling, Google Veo 3.
-  - *Rasm/Matn yasaydigan AI'lar*: Nano, Banana Pro, ChatGPT, Copilot.
-  - Har biri haqida qisqacha ma'lumot va *animatsiyali, ranglari qimirlab turadigan* havolali tugmalar bo'ladi.
-
-#### [NEW] [public/style.css](file:///c:/Users/user/OneDrive/Desktop/abdunurcreator/public/style.css)
-- Barcha stillar va yangi animatsiyalar (hover effektlar, flying emoji, parallax background) shu yerda yoziladi.
-
-#### [NEW] [public/script.js](file:///c:/Users/user/OneDrive/Desktop/abdunurcreator/public/script.js)
-- Saytning interaktiv qismlari, fetch orqali backendga so'rov yuborish, reklamalarni ekranga chiqarish mantig'i.
-
-## Verification Plan
-
-### Automated Tests
-1. `npm install` va `node server.js` komandalarini yuritib server va botni ishga tushirish.
-2. `/api/verify` va `/api/ads` endpointlari ishlab turganini tekshirish.
-
-### Manual Verification
-1. O'zim ixtiyoriy username orqali saytga kirishga urinib, bot ishlayotganini va kod berishini tekshiraman.
-2. Admin panelga kirib (`0101` paroli bilan), verified badgeni ko'raman va bitta test reklama yarataman.
-3. Yangiliklar emojisi (📰) saytda uchishini va uni bosganda reklamalar chiqishini tasdiqlayman.
-4. Bot orqali barchaga kompaniya havolasi ko'k rangda yuborilganini tekshiraman.
-5. Yangi Video va Rasm AI bo'limlari to'g'ri ishlashi va ulardagi tugmalar chiroyli animatsiyaga ega bo'lishini ko'zdan kechiraman.
+echo.
+color 0A
+echo  ============================================
+echo    O'rnatish muvaffaqiyatli yakunlandi!
+echo  ============================================
+echo.
+echo  Sayt: http://localhost:3000/a.html
+echo  Desktop da "AbdunurCreator" shortcut bor.
+echo  Windows yonganda server avtomatik ishga tushadi.
+echo.
+echo  O'chirish uchun: uninstall.bat ni ishga tushiring.
+echo.
+pause

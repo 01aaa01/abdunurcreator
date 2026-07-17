@@ -1,36 +1,354 @@
-@echo off
-title AbdunurCreator - DIAGNOSTIKA
-color 0E
-cd /d "%~dp0"
+// ===== NOOR I18N — uz / ru / en =====
+// Sayt va admin panel uchun uch tilli tarjima tizimi. Til tanlovi brauzerda
+// (localStorage) saqlanadi, backendga hech narsa yuborilmaydi.
+const NOOR_TRANSLATIONS = {
+  uz: {
+    'login.title': 'Kirish',
+    'login.sub': 'Avval <a href="https://t.me/abdunurcreator_bot" target="_blank" style="color:var(--c)">@abdunurcreator_bot</a> ga <b>/start</b> yuboring, so\'ng username va kodingizni kiriting.',
+    'login.usernameLabel': 'Telegram username',
+    'login.codeLabel': 'Kod',
+    'login.btn': 'Kirish',
+    'login.hint': 'Bot kodini yuborganidan keyin shu yerga kiriting.',
+    'login.passwordLabel': 'Parol',
+    'auth.tabLogin': 'Kirish',
+    'auth.tabSignup': "Ro'yxatdan o'tish",
+    'auth.identifierHint': "Email yoki Telegram username'ingizni kiriting, so'ng usulni tanlang.",
+    'auth.viaTelegram': 'Telegram bilan kirish',
+    'auth.viaGoogle': 'Google bilan kirish',
+    'auth.viaPassword': 'Login va parol bilan',
+    'auth.identifierLabel': 'Email yoki Telegram username',
+    'auth.passwordHint': "Parolni Telegram botimiz orqali olasiz (/start bosing).",
+    'auth.signupHint': "Ro'yxatdan o'tish uchun usulni tanlang — ikkalasi ham bepul.",
+    'auth.signupTelegram': "Telegram orqali ro'yxatdan o'tish",
+    'auth.signupGoogle': "Google orqali ro'yxatdan o'tish",
+    'auth.signupTelegramNote': "Telegram: botga <b>/start</b> yuboring, admin sizga kirish kodini yuboradi.",
+    'nav.profile': 'Profil',
+    'nav.admin': 'Admin',
+    'chat.newChat': 'Yangi suhbat',
+    'chat.backToSite': 'Saytga qaytish',
+    'chat.codePanelTitle': 'Kod',
+    'chat.noteCoder2': "Noor AI 2.0 (Coder) — kod yozadi VA rasm/skrinshotlarni ham tushunadi.",
+    'attach.image': 'Rasm yuklash',
+    'attach.camera': 'Kameraga tushirish',
+    'attach.screenshot': 'Skrinshot olish',
+    'attach.file': "Fayl yuklash (tez orada — Noor 2.5)",
+    'attach.createImage': 'Rasm yaratish (tez orada)',
+    'profile.title': 'Profil',
+    'profile.changePhoto': "Rasmni o'zgartirish",
+    'profile.usernameLabel': "Username (o'zgartirib bo'lmaydi)",
+    'profile.nameLabel': 'Ism',
+    'profile.save': 'Saqlash',
+    'nav.logout': 'Chiqish',
+    'hero.eyebrow': 'The Future is Now',
+    'hero.sub': "Noor AI 1.5 bilan suhbatlashing, rasm yarating va eng so'nggi AI vositalarini bir joyda kashf eting.",
+    'hero.welcome': 'Xush kelibsiz,',
+    'chat.sectionTitle': "Noor AI bilan suhbat",
+    'chat.live': 'Live AI Assistant',
+    'chat.noteGeneral': "Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.",
+    'chat.noteCoder': "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan. Kod so'rang, u yozadi, siz sinab ko'rasiz.",
+    'chat.welcomeMsg': "Suhbatni boshlash uchun quyida xabar yozing yoki rasm tashlang. Noor AI sizga yordam berishga tayyor.",
+    'chat.inputPh': 'AI ga savol bering yoki rasm tashlang...',
+    'chat.send': 'Yuborish',
+    'imggen.sectionTitle': 'Noor Rasm — AI bilan rasm yaratish',
+    'imggen.desc': "Xohlagan rasmingizni matn bilan tasvirlab bering — bir necha soniyada tayyor bo'ladi. Butunlay bepul va cheksiz (birinchi marta bepul Puter akkauntingizga kirishingiz so'raladi).",
+    'imggen.modelLabel': 'Model',
+    'imggen.promptLabel': 'Rasm tavsifi',
+    'imggen.promptPh': "Masalan: Tog' cho'qqisida quyosh botayotgan, realistik uslubda...",
+    'imggen.btn': '🎨 Yaratish',
+    'video.sectionTitle': "Video Yasaydigan AI'lar",
+    'image.sectionTitle': "Rasm Yasaydigan AI'lar",
+    'text.sectionTitle': "Matn va Kod AI'lari",
+    'common.visitSite': "Saytiga o'tish",
+    'card.higgsfield': "Yuqori sifatli, realistik va kinematografik videolar yaratishga ixtisoslashgan yangi avlod AI. Harakatlar va detallarni nozik tarzda tushunadi.",
+    'card.kling': "Kuaishou tomonidan ishlab chiqilgan kuchli video generatsiya modeli. Uzun va murakkab sahnalarni qoyilmaqom tarzda tasvirlaydi.",
+    'card.veo3': "Google DeepMind'ning eng so'nggi va eng kuchli video modeli. Tovush va musiqa bilan birga 1080p sifatdagi videolarni yaratadi.",
+    'card.runway': "Professional video ijodkorlar uchun mo'ljallangan kuchli AI. Kamera harakatlari va effektlarni to'liq nazorat qilish imkoniyati bor.",
+    'card.pika': "Rasmdan va matndan video yaratuvchi ijodiy AI platforma. Real vaqt rejimida video tahrirlash va effektlar qo'shish mumkin.",
+    'card.luma': "Realistik fizika va harakat simulyatsiyasiga ega video AI. Murakkab 3D ko'rinishlarni ham ajoyib tarzda yaratadi.",
+    'card.ideogram': "Matinni rasmda aniq aks ettira oladigan noyob AI. Poster, logo va kreativ dizaynlar uchun juda qulay va tezkor platforma.",
+    'card.chatgpt': "OpenAI'ning eng kuchli chatboti — matn, kod, tahlil va DALL-E 4 orqali professional rasm generatsiyasi. Barcha vazifalar uchun.",
+    'card.copilot': "Internet bilan bog'langan va DALL-E 3 orqali rasm chiza oladigan universal AI yordamchi. Microsoft Office bilan to'liq integratsiya.",
+    'card.midjourney': "Dunyodagi eng mashhur va estetik jihatdan yuksak rasm generatsiya AI'si. San'at, fantaziya va professional fotosuratlar uchun ideal.",
+    'card.firefly': "Adobe'ning kuchli generativ AI vositasi. Photoshop va Illustrator bilan to'liq integratsiya — professional natija kafolatlangan.",
+    'card.imagen3': "Google'ning eng so'nggi rasm generatsiya modeli. Fotorealistik va badiiy tasvirlarni yaratishda eng yuksak sifatni ta'minlaydi.",
+    'card.claude': "Xavfsizlik va intellekt uyg'unligida etakchi AI. Uzoq hujjatlarni o'qib tahlil qilish, kod yozish va murakkab vazifalarni hal qilishda ustun.",
+    'card.gemini': "Google'ning multi-modal AI modeli. Rasm, video, matn va ovozni birga tahlil qilish va ishlov berish imkoniyatiga ega kuchli platforma.",
+    'card.llama': "Meta tomonidan ochiq manbali qilib chiqarilgan kuchli til modeli. O'z serveringizda ishlata olasiz — maxfiylik va nazorat to'liq sizda.",
+    'social.sectionTitle': "Bog'lanish",
+    'footer.text': '© 2026 ABDUNURCREATOR — AI orqali yaratilgan dunyo',
+    'admin.tabUsers': "👥 Foydalanuvchilar",
+    'admin.tabAds': '📢 Reklama',
+    'admin.tabConfig': '⚙️ Sozlamalar',
+    'admin.loading': 'Yuklanmoqda...',
+    'admin.refresh': '🔄 Yangilash',
+    'admin.selectUser': 'Foydalanuvchi tanlang',
+    'admin.usernameEditable': "Username (o'zgartirish mumkin)",
+    'admin.msgText': 'Xabar matni',
+    'admin.msgTextPh': 'Xabar yozing...',
+    'admin.msgCode': 'Kod (ixtiyoriy — kirish kodi yuborish uchun)',
+    'admin.msgColor': 'Xabar rangi',
+    'admin.colorGreen': '✅ Yashil (Kod/Tasdiqlash)',
+    'admin.colorRed': "❌ Qizil (Xatolik/Rad etish)",
+    'admin.sendMsg': '📨 Xabar Yuborish',
+    'admin.adsDesc': "Reklama joylang — barcha obunachilarga bot orqali avtomatik tarqatiladi.",
+    'admin.adImg': 'Rasm URL',
+    'admin.adCompany': 'Kompaniya nomi',
+    'admin.adLink': 'Kompaniya sayti (link)',
+    'admin.adText': 'Reklama matni',
+    'admin.adTextPh': 'Reklama haqida...',
+    'admin.adPost': '📢 Joylash va Barchaga Yuborish',
+    'admin.configDesc1': "Saytda bepul AI chatboti (Noor AI 1.5) ishlashi uchun OpenRouter API kalitini kiriting.",
+    'admin.configDesc2': "Noor AI 1.0 (Coder) rejimi — kodlash uchun ixtisoslashgan modellar (OpenCode Zen) ishlashi uchun kalit kiriting. Kiritilmasa, Coder rejimi ham bepul zaxira modellardan foydalanadi.",
+    'admin.opencodeKeyLabel': 'OpenCode Zen API Key (Coder rejimi uchun)',
+    'admin.opencodeKeyHint': 'Bepul kalitni <a href="https://opencode.ai/auth" target="_blank" style="color:var(--c)">opencode.ai/auth</a> orqali oling.',
+    'admin.saveConfig': '💾 Sozlamalarni Saqlash',
+    'admin.back': "← Asosiy sahifaga"
+  },
+  ru: {
+    'login.title': 'Вход',
+    'login.sub': 'Сначала отправьте <b>/start</b> боту <a href="https://t.me/abdunurcreator_bot" target="_blank" style="color:var(--c)">@abdunurcreator_bot</a>, затем введите свой username и код.',
+    'login.usernameLabel': 'Telegram username',
+    'login.codeLabel': 'Код',
+    'login.btn': 'Войти',
+    'login.hint': 'Введите сюда код, который прислал бот.',
+    'login.passwordLabel': 'Пароль',
+    'auth.tabLogin': 'Вход',
+    'auth.tabSignup': 'Регистрация',
+    'auth.identifierHint': 'Введите email или Telegram username, затем выберите способ.',
+    'auth.viaTelegram': 'Войти через Telegram',
+    'auth.viaGoogle': 'Войти через Google',
+    'auth.viaPassword': 'Логин и пароль',
+    'auth.identifierLabel': 'Email или Telegram username',
+    'auth.passwordHint': 'Пароль вы получите через нашего Telegram-бота (нажмите /start).',
+    'auth.signupHint': 'Выберите способ регистрации — оба бесплатны.',
+    'auth.signupTelegram': 'Зарегистрироваться через Telegram',
+    'auth.signupGoogle': 'Зарегистрироваться через Google',
+    'auth.signupTelegramNote': 'Telegram: отправьте боту <b>/start</b>, админ пришлёт код входа.',
+    'nav.profile': 'Профиль',
+    'nav.admin': 'Админ',
+    'chat.newChat': 'Новый чат',
+    'chat.backToSite': 'Вернуться на сайт',
+    'chat.codePanelTitle': 'Код',
+    'chat.noteCoder2': 'Noor AI 2.0 (Coder) — пишет код И понимает изображения/скриншоты.',
+    'attach.image': 'Загрузить изображение',
+    'attach.camera': 'Снять на камеру',
+    'attach.screenshot': 'Сделать скриншот',
+    'attach.file': 'Загрузка файлов (скоро — Noor 2.5)',
+    'attach.createImage': 'Создать изображение (скоро)',
+    'profile.title': 'Профиль',
+    'profile.changePhoto': 'Изменить фото',
+    'profile.usernameLabel': 'Username (нельзя изменить)',
+    'profile.nameLabel': 'Имя',
+    'profile.save': 'Сохранить',
+    'nav.logout': 'Выйти',
+    'hero.eyebrow': 'The Future is Now',
+    'hero.sub': 'Общайтесь с Noor AI 1.5, создавайте изображения и открывайте лучшие AI-инструменты в одном месте.',
+    'hero.welcome': 'Добро пожаловать,',
+    'chat.sectionTitle': 'Чат с Noor AI',
+    'chat.live': 'Live AI Assistant',
+    'chat.noteGeneral': 'Noor AI 1.5 сам автоматически выбирает лучшую бесплатную модель для общения, кода и понимания изображений. Прикрепите или перетащите изображение — он тоже его поймёт.',
+    'chat.noteCoder': 'Noor AI 1.0 (Coder) — специализируется только на программировании. Опишите задачу, он напишет код, вы сразу его протестируете.',
+    'chat.welcomeMsg': 'Напишите сообщение или прикрепите изображение, чтобы начать разговор. Noor AI готов помочь.',
+    'chat.inputPh': 'Задайте вопрос AI или прикрепите изображение...',
+    'chat.send': 'Отправить',
+    'imggen.sectionTitle': 'Noor Rasm — Создание изображений с AI',
+    'imggen.desc': 'Опишите нужное изображение текстом — оно будет готово за несколько секунд. Полностью бесплатно и без ограничений (при первом запуске потребуется войти в бесплатный аккаунт Puter).',
+    'imggen.modelLabel': 'Модель',
+    'imggen.promptLabel': 'Описание изображения',
+    'imggen.promptPh': 'Например: закат солнца на вершине горы, в реалистичном стиле...',
+    'imggen.btn': '🎨 Создать',
+    'video.sectionTitle': 'AI для создания видео',
+    'image.sectionTitle': 'AI для создания изображений',
+    'text.sectionTitle': 'AI для текста и кода',
+    'common.visitSite': 'Перейти на сайт',
+    'card.higgsfield': 'AI нового поколения, специализирующийся на создании реалистичных и кинематографичных видео высокого качества. Тонко понимает движения и детали.',
+    'card.kling': 'Мощная модель генерации видео от Kuaishou. Превосходно передаёт длинные и сложные сцены.',
+    'card.veo3': 'Новейшая и самая мощная видеомодель Google DeepMind. Создаёт видео в 1080p со звуком и музыкой.',
+    'card.runway': 'Мощный AI для профессиональных видеотворцов. Полный контроль над движением камеры и эффектами.',
+    'card.pika': 'Творческая AI-платформа для создания видео из изображений и текста. Есть редактирование видео и эффекты в реальном времени.',
+    'card.luma': 'Видео-AI с реалистичной физикой и симуляцией движения. Отлично создаёт сложные 3D-сцены.',
+    'card.ideogram': 'Уникальный AI, точно отображающий текст на изображениях. Удобная и быстрая платформа для постеров, логотипов и дизайна.',
+    'card.chatgpt': 'Самый мощный чат-бот от OpenAI — текст, код, анализ и генерация изображений через DALL-E 4. Для любых задач.',
+    'card.copilot': 'Универсальный AI-помощник, подключённый к интернету, рисует изображения через DALL-E 3. Полная интеграция с Microsoft Office.',
+    'card.midjourney': 'Самый популярный и эстетичный AI для генерации изображений в мире. Идеален для искусства, фэнтези и профессиональных фото.',
+    'card.firefly': 'Мощный генеративный AI-инструмент от Adobe. Полная интеграция с Photoshop и Illustrator — гарантирован профессиональный результат.',
+    'card.imagen3': 'Новейшая модель генерации изображений от Google. Обеспечивает высочайшее качество фотореалистичных и художественных изображений.',
+    'card.claude': 'Лидер в сочетании безопасности и интеллекта. Превосходно анализирует длинные документы, пишет код и решает сложные задачи.',
+    'card.gemini': 'Мультимодальная AI-модель от Google. Мощная платформа для совместного анализа изображений, видео, текста и звука.',
+    'card.llama': 'Мощная языковая модель с открытым исходным кодом от Meta. Можно запускать на своём сервере — полная конфиденциальность и контроль.',
+    'social.sectionTitle': 'Связаться',
+    'footer.text': '© 2026 ABDUNURCREATOR — мир, созданный с помощью AI',
+    'admin.tabUsers': '👥 Пользователи',
+    'admin.tabAds': '📢 Реклама',
+    'admin.tabConfig': '⚙️ Настройки',
+    'admin.loading': 'Загрузка...',
+    'admin.refresh': '🔄 Обновить',
+    'admin.selectUser': 'Выберите пользователя',
+    'admin.usernameEditable': 'Username (можно изменить)',
+    'admin.msgText': 'Текст сообщения',
+    'admin.msgTextPh': 'Напишите сообщение...',
+    'admin.msgCode': 'Код (необязательно — для отправки кода входа)',
+    'admin.msgColor': 'Цвет сообщения',
+    'admin.colorGreen': '✅ Зелёный (Код/Подтверждение)',
+    'admin.colorRed': '❌ Красный (Ошибка/Отказ)',
+    'admin.sendMsg': '📨 Отправить сообщение',
+    'admin.adsDesc': 'Разместите рекламу — она будет автоматически разослана всем подписчикам через бота.',
+    'admin.adImg': 'URL изображения',
+    'admin.adCompany': 'Название компании',
+    'admin.adLink': 'Сайт компании (ссылка)',
+    'admin.adText': 'Текст рекламы',
+    'admin.adTextPh': 'О рекламе...',
+    'admin.adPost': '📢 Опубликовать и отправить всем',
+    'admin.configDesc1': 'Введите ключ OpenRouter API для работы бесплатного AI-чата (Noor AI 1.5) на сайте.',
+    'admin.configDesc2': 'Режим Noor AI 1.0 (Coder) — введите ключ для работы специализированных моделей программирования (OpenCode Zen). Если не указан, режим Coder тоже будет использовать бесплатные резервные модели.',
+    'admin.opencodeKeyLabel': 'OpenCode Zen API Key (для режима Coder)',
+    'admin.opencodeKeyHint': 'Получите бесплатный ключ на <a href="https://opencode.ai/auth" target="_blank" style="color:var(--c)">opencode.ai/auth</a>.',
+    'admin.saveConfig': '💾 Сохранить настройки',
+    'admin.back': '← На главную'
+  },
+  en: {
+    'login.title': 'Sign in',
+    'login.sub': 'First send <b>/start</b> to <a href="https://t.me/abdunurcreator_bot" target="_blank" style="color:var(--c)">@abdunurcreator_bot</a>, then enter your username and code.',
+    'login.usernameLabel': 'Telegram username',
+    'login.codeLabel': 'Code',
+    'login.btn': 'Sign in',
+    'login.hint': 'Enter the code the bot sent you here.',
+    'login.passwordLabel': 'Password',
+    'auth.tabLogin': 'Log in',
+    'auth.tabSignup': 'Sign up',
+    'auth.identifierHint': 'Enter your email or Telegram username, then pick a method.',
+    'auth.viaTelegram': 'Log in with Telegram',
+    'auth.viaGoogle': 'Log in with Google',
+    'auth.viaPassword': 'Username and password',
+    'auth.identifierLabel': 'Email or Telegram username',
+    'auth.passwordHint': "You'll get a password from our Telegram bot (press /start).",
+    'auth.signupHint': 'Choose a sign-up method — both are free.',
+    'auth.signupTelegram': 'Sign up with Telegram',
+    'auth.signupGoogle': 'Sign up with Google',
+    'auth.signupTelegramNote': 'Telegram: send <b>/start</b> to the bot, the admin will send you a login code.',
+    'nav.profile': 'Profile',
+    'nav.admin': 'Admin',
+    'chat.newChat': 'New chat',
+    'chat.backToSite': 'Back to site',
+    'chat.codePanelTitle': 'Code',
+    'chat.noteCoder2': 'Noor AI 2.0 (Coder) — writes code AND understands images/screenshots.',
+    'attach.image': 'Upload image',
+    'attach.camera': 'Take a photo',
+    'attach.screenshot': 'Take a screenshot',
+    'attach.file': 'Upload file (coming soon — Noor 2.5)',
+    'attach.createImage': 'Create image (coming soon)',
+    'profile.title': 'Profile',
+    'profile.changePhoto': 'Change photo',
+    'profile.usernameLabel': "Username (can't be changed)",
+    'profile.nameLabel': 'Name',
+    'profile.save': 'Save',
+    'nav.logout': 'Log out',
+    'hero.eyebrow': 'The Future is Now',
+    'hero.sub': 'Chat with Noor AI 1.5, generate images, and discover the latest AI tools all in one place.',
+    'hero.welcome': 'Welcome,',
+    'chat.sectionTitle': 'Chat with Noor AI',
+    'chat.live': 'Live AI Assistant',
+    'chat.noteGeneral': 'Noor AI 1.5 automatically picks the best free model for chatting, coding, and understanding images. Drop or upload an image — it can read that too.',
+    'chat.noteCoder': 'Noor AI 1.0 (Coder) — specialized purely for coding. Ask for code, it writes it, you can run it right away.',
+    'chat.welcomeMsg': 'Type a message or drop an image below to start the conversation. Noor AI is ready to help.',
+    'chat.inputPh': 'Ask the AI a question or drop an image...',
+    'chat.send': 'Send',
+    'imggen.sectionTitle': 'Noor Image — Generate images with AI',
+    'imggen.desc': "Describe the image you want in text — it's ready in seconds. Completely free and unlimited (you'll be asked to sign in to a free Puter account the first time).",
+    'imggen.modelLabel': 'Model',
+    'imggen.promptLabel': 'Image description',
+    'imggen.promptPh': 'For example: sunset over a mountain peak, realistic style...',
+    'imggen.btn': '🎨 Generate',
+    'video.sectionTitle': 'Video-Generating AIs',
+    'image.sectionTitle': 'Image-Generating AIs',
+    'text.sectionTitle': 'Text & Code AIs',
+    'common.visitSite': 'Visit site',
+    'card.higgsfield': 'A next-gen AI specialized in creating high-quality, realistic, cinematic videos. Understands motion and detail with great nuance.',
+    'card.kling': "A powerful video generation model built by Kuaishou. Renders long, complex scenes beautifully.",
+    'card.veo3': "Google DeepMind's latest and most powerful video model. Generates 1080p video complete with sound and music.",
+    'card.runway': 'A powerful AI built for professional video creators. Full control over camera moves and effects.',
+    'card.pika': 'A creative AI platform that turns images and text into video. Real-time video editing and effects included.',
+    'card.luma': 'A video AI with realistic physics and motion simulation. Renders complex 3D scenes beautifully too.',
+    'card.ideogram': 'A unique AI that renders text accurately within images. Fast and convenient for posters, logos, and creative designs.',
+    'card.chatgpt': "OpenAI's most powerful chatbot — text, code, analysis, and professional image generation via DALL-E 4. For every task.",
+    'card.copilot': 'An internet-connected, all-purpose AI assistant that can draw images via DALL-E 3. Fully integrated with Microsoft Office.',
+    'card.midjourney': "The world's most popular and aesthetically refined image generation AI. Ideal for art, fantasy, and professional photography.",
+    'card.firefly': "Adobe's powerful generative AI tool. Fully integrated with Photoshop and Illustrator — professional results guaranteed.",
+    'card.imagen3': "Google's latest image generation model. Delivers the highest quality photorealistic and artistic images.",
+    'card.claude': 'A leader in combining safety with intelligence. Excels at analyzing long documents, writing code, and solving complex tasks.',
+    'card.gemini': "Google's multi-modal AI model. A powerful platform for jointly analyzing and processing images, video, text, and audio.",
+    'card.llama': "Meta's powerful open-source language model. Run it on your own server — full privacy and control are yours.",
+    'social.sectionTitle': 'Connect',
+    'footer.text': '© 2026 ABDUNURCREATOR — a world built with AI',
+    'admin.tabUsers': '👥 Users',
+    'admin.tabAds': '📢 Ads',
+    'admin.tabConfig': '⚙️ Settings',
+    'admin.loading': 'Loading...',
+    'admin.refresh': '🔄 Refresh',
+    'admin.selectUser': 'Select a user',
+    'admin.usernameEditable': 'Username (editable)',
+    'admin.msgText': 'Message text',
+    'admin.msgTextPh': 'Write a message...',
+    'admin.msgCode': 'Code (optional — to send a login code)',
+    'admin.msgColor': 'Message color',
+    'admin.colorGreen': '✅ Green (Code/Confirmation)',
+    'admin.colorRed': '❌ Red (Error/Rejection)',
+    'admin.sendMsg': '📨 Send Message',
+    'admin.adsDesc': 'Post an ad — it will be automatically broadcast to all subscribers via the bot.',
+    'admin.adImg': 'Image URL',
+    'admin.adCompany': 'Company name',
+    'admin.adLink': 'Company website (link)',
+    'admin.adText': 'Ad text',
+    'admin.adTextPh': 'About the ad...',
+    'admin.adPost': '📢 Post and Send to Everyone',
+    'admin.configDesc1': 'Enter an OpenRouter API key so the free AI chat (Noor AI 1.5) works on the site.',
+    'admin.configDesc2': 'Noor AI 1.0 (Coder) mode — enter a key so the specialized coding models (OpenCode Zen) work. If left empty, Coder mode will also fall back to free models.',
+    'admin.opencodeKeyLabel': 'OpenCode Zen API Key (for Coder mode)',
+    'admin.opencodeKeyHint': 'Get a free key at <a href="https://opencode.ai/auth" target="_blank" style="color:var(--c)">opencode.ai/auth</a>.',
+    'admin.saveConfig': '💾 Save Settings',
+    'admin.back': '← Back to main page'
+  }
+};
 
-echo ============================================
-echo   1) Node.js versiyasi
-echo ============================================
-node --version
-if %errorlevel% neq 0 (
-    echo.
-    echo [XATO] Node.js topilmadi yoki o'rnatilmagan!
-    echo Yuklab oling: https://nodejs.org
-    pause
-    exit /b 1
-)
+let noorCurrentLang = localStorage.getItem('noor_lang') || 'uz';
 
-echo.
-echo ============================================
-echo   2) Paketlarni tekshirish / o'rnatish
-echo ============================================
-call npm install
+function noorT(key, fallback) {
+  const dict = NOOR_TRANSLATIONS[noorCurrentLang] || NOOR_TRANSLATIONS.uz;
+  return dict[key] || fallback || (NOOR_TRANSLATIONS.uz[key] || key);
+}
 
-echo.
-echo ============================================
-echo   3) Serverni ishga tushirish
-echo ============================================
-echo (Bu oyna ochiq turadi. Xato chiqsa, pastda ko'rinadi.)
-echo.
-node server.js
+function applyNoorLang(lang) {
+  if (!NOOR_TRANSLATIONS[lang]) lang = 'uz';
+  noorCurrentLang = lang;
+  localStorage.setItem('noor_lang', lang);
+  document.documentElement.lang = lang;
 
-echo.
-echo ============================================
-echo   Server to'xtadi yoki xato berdi (yuqorida ko'ring)
-echo ============================================
-pause
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = noorT(key);
+    if (val !== undefined) el.innerHTML = val;
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-i18n-ph');
+    const val = noorT(key);
+    if (val !== undefined) el.setAttribute('placeholder', val);
+  });
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === lang);
+  });
+
+  // Chat izohini joriy rejimga mos holda yangilaymiz (agar sahifa allaqachon ochilgan bo'lsa)
+  const note = document.getElementById('chat-note');
+  if (note && typeof currentChatMode !== 'undefined') {
+    note.textContent = currentChatMode === 'coder' ? noorT('chat.noteCoder') : noorT('chat.noteGeneral');
+  }
+}
+
+window.NOOR_I18N = { t: noorT, apply: applyNoorLang, get lang() { return noorCurrentLang; } };
+
+document.addEventListener('DOMContentLoaded', () => {
+  applyNoorLang(noorCurrentLang);
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyNoorLang(btn.dataset.lang));
+  });
+});
