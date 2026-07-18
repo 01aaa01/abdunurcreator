@@ -122,16 +122,15 @@ bot.onText(/\/start/, (msg) => {
   );
 });
 
-function issuePassword(chatId, key, email) {
-  const plainPassword = generateReadablePassword();
-  const { salt, hash } = hashPassword(plainPassword);
+// Diqqat: bot o'zi kod/parol yaratib bermaydi — faqat ma'lumotni saqlaydi va
+// foydalanuvchiga adminning kod yuborishini kutishini aytadi. Kodni faqat admin
+// panel orqali admin o'zi yuboradi (pastdagi /api/admin/send-message ga qarang).
+function confirmAwaitingAdmin(chatId, key, email) {
   db.users[key].email = email || db.users[key].email || null;
-  db.users[key].passwordSalt = salt;
-  db.users[key].passwordHash = hash;
   db.users[key].awaitingEmail = false;
   saveDB();
   bot.sendMessage(chatId,
-    `✅ Tushunarli!\n\nSaytga tezroq kirish uchun parolingiz: <b>${plainPassword}</b>\n\nSaytda "Kirish" bo'limida username${email ? ' yoki email' : ''} va shu parol bilan kirishingiz mumkin. Xohlasangiz, keyinroq saytdagi Profil bo'limidan buni o'zgartirishingiz mumkin bo'ladi.`,
+    `✅ Qabul qilindi!\n\nAdministrator tez orada sizga saytga kirish kodini shu yerga yuboradi. Iltimos, kuting.`,
     { parse_mode: 'HTML' }
   );
 }
@@ -142,7 +141,7 @@ bot.on('callback_query', (query) => {
   if (!username) return bot.answerCallbackQuery(query.id);
   const key = username.toLowerCase();
   if (query.data === 'no_email' && db.users[key] && db.users[key].awaitingEmail) {
-    issuePassword(chatId, key, null);
+    confirmAwaitingAdmin(chatId, key, null);
   }
   bot.answerCallbackQuery(query.id);
 });
@@ -160,7 +159,7 @@ bot.on('message', (msg) => {
       bot.sendMessage(msg.chat.id, '⚠️ Bu email manziliga o\'xshamayapti. Qaytadan yuboring, yoki "Emailim yo\'q" tugmasini bosing.');
       return;
     }
-    issuePassword(msg.chat.id, key, email);
+    confirmAwaitingAdmin(msg.chat.id, key, email);
   }
 });
 

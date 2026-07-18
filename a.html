@@ -98,7 +98,7 @@
       <p class="hint" data-i18n="auth.signupTelegramNote">Telegram: botga <b>/start</b> yuboring, admin sizga kirish kodini yuboradi.</p>
     </div>
 
-    <div id="google-btn-container" style="display:none;"></div>
+    <div id="google-btn-container" class="google-btn-container hidden"></div>
   </div>
 </div>
 
@@ -323,13 +323,29 @@
         <input type="file" id="chat-attach-input" accept="image/*" class="hidden">
         <input type="file" id="chat-camera-input" accept="image/*" capture="environment" class="hidden">
         <input type="text" id="chat-user-input" placeholder="AI ga savol bering yoki rasm tashlang..." autocomplete="off" data-i18n-ph="chat.inputPh">
-        <select id="chat-model-select" class="chat-model-select" onchange="setChatMode(this.value)">
-          <optgroup label="Suhbat" data-i18n-label="chat.groupChat">
+        <div class="model-picker" id="model-picker">
+          <button type="button" class="model-picker-btn" id="model-picker-btn">
+            <span class="model-picker-label" id="model-picker-label">Noor AI 1.5</span>
+            <svg class="model-picker-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="model-picker-menu hidden" id="model-picker-menu">
+            <div class="model-picker-group-label" data-i18n-label="chat.groupChat">Suhbat</div>
+            <button type="button" class="model-picker-item" data-value="general" data-label="Noor AI 1.5">Noor AI 1.5</button>
+            <button type="button" class="model-picker-item" data-value="coder" data-label="Noor AI 1.0 (Coder)">Noor AI 1.0 (Coder)</button>
+            <button type="button" class="model-picker-item" data-value="coder2" data-label="Noor AI 2.0 (Coder)">Noor AI 2.0 (Coder)<span class="model-picker-tag">YANGI</span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupImage">Rasm yaratish (tez orada)</div>
+            <button type="button" class="model-picker-item is-disabled" data-value="img-nanobanana" disabled>Nano Banana Pro (Gemini)</button>
+            <button type="button" class="model-picker-item is-disabled" data-value="img-flux2" disabled>FLUX.2 Pro</button>
+            <button type="button" class="model-picker-item is-disabled" data-value="img-sd3" disabled>Stable Diffusion 3</button>
+            <button type="button" class="model-picker-item is-disabled" data-value="img-gptimage2" disabled>GPT Image 2</button>
+            <button type="button" class="model-picker-item is-disabled" data-value="img-midjourney" disabled>Midjourney v7</button>
+            <button type="button" class="model-picker-item is-disabled" data-value="img-ideogram" disabled>Ideogram v3</button>
+            <button type="button" class="model-picker-item is-disabled" data-value="img-imagen4" disabled>Google Imagen 4</button>
+          </div>
+          <select id="chat-model-select" class="hidden" onchange="setChatMode(this.value)">
             <option value="general">Noor AI 1.5</option>
             <option value="coder">Noor AI 1.0 (Coder)</option>
-            <option value="coder2">Noor AI 2.0 (Coder) — YANGI</option>
-          </optgroup>
-          <optgroup label="Rasm yaratish (tez orada)" data-i18n-label="chat.groupImage">
+            <option value="coder2">Noor AI 2.0 (Coder)</option>
             <option value="img-nanobanana" disabled>Nano Banana Pro (Gemini)</option>
             <option value="img-flux2" disabled>FLUX.2 Pro</option>
             <option value="img-sd3" disabled>Stable Diffusion 3</option>
@@ -337,8 +353,8 @@
             <option value="img-midjourney" disabled>Midjourney v7</option>
             <option value="img-ideogram" disabled>Ideogram v3</option>
             <option value="img-imagen4" disabled>Google Imagen 4</option>
-          </optgroup>
-        </select>
+          </select>
+        </div>
         <button class="chat-send-arrow" id="chat-send-btn" onclick="sendChatMsg()" title="Yuborish">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
         </button>

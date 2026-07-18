@@ -60,7 +60,7 @@ function switchAuthTab(tab) {
   document.getElementById('auth-tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('auth-tab-signup').classList.toggle('active', tab === 'signup');
   document.getElementById('auth-pane-login').classList.toggle('hidden', tab !== 'login');
-  document.getElementById('auth-pane-signup').classList.toggle('hidden', tab === 'login' ? false : true);
+  document.getElementById('auth-pane-signup').classList.toggle('hidden', tab !== 'signup');
 }
 
 function chooseAuthMethod(paneKind, method) {
@@ -140,13 +140,29 @@ async function handleGoogleCredential(response) {
     else { err.textContent = d.error || 'Google orqali kirishda xatolik.'; }
   } catch (e) { err.textContent = 'Server bilan aloqa yo\'q.'; }
 }
+let googleInitialized = false;
 async function triggerGoogleSignIn() {
   const err = document.getElementById('login-err');
+  err.textContent = '';
   const clientId = await getGoogleClientId();
   if (!clientId) { err.textContent = 'Google orqali kirish hali serverda sozlanmagan (GOOGLE_CLIENT_ID kerak).'; return; }
   if (typeof google === 'undefined' || !google.accounts) { err.textContent = 'Google xizmati yuklanmadi, internetni tekshiring.'; return; }
-  google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleCredential });
-  google.accounts.id.prompt();
+  if (!googleInitialized) {
+    google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleCredential, ux_mode: 'popup' });
+    googleInitialized = true;
+  }
+  // Muhim: faqat prompt() (One Tap) ga tayanmaymiz — brauzer/cookie sozlamalari yoki
+  // FedCM tufayli u ko'p hollarda hech qanday xatosiz "jim" ishlamay qoladi.
+  // Shu sabab haqiqiy Google tugmasini ham chizamiz — bu ancha ishonchli usul.
+  const container = document.getElementById('google-btn-container');
+  container.classList.remove('hidden');
+  container.innerHTML = '';
+  google.accounts.id.renderButton(container, { theme: 'filled_black', size: 'large', width: 280, shape: 'pill', text: 'continue_with' });
+  google.accounts.id.prompt((notification) => {
+    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+      // One Tap ko'rsatilmadi — bu normal holat, yuqoridagi Google tugmasidan foydalanish kifoya.
+    }
+  });
 }
 
 function logout(){
@@ -284,6 +300,7 @@ function startNewChatSession() {
   chatHistory = [];
   currentChatMode = 'general';
   document.getElementById('chat-model-select').value = 'general';
+  syncModelPickerUI('general');
   document.getElementById('chat-msg-container').innerHTML = '';
   appendChatBubble("Yangi suhbat boshlandi. Nima bilan yordam bera olaman?", 'system');
   closeCodePanel();
@@ -296,6 +313,7 @@ function loadChatSession(id) {
   currentChatMode = session.mode || 'general';
   chatHistory = session.messages || [];
   document.getElementById('chat-model-select').value = currentChatMode;
+  syncModelPickerUI(currentChatMode);
   const container = document.getElementById('chat-msg-container');
   container.innerHTML = '';
   closeCodePanel();
@@ -631,6 +649,7 @@ function setChatMode(mode) {
   persistActiveSession();
   currentChatMode = mode;
   document.getElementById('chat-model-select').value = mode;
+  syncModelPickerUI(mode);
   const note = document.getElementById('chat-note');
   const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
   if (mode === 'coder') {
@@ -821,6 +840,48 @@ document.getElementById('chat-user-input').addEventListener('keydown', (e) => {
 
 // "+" biriktirish menyusi: rasm yuklash, kameraga tushirish, skrinshot — ishlaydi.
 // Fayl yuklash va rasm yaratish hozircha o'chirilgan (keyingi Noor 2.5/rasm integratsiyasi uchun).
+// === MODEL PICKER (chat-model-select o'rniga sayt uslubidagi maxsus dropdown) ===
+// Haqiqiy <select id="chat-model-select"> DOM'da yashirin holda qoladi — eski kod (.value
+// o'qish/yozish) buzilmasligi uchun. Ko'rinadigan qism esa quyidagi tugma + menyu.
+function syncModelPickerUI(mode) {
+  const menu = document.getElementById('model-picker-menu');
+  const label = document.getElementById('model-picker-label');
+  if (!menu || !label) return;
+  const items = menu.querySelectorAll('.model-picker-item');
+  let matched = null;
+  items.forEach((it) => {
+    const active = it.dataset.value === mode;
+    it.classList.toggle('active', active);
+    if (active) matched = it;
+  });
+  if (matched) label.textContent = matched.dataset.label || matched.textContent.trim();
+}
+(function initModelPicker() {
+  const btn = document.getElementById('model-picker-btn');
+  const menu = document.getElementById('model-picker-menu');
+  if (!btn || !menu) return;
+  const closeMenu = () => { menu.classList.add('hidden'); btn.classList.remove('open'); };
+  const openMenu = () => { menu.classList.remove('hidden'); btn.classList.add('open'); };
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.contains('hidden') ? openMenu() : closeMenu();
+  });
+  menu.querySelectorAll('.model-picker-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (item.disabled || item.classList.contains('is-disabled')) return; // ishlamaydigan variantlar bosilmaydi
+      setChatMode(item.dataset.value);
+      closeMenu();
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (!menu.classList.contains('hidden') && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      closeMenu();
+    }
+  });
+  syncModelPickerUI(currentChatMode);
+})();
+
 const attachPlusBtn = document.getElementById('chat-attach-btn');
 const attachMenu = document.getElementById('attach-menu');
 const chatAttachInput = document.getElementById('chat-attach-input');

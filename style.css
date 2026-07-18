@@ -39,6 +39,7 @@ p.sub{color:var(--td);font-size:0.9rem;margin-bottom:24px;line-height:1.5;}
 .err{color:var(--p);font-size:.82rem;margin-top:8px;min-height:16px;}
 .ok{color:var(--c);font-size:.82rem;margin-top:8px;min-height:16px;}
 .hidden{display:none!important;}
+.google-btn-container{display:flex;justify-content:center;margin-top:14px;}
 .link-btn{background:none;border:none;color:var(--td);font-family:var(--mn);font-size:.75rem;cursor:pointer;margin-top:12px;text-decoration:underline;}
 .link-btn:hover{color:var(--t);}
 .hint{font-size:.78rem;color:var(--td);margin-top:16px;line-height:1.5;}
@@ -144,8 +145,24 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 .sidebar-rename-input{flex:1;background:rgba(255,255,255,.08);border:1px solid var(--c);border-radius:6px;color:var(--t);font-family:var(--bd);font-size:.85rem;padding:6px 8px;outline:none;}
 
 /* ===== Chat model select (next to send button) ===== */
-.chat-model-select{background:rgba(255,255,255,.05);border:1px solid var(--gb);color:var(--t);font-family:var(--mn);font-size:.75rem;border-radius:10px;padding:9px 8px;max-width:160px;flex-shrink:0;cursor:pointer;}
-.chat-model-select option:disabled{color:#555;}
+/* === MODEL PICKER — chat-model-select o'rniga sayt uslubidagi maxsus dropdown === */
+.model-picker{position:relative;flex-shrink:0;}
+.model-picker-btn{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid var(--gb);color:var(--t);font-family:var(--mn);font-size:.75rem;border-radius:10px;padding:9px 12px;max-width:180px;cursor:pointer;transition:background .2s,border-color .2s;}
+.model-picker-btn:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.22);}
+.model-picker-btn.open{border-color:var(--c);background:rgba(0,212,255,.08);}
+.model-picker-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.model-picker-chevron{flex-shrink:0;transition:transform .2s;color:var(--td);}
+.model-picker-btn.open .model-picker-chevron{transform:rotate(180deg);color:var(--c);}
+.model-picker-menu{position:absolute;bottom:48px;right:0;background:#12141c;border:1px solid var(--gb);border-radius:14px;padding:6px;min-width:250px;max-height:320px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:20;backdrop-filter:blur(18px) saturate(140%);}
+.model-picker-menu.hidden{display:none;}
+.model-picker-group-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--td);font-family:var(--mn);padding:10px 12px 4px;}
+.model-picker-item{width:100%;display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--t);font-family:var(--bd);font-size:.85rem;padding:10px 12px;border-radius:8px;cursor:pointer;text-align:left;transition:background .15s;}
+.model-picker-item:hover:not(.is-disabled){background:rgba(255,255,255,.07);}
+.model-picker-item.active{background:rgba(0,212,255,.1);color:var(--c);}
+.model-picker-item.active::after{content:'✓';margin-left:auto;color:var(--c);}
+.model-picker-item.is-disabled{color:#555;cursor:not-allowed;}
+.model-picker-tag{margin-left:6px;font-family:var(--mn);font-size:.62rem;color:var(--v);background:rgba(108,92,231,.15);border:1px solid rgba(108,92,231,.3);padding:2px 6px;border-radius:100px;}
+@media(max-width:600px){.model-picker-btn{max-width:130px;}.model-picker-menu{right:auto;left:0;}}
 .chat-app-title{font-family:var(--dp);font-weight:600;color:var(--c);font-size:.95rem;}
 .sidebar-back{width:100%;display:flex;align-items:center;gap:8px;justify-content:center;}
 .chat-main{flex:1;display:flex;flex-direction:column;min-width:0;}
