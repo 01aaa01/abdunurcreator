@@ -642,7 +642,7 @@ let chatHistory = [];
 let pendingImage = null; // {dataUrl, name}
 let currentChatMode = 'general'; // 'general' (1.5) | 'coder' (1.0, matn-only) | 'coder2' (2.0, vision+code)
 
-const CHAT_MODE_LABELS = { general: 'Noor AI 1.5', coder: 'Noor AI 1.0 (Coder)', coder2: 'Noor AI 2.0 (Coder)' };
+const CHAT_MODE_LABELS = { general: 'Noor AI 1.5', coder: 'Noor AI 1.0 (Coder)', coder2: 'Noor AI 2.0 (Coder)', 'noor-image-1.0': 'Noor-Image 1.0', 'noor-video-1.0': 'Noor-Video 1.0' };
 
 function setChatMode(mode) {
   if (mode === currentChatMode) return;
@@ -656,6 +656,10 @@ function setChatMode(mode) {
     note.textContent = t('chat.noteCoder', "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi).");
   } else if (mode === 'coder2') {
     note.textContent = t('chat.noteCoder2', "Noor AI 2.0 (Coder) — kod yozadi VA rasm/skrinshotlarni ham tushunadi.");
+  } else if (mode === 'noor-image-1.0') {
+    note.textContent = t('chat.noteImage', "Noor-Image 1.0 — pastga nima chizish kerakligini yozing, u sizga rasm yaratib beradi.");
+  } else if (mode === 'noor-video-1.0') {
+    note.textContent = t('chat.noteVideo', "Noor-Video 1.0 — pastga video mavzusini yozing, u qisqa video yaratib beradi (biroz vaqt olishi mumkin).");
   } else {
     note.textContent = t('chat.noteGeneral', "Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.");
   }
@@ -663,7 +667,7 @@ function setChatMode(mode) {
   const container = document.getElementById('chat-msg-container');
   container.innerHTML = '';
   closeCodePanel();
-  appendChatBubble(`${CHAT_MODE_LABELS[mode]} rejimiga o'tdingiz. Nima bilan yordam bera olaman?`, 'system');
+  appendChatBubble(`${CHAT_MODE_LABELS[mode] || mode} rejimiga o'tdingiz. Nima bilan yordam bera olaman?`, 'system');
   persistActiveSession();
 }
 
@@ -726,6 +730,17 @@ function appendChatImage(dataUrl) {
   container.scrollTop = container.scrollHeight;
 }
 
+function appendChatMedia(url, kind) {
+  const container = document.getElementById('chat-msg-container');
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-msg ai';
+  bubble.innerHTML = (kind === 'video')
+    ? `<video src="${url}" class="chat-generated-media" controls autoplay loop muted playsinline></video>`
+    : `<img src="${url}" class="chat-generated-media" alt="Yaratilgan rasm">`;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
+
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -756,6 +771,55 @@ function clearPendingChatImage() {
   preview.classList.add('hidden');
 }
 
+async function sendMediaGenRequest(prompt) {
+  const inputEl = document.getElementById('chat-user-input');
+  const sendBtn = document.getElementById('chat-send-btn');
+  const container = document.getElementById('chat-msg-container');
+  if (!prompt) return;
+
+  appendChatBubble(prompt, 'user');
+  inputEl.value = '';
+
+  const typingIndicator = document.createElement('div');
+  typingIndicator.className = 'typing-indicator';
+  typingIndicator.id = 'chat-typing-indicator';
+  typingIndicator.innerHTML = `<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
+  container.appendChild(typingIndicator);
+  container.scrollTop = container.scrollHeight;
+  inputEl.disabled = true;
+  sendBtn.disabled = true;
+
+  const isVideo = currentChatMode === 'noor-video-1.0';
+  const endpoint = isVideo ? '/api/generate/video' : '/api/generate/image';
+
+  try {
+    const r = await fetch(BASE_URL + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, modelId: currentChatMode })
+    });
+    const d = await r.json();
+    const indicator = document.getElementById('chat-typing-indicator');
+    if (indicator) indicator.remove();
+    const mediaUrl = d.image || d.video;
+    if (r.ok && mediaUrl) {
+      appendChatMedia(mediaUrl, isVideo ? 'video' : 'image');
+      persistActiveSession(prompt);
+    } else {
+      appendChatBubble('Xatolik: ' + (d.error || 'Yaratib bo\'lmadi.'), 'system');
+    }
+  } catch (e) {
+    const indicator = document.getElementById('chat-typing-indicator');
+    if (indicator) indicator.remove();
+    appendChatBubble('Server bilan ulanishda xatolik yuz berdi.', 'system');
+  } finally {
+    inputEl.disabled = false;
+    sendBtn.disabled = false;
+    inputEl.focus();
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
 async function sendChatMsg() {
   const inputEl = document.getElementById('chat-user-input');
   const sendBtn = document.getElementById('chat-send-btn');
@@ -763,6 +827,11 @@ async function sendChatMsg() {
 
   const text = inputEl.value.trim();
   if (!text && !pendingImage) return;
+
+  if (currentChatMode === 'noor-image-1.0' || currentChatMode === 'noor-video-1.0') {
+    await sendMediaGenRequest(text);
+    return;
+  }
 
   // Append user message (rasm bo'lsa alohida ko'rsatamiz)
   if (pendingImage) appendChatImage(pendingImage.dataUrl);

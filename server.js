@@ -17,9 +17,40 @@ const bot = new TelegramBot(token, { polling: true });
 const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
 const OPENCODE_KEY = process.env.OPENCODE_KEY || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const BYTEZ_KEY = process.env.BYTEZ_KEY || '';
 if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
 if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
+if (!BYTEZ_KEY) console.warn('⚠️  BYTEZ_KEY .env faylida yo\'q — Noor-Image / Noor-Video ishlamaydi.');
+
+// Noor-Image / Noor-Video — Bytez (bytez.com) orqali bepul ochiq modellar bilan ishlaydi.
+// Sifatiga qarab keyinchalik yangi versiya qo'shish uchun shu ro'yxatga yozing (id o'zgarmasin,
+// eski suhbatlar/frontend shu id orqali murojaat qiladi).
+const BYTEZ_MODELS = {
+  image: [
+    { id: 'noor-image-1.0', bytezId: 'black-forest-labs/FLUX.1-schnell', label: 'Noor-Image 1.0' }
+  ],
+  video: [
+    { id: 'noor-video-1.0', bytezId: 'ali-vilab/text-to-video-ms-1.7b', label: 'Noor-Video 1.0' }
+  ]
+};
+
+async function callBytez(bytezModelId, text) {
+  const resp = await fetch(`https://api.bytez.com/models/v2/${bytezModelId}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${BYTEZ_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  let data;
+  try { data = await resp.json(); } catch (e) { data = { error: 'Bytez javobini o\'qib bo\'lmadi' }; }
+  return { ok: resp.ok, data };
+}
+
+function toDataUrl(output, mime) {
+  if (typeof output !== 'string') return output;
+  if (output.startsWith('data:') || output.startsWith('http')) return output;
+  return `data:${mime};base64,${output}`;
+}
 
 // Bot polling xatoliklari (masalan, server bir necha marta ishga tushirilib
 // qolsa "409 Conflict" xatosi chiqadi) serverni yiqitib qo'ymasligi uchun ushlab qolamiz.
@@ -40,6 +71,49 @@ const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(__dirname));
+
+app.get('/api/generate/models', (req, res) => {
+  res.json({
+    image: BYTEZ_MODELS.image.map(m => ({ id: m.id, label: m.label })),
+    video: BYTEZ_MODELS.video.map(m => ({ id: m.id, label: m.label }))
+  });
+});
+
+app.post('/api/generate/image', async (req, res) => {
+  if (!BYTEZ_KEY) return res.status(500).json({ error: 'Serverda BYTEZ_KEY sozlanmagan.' });
+  const { prompt, modelId } = req.body || {};
+  if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
+  const model = BYTEZ_MODELS.image.find(m => m.id === modelId) || BYTEZ_MODELS.image[0];
+  try {
+    const { ok, data } = await callBytez(model.bytezId, String(prompt).trim());
+    if (!ok || data.error) {
+      console.error('Bytez image xatosi:', data.error || data);
+      return res.status(502).json({ error: 'Rasm yaratib bo\'lmadi. Birozdan keyin qayta urinib ko\'ring.' });
+    }
+    res.json({ image: toDataUrl(data.output, 'image/png') });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server xatosi.' });
+  }
+});
+
+app.post('/api/generate/video', async (req, res) => {
+  if (!BYTEZ_KEY) return res.status(500).json({ error: 'Serverda BYTEZ_KEY sozlanmagan.' });
+  const { prompt, modelId } = req.body || {};
+  if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
+  const model = BYTEZ_MODELS.video.find(m => m.id === modelId) || BYTEZ_MODELS.video[0];
+  try {
+    const { ok, data } = await callBytez(model.bytezId, String(prompt).trim());
+    if (!ok || data.error) {
+      console.error('Bytez video xatosi:', data.error || data);
+      return res.status(502).json({ error: 'Video yaratib bo\'lmadi. Birozdan keyin qayta urinib ko\'ring.' });
+    }
+    res.json({ video: toDataUrl(data.output, 'video/mp4') });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server xatosi.' });
+  }
+});
 
 // "/" manziliga kirganda avtomatik a.html'ga yo'naltirish
 // (chunki bosh sahifa fayli index.html emas, a.html deb nomlangan)
