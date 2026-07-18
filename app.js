@@ -642,7 +642,7 @@ let chatHistory = [];
 let pendingImage = null; // {dataUrl, name}
 let currentChatMode = 'general'; // 'general' (1.5) | 'coder' (1.0, matn-only) | 'coder2' (2.0, vision+code)
 
-const CHAT_MODE_LABELS = { general: 'Noor AI 1.5', coder: 'Noor AI 1.0 (Coder)', coder2: 'Noor AI 2.0 (Coder)', 'noor-image-1.0': 'Noor-Image 1.0', 'noor-video-1.0': 'Noor-Video 1.0' };
+const CHAT_MODE_LABELS = { general: 'Noor AI 1.5', coder: 'Noor AI 1.0 (Coder)', coder2: 'Noor AI 2.0 (Coder)', 'noor-image-1.0': 'Noor-Image 1.0', 'noor-video-1.0': 'Noor-Video 1.0', 'noor-audio-1.0': 'Noor-Audio 1.0' };
 
 function setChatMode(mode) {
   if (mode === currentChatMode) return;
@@ -660,6 +660,8 @@ function setChatMode(mode) {
     note.textContent = t('chat.noteImage', "Noor-Image 1.0 — pastga nima chizish kerakligini yozing, u sizga rasm yaratib beradi.");
   } else if (mode === 'noor-video-1.0') {
     note.textContent = t('chat.noteVideo', "Noor-Video 1.0 — pastga video mavzusini yozing, u qisqa video yaratib beradi (biroz vaqt olishi mumkin).");
+  } else if (mode === 'noor-audio-1.0') {
+    note.textContent = t('chat.noteAudio', "Noor-Audio 1.0 — pastga musiqa/audio mavzusini yozing, u audio yaratib beradi.");
   } else {
     note.textContent = t('chat.noteGeneral', "Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.");
   }
@@ -734,9 +736,13 @@ function appendChatMedia(url, kind) {
   const container = document.getElementById('chat-msg-container');
   const bubble = document.createElement('div');
   bubble.className = 'chat-msg ai';
-  bubble.innerHTML = (kind === 'video')
-    ? `<video src="${url}" class="chat-generated-media" controls autoplay loop muted playsinline></video>`
-    : `<img src="${url}" class="chat-generated-media" alt="Yaratilgan rasm">`;
+  if (kind === 'video') {
+    bubble.innerHTML = `<video src="${url}" class="chat-generated-media" controls autoplay loop muted playsinline></video>`;
+  } else if (kind === 'audio') {
+    bubble.innerHTML = `<audio src="${url}" class="chat-generated-audio" controls autoplay></audio>`;
+  } else {
+    bubble.innerHTML = `<img src="${url}" class="chat-generated-media" alt="Yaratilgan rasm">`;
+  }
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
 }
@@ -790,7 +796,8 @@ async function sendMediaGenRequest(prompt) {
   sendBtn.disabled = true;
 
   const isVideo = currentChatMode === 'noor-video-1.0';
-  const endpoint = isVideo ? '/api/generate/video' : '/api/generate/image';
+  const isAudio = currentChatMode === 'noor-audio-1.0';
+  const endpoint = isVideo ? '/api/generate/video' : (isAudio ? '/api/generate/audio' : '/api/generate/image');
 
   try {
     const r = await fetch(BASE_URL + endpoint, {
@@ -801,9 +808,9 @@ async function sendMediaGenRequest(prompt) {
     const d = await r.json();
     const indicator = document.getElementById('chat-typing-indicator');
     if (indicator) indicator.remove();
-    const mediaUrl = d.image || d.video;
+    const mediaUrl = d.image || d.video || d.audio;
     if (r.ok && mediaUrl) {
-      appendChatMedia(mediaUrl, isVideo ? 'video' : 'image');
+      appendChatMedia(mediaUrl, isVideo ? 'video' : (isAudio ? 'audio' : 'image'));
       persistActiveSession(prompt);
     } else {
       appendChatBubble('Xatolik: ' + (d.error || 'Yaratib bo\'lmadi.'), 'system');
@@ -828,7 +835,7 @@ async function sendChatMsg() {
   const text = inputEl.value.trim();
   if (!text && !pendingImage) return;
 
-  if (currentChatMode === 'noor-image-1.0' || currentChatMode === 'noor-video-1.0') {
+  if (currentChatMode === 'noor-image-1.0' || currentChatMode === 'noor-video-1.0' || currentChatMode === 'noor-audio-1.0') {
     await sendMediaGenRequest(text);
     return;
   }

@@ -21,17 +21,33 @@ const BYTEZ_KEY = process.env.BYTEZ_KEY || '';
 if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
 if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
-if (!BYTEZ_KEY) console.warn('⚠️  BYTEZ_KEY .env faylida yo\'q — Noor-Image / Noor-Video ishlamaydi.');
+if (!BYTEZ_KEY) console.warn('⚠️  BYTEZ_KEY .env faylida yo\'q — Noor-Image / Noor-Video / Noor-Audio ishlamaydi.');
 
-// Noor-Image / Noor-Video — Bytez (bytez.com) orqali bepul ochiq modellar bilan ishlaydi.
-// Sifatiga qarab keyinchalik yangi versiya qo'shish uchun shu ro'yxatga yozing (id o'zgarmasin,
-// eski suhbatlar/frontend shu id orqali murojaat qiladi).
+// Noor-Image / Noor-Video / Noor-Audio — Bytez (bytez.com) orqali bepul ochiq modellar bilan ishlaydi.
+// Har bir "id" uchun bir nechta "candidates" (zaxira modellar) beriladi — birinchisi ishlamasa,
+// avtomatik keyingisiga o'tadi. Sifatga qarab keyinchalik yangi versiya qo'shish uchun shu
+// ro'yxatga yozing (id o'zgarmasin, frontend shu id orqali murojaat qiladi).
 const BYTEZ_MODELS = {
   image: [
-    { id: 'noor-image-1.0', bytezId: 'black-forest-labs/FLUX.1-schnell', label: 'Noor-Image 1.0' }
+    { id: 'noor-image-1.0', label: 'Noor-Image 1.0', candidates: [
+      'black-forest-labs/FLUX.1-schnell',
+      'stabilityai/stable-diffusion-2-1',
+      'runwayml/stable-diffusion-v1-5',
+      'CompVis/stable-diffusion-v1-4'
+    ] }
   ],
   video: [
-    { id: 'noor-video-1.0', bytezId: 'ali-vilab/text-to-video-ms-1.7b', label: 'Noor-Video 1.0' }
+    { id: 'noor-video-1.0', label: 'Noor-Video 1.0', candidates: [
+      'damo-vilab/text-to-video-ms-1.7b',
+      'ali-vilab/text-to-video-ms-1.7b',
+      'cerspense/zeroscope_v2_576w'
+    ] }
+  ],
+  audio: [
+    { id: 'noor-audio-1.0', label: 'Noor-Audio 1.0', candidates: [
+      'facebook/musicgen-small',
+      'facebook/musicgen-melody'
+    ] }
   ]
 };
 
@@ -42,8 +58,29 @@ async function callBytez(bytezModelId, text) {
     body: JSON.stringify({ text })
   });
   let data;
-  try { data = await resp.json(); } catch (e) { data = { error: 'Bytez javobini o\'qib bo\'lmadi' }; }
+  try { data = await resp.json(); } catch (e) { data = { error: `Bytez javobini o'qib bo'lmadi (status ${resp.status})` }; }
   return { ok: resp.ok, data };
+}
+
+// Ro'yxatdagi modellarni ketma-ket sinab ko'radi, birinchi ishlagani natijani qaytaradi.
+// Barchasi muvaffaqiyatsiz bo'lsa — oxirgi (haqiqiy) Bytez xato matnini qaytaradi, shunda
+// muammoni loglardan (yoki javobdan) aniq ko'rish mumkin bo'ladi.
+async function callBytezWithFallback(candidates, text) {
+  let lastError = 'Bytez\'da mos model topilmadi.';
+  for (const bytezId of candidates) {
+    try {
+      const { ok, data } = await callBytez(bytezId, text);
+      if (ok && data && !data.error && data.output) {
+        return { ok: true, output: data.output, usedModel: bytezId };
+      }
+      lastError = (data && data.error) ? String(data.error) : `"${bytezId}" hech qanday natija qaytarmadi.`;
+      console.warn(`⚠️  Bytez model "${bytezId}" ishlamadi:`, lastError);
+    } catch (e) {
+      lastError = e.message || String(e);
+      console.warn(`⚠️  Bytez model "${bytezId}" so'rovda xato:`, lastError);
+    }
+  }
+  return { ok: false, error: lastError };
 }
 
 function toDataUrl(output, mime) {
@@ -75,45 +112,33 @@ app.use(express.static(__dirname));
 app.get('/api/generate/models', (req, res) => {
   res.json({
     image: BYTEZ_MODELS.image.map(m => ({ id: m.id, label: m.label })),
-    video: BYTEZ_MODELS.video.map(m => ({ id: m.id, label: m.label }))
+    video: BYTEZ_MODELS.video.map(m => ({ id: m.id, label: m.label })),
+    audio: BYTEZ_MODELS.audio.map(m => ({ id: m.id, label: m.label }))
   });
 });
 
-app.post('/api/generate/image', async (req, res) => {
+async function handleGenerate(req, res, task, mime, resultKey) {
   if (!BYTEZ_KEY) return res.status(500).json({ error: 'Serverda BYTEZ_KEY sozlanmagan.' });
   const { prompt, modelId } = req.body || {};
   if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
-  const model = BYTEZ_MODELS.image.find(m => m.id === modelId) || BYTEZ_MODELS.image[0];
+  const list = BYTEZ_MODELS[task];
+  const model = list.find(m => m.id === modelId) || list[0];
   try {
-    const { ok, data } = await callBytez(model.bytezId, String(prompt).trim());
-    if (!ok || data.error) {
-      console.error('Bytez image xatosi:', data.error || data);
-      return res.status(502).json({ error: 'Rasm yaratib bo\'lmadi. Birozdan keyin qayta urinib ko\'ring.' });
+    const result = await callBytezWithFallback(model.candidates, String(prompt).trim());
+    if (!result.ok) {
+      console.error(`Bytez ${task} xatosi (barcha modellar sinaldi):`, result.error);
+      return res.status(502).json({ error: `Yaratib bo'lmadi: ${result.error}` });
     }
-    res.json({ image: toDataUrl(data.output, 'image/png') });
+    res.json({ [resultKey]: toDataUrl(result.output, mime), model: result.usedModel });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Server xatosi.' });
+    res.status(500).json({ error: 'Server xatosi: ' + (e.message || e) });
   }
-});
+}
 
-app.post('/api/generate/video', async (req, res) => {
-  if (!BYTEZ_KEY) return res.status(500).json({ error: 'Serverda BYTEZ_KEY sozlanmagan.' });
-  const { prompt, modelId } = req.body || {};
-  if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
-  const model = BYTEZ_MODELS.video.find(m => m.id === modelId) || BYTEZ_MODELS.video[0];
-  try {
-    const { ok, data } = await callBytez(model.bytezId, String(prompt).trim());
-    if (!ok || data.error) {
-      console.error('Bytez video xatosi:', data.error || data);
-      return res.status(502).json({ error: 'Video yaratib bo\'lmadi. Birozdan keyin qayta urinib ko\'ring.' });
-    }
-    res.json({ video: toDataUrl(data.output, 'video/mp4') });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Server xatosi.' });
-  }
-});
+app.post('/api/generate/image', (req, res) => handleGenerate(req, res, 'image', 'image/png', 'image'));
+app.post('/api/generate/video', (req, res) => handleGenerate(req, res, 'video', 'video/mp4', 'video'));
+app.post('/api/generate/audio', (req, res) => handleGenerate(req, res, 'audio', 'audio/wav', 'audio'));
 
 // "/" manziliga kirganda avtomatik a.html'ga yo'naltirish
 // (chunki bosh sahifa fayli index.html emas, a.html deb nomlangan)

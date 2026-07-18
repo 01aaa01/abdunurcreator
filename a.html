@@ -251,9 +251,10 @@
             <button type="button" class="model-picker-item" data-value="general" data-label="Noor AI 1.5">Noor AI 1.5</button>
             <button type="button" class="model-picker-item" data-value="coder" data-label="Noor AI 1.0 (Coder)">Noor AI 1.0 (Coder)</button>
             <button type="button" class="model-picker-item" data-value="coder2" data-label="Noor AI 2.0 (Coder)">Noor AI 2.0 (Coder)<span class="model-picker-tag">YANGI</span></button>
-            <div class="model-picker-group-label" data-i18n-label="chat.groupImage">Rasm / Video yaratish</div>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupImage">Rasm / Video / Audio yaratish</div>
             <button type="button" class="model-picker-item" data-value="noor-image-1.0" data-label="Noor-Image 1.0">Noor-Image 1.0<span class="model-picker-tag model-picker-tag-img">RASM</span></button>
             <button type="button" class="model-picker-item" data-value="noor-video-1.0" data-label="Noor-Video 1.0">Noor-Video 1.0<span class="model-picker-tag model-picker-tag-vid">VIDEO</span></button>
+            <button type="button" class="model-picker-item" data-value="noor-audio-1.0" data-label="Noor-Audio 1.0">Noor-Audio 1.0<span class="model-picker-tag model-picker-tag-audio">AUDIO</span></button>
           </div>
           <select id="chat-model-select" class="hidden" onchange="setChatMode(this.value)">
             <option value="general">Noor AI 1.5</option>
@@ -261,6 +262,7 @@
             <option value="coder2">Noor AI 2.0 (Coder)</option>
             <option value="noor-image-1.0">Noor-Image 1.0</option>
             <option value="noor-video-1.0">Noor-Video 1.0</option>
+            <option value="noor-audio-1.0">Noor-Audio 1.0</option>
           </select>
         </div>
         <button class="chat-send-arrow" id="chat-send-btn" onclick="sendChatMsg()" title="Yuborish">
