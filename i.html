@@ -3,696 +3,268 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Calculator Pro</title>
+    <title>Google</title>
     <style>
-        :root {
-            --bg-main: #121212;
-            --bg-surface: #1e1e1e;
-            --bg-display: #0d0d0d;
-            --btn-primary: #333333;
-            --btn-primary-hover: #444444;
-            --btn-primary-active: #555555;
-            --btn-accent: #ff9f0a;
-            --btn-accent-hover: #cc7700;
-            --btn-accent-active: #e68a00;
-            --btn-func: #a5a5a5;
-            --btn-func-hover: #d4d4d4;
-            --btn-func-active: #ffffff;
-            --text-main: #ffffff;
-            --text-dim: #a0a0a0;
-            --border: #2c2c2c;
-            --shadow: rgba(0, 0, 0, 0.4);
-            --glow: rgba(255, 159, 10, 0.15);
-            --radius-lg: 28px;
-            --radius-btn: 20px;
-            --transition: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        *, *::before, *::after {
-            box-sizing: border-box;
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+            font-family: arial, sans-serif;
         }
-
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-
-        html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-
         body {
+            background-color: #fff;
+            color: #202124;
+            display: flex;
+            flex-direction: column;
             min-height: 100vh;
-            background: var(--bg-main);
-            color: var(--text-main);
-            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        /* Header Styles */
+        header {
+            padding: 15px 20px;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            overflow-x: hidden;
-        }
-
-        /* Background atmosphere */
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: 
-                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 159, 10, 0.08), transparent),
-                radial-gradient(circle at 20% 80%, rgba(0, 122, 255, 0.04), transparent),
-                radial-gradient(circle at 80% 20%, rgba(255, 45, 85, 0.03), transparent);
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-            opacity: 0.03;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .calc-wrapper {
-            width: 100%;
-            max-width: 380px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .calculator {
-            background: var(--bg-surface);
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border);
-            box-shadow: 
-                0 4px 24px var(--shadow),
-                0 0 0 1px rgba(255, 255, 255, 0.03) inset,
-                0 1px 0 rgba(255, 255, 255, 0.05) inset;
-            overflow: hidden;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-        }
-
-        .display-area {
-            padding: 32px 24px 24px;
-            background: var(--bg-display);
-            border-bottom: 1px solid var(--border);
-            min-height: 160px;
-            display: flex;
-            flex-direction: column;
             justify-content: flex-end;
-        }
-
-        .expression-row {
-            min-height: 32px;
-            margin-bottom: 8px;
-            opacity: 0;
-            transform: translateY(4px);
-            transition: opacity 0.2s var(--transition), transform 0.2s var(--transition);
-        }
-
-        .expression-row.has-content {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .expression {
-            font-size: 16px;
-            font-weight: 400;
-            color: var(--text-dim);
-            text-align: right;
-            letter-spacing: 0.3px;
-            font-variant-numeric: tabular-nums;
-            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
-        }
-
-        .result-row {
-            min-height: 56px;
-            display: flex;
-            align-items: flex-end;
-            justify-content: flex-end;
-        }
-
-        .result {
-            font-size: clamp(42px, 12vw, 64px);
-            font-weight: 200;
-            color: var(--text-main);
-            text-align: right;
-            letter-spacing: -1.5px;
-            line-height: 1.1;
-            font-variant-numeric: tabular-nums;
-            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            word-break: break-all;
-            overflow-wrap: break-word;
-            transition: opacity 0.1s var(--transition), transform 0.1s var(--transition);
-        }
-
-        .result.error {
-            color: #ff453a;
-            animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97);
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-6px); }
-            40%, 80% { transform: translateX(6px); }
-        }
-
-        .result.calculating {
-            opacity: 0.7;
-            transform: scale(0.98);
-        }
-
-        .keypad {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            padding: 20px;
-        }
-
-        .btn {
-            position: relative;
-            border: none;
-            border-radius: var(--radius-btn);
-            font-size: 22px;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            padding: 0;
-            aspect-ratio: 1;
-            display: flex;
             align-items: center;
-            justify-content: center;
-            transition: 
-                background-color var(--transition),
-                transform var(--transition),
-                box-shadow var(--transition),
-                color var(--transition);
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-
-        .btn:focus-visible {
-            outline: 2px solid var(--btn-accent);
-            outline-offset: 3px;
-        }
-
-        .btn:active { transform: scale(0.92); }
-        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
-        /* Primary buttons (numbers) */
-        .btn--primary {
-            background: var(--btn-primary);
-            color: var(--text-main);
-            box-shadow: 
-                0 2px 8px var(--shadow),
-                0 1px 0 rgba(255, 255, 255, 0.05) inset;
-        }
-
-        .btn--primary:hover {
-            background: var(--btn-primary-hover);
-            box-shadow: 
-                0 4px 16px var(--shadow),
-                0 1px 0 rgba(255, 255, 255, 0.08) inset;
-        }
-
-        .btn--primary:active { background: var(--btn-primary-active); }
-
-        /* Function buttons (AC, +/-, %) */
-        .btn--func {
-            background: var(--btn-func);
-            color: var(--bg-main);
-            font-weight: 600;
-            font-size: 19px;
-            box-shadow: 
-                0 2px 8px var(--shadow),
-                0 1px 0 rgba(255, 255, 255, 0.15) inset;
-        }
-
-        .btn--func:hover {
-            background: var(--btn-func-hover);
-            box-shadow: 
-                0 4px 16px var(--shadow),
-                0 1px 0 rgba(255, 255, 255, 0.2) inset;
-        }
-
-        .btn--func:active { background: var(--btn-func-active); }
-
-        /* Accent buttons (operators, =) */
-        .btn--accent {
-            background: var(--btn-accent);
-            color: var(--bg-main);
-            font-weight: 600;
-            font-size: 26px;
-            box-shadow: 
-                0 2px 8px var(--shadow),
-                0 0 0 1px rgba(255, 159, 10, 0.2) inset,
-                0 0 20px var(--glow);
-        }
-
-        .btn--accent:hover {
-            background: var(--btn-accent-hover);
-            box-shadow: 
-                0 4px 20px var(--shadow),
-                0 0 0 1px rgba(255, 159, 10, 0.3) inset,
-                0 0 30px var(--glow);
-        }
-
-        .btn--accent:active { background: var(--btn-accent-active); }
-
-        /* Wide button (0) */
-        .btn--wide { grid-column: span 2; aspect-ratio: auto; border-radius: 100px; padding: 0 24px; justify-content: flex-start; padding-left: 40px; }
-        .btn--wide .btn-label { margin-left: -12px; }
-
-        /* Tall button (=) */
-        .btn--tall { grid-row: span 2; aspect-ratio: auto; height: 100%; border-radius: var(--radius-btn); }
-
-        .btn-label { pointer-events: none; user-select: none; }
-
-        .btn[data-action="backspace"] .btn-label { font-size: 22px; }
-        .btn[data-action="decimal"] .btn-label { font-size: 30px; line-height: 1; }
-
-        /* Keycap press ripple */
-        .btn::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            background: rgba(255, 255, 255, 0.1);
-            opacity: 0;
-            transition: opacity 0.1s;
-            pointer-events: none;
-        }
-        .btn:active::before { opacity: 1; transition-duration: 0s; }
-        .btn--func:active::before { background: rgba(0, 0, 0, 0.1); }
-        .btn--accent:active::before { background: rgba(0, 0, 0, 0.15); }
-
-        /* Footer */
-        .footer {
-            text-align: center;
-            padding: 12px 8px;
-            color: var(--text-dim);
+            gap: 15px;
             font-size: 13px;
-            font-weight: 400;
-            letter-spacing: 0.2px;
-            opacity: 0.7;
+        }
+        header a {
+            color: #1f1f1f;
+            text-decoration: none;
+            opacity: 0.75;
+        }
+        header a:hover {
+            text-decoration: underline;
+            opacity: 1;
+        }
+        .google-apps {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .google-apps:hover {
+            background-color: #f0f0f0;
+        }
+        .google-apps svg {
+            width: 24px;
+            height: 24px;
+            fill: #5f6368;
+        }
+        .sign-in-btn {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 9px 23px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .sign-in-btn:hover {
+            background-color: #1558b0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
 
-        /* Responsive */
-        @media (max-width: 420px) {
-            .calculator { border-radius: 24px; }
-            .display-area { padding: 28px 20px 20px; min-height: 140px; }
-            .keypad { gap: 10px; padding: 16px; }
-            .btn { font-size: 20px; border-radius: 18px; }
-            .btn--func { font-size: 17px; }
-            .btn--accent { font-size: 24px; }
-            .btn--wide { border-radius: 90px; padding-left: 36px; }
+        /* Main Content */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 109px; /* Approximate spacing from top */
+        }
+        .logo {
+            margin-bottom: 24px;
+        }
+        .logo img {
+            height: 92px;
+        }
+        .search-box {
+            width: 100%;
+            max-width: 584px;
+            margin-bottom: 30px;
+        }
+        .search-wrapper {
+            display: flex;
+            align-items: center;
+            border: 1px solid #dfe1e5;
+            border-radius: 24px;
+            padding: 5px 8px 5px 14px;
+            background: white;
+            box-shadow: none;
+            transition: box-shadow 0.2s;
+        }
+        .search-wrapper:hover, .search-wrapper:focus-within {
+            box-shadow: 0 1px 6px rgba(32,33,36,0.28);
+            border-color: rgba(223,225,229,0);
+        }
+        .search-icon {
+            width: 20px;
+            height: 20px;
+            color: #9aa0a6;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .search-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            color: #202124;
+            width: 100%;
+            background: transparent;
+        }
+        .mic-icon {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .mic-icon:hover {
+            background-color: #f0f0f0;
+            border-radius: 50%;
+        }
+        .buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .btn {
+            background-color: #f8f9fa;
+            border: 1px solid #f8f9fa;
+            border-radius: 4px;
+            color: #3c4043;
+            font-size: 14px;
+            padding: 10px 16px;
+            margin: 11px 4px;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            border: 1px solid #dadce0;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            color: #202124;
+        }
+        .languages {
+            margin-top: 24px;
+            font-size: 13px;
+        }
+        .languages a {
+            color: #1a0dab;
+            text-decoration: none;
+            margin: 0 3px;
+        }
+        .languages a:hover {
+            text-decoration: underline;
         }
 
-        @media (max-width: 360px) {
-            html { font-size: 15px; }
-            .calculator { border-radius: 20px; }
-            .keypad { gap: 8px; padding: 14px; }
-            .btn { font-size: 19px; }
+        /* Footer Styles */
+        footer {
+            background-color: #f2f2f2;
+            border-top: 1px solid #e4e4e4;
+            font-size: 14px;
+            color: #70757a;
         }
-
-        /* High contrast mode support */
-        @media (prefers-contrast: high) {
-            :root {
-                --bg-main: #000;
-                --bg-surface: #000;
-                --bg-display: #000;
-                --btn-primary: #333;
-                --btn-func: #fff;
-                --btn-accent: #ffbf00;
-                --border: #fff;
-                --text-dim: #ccc;
-            }
-            .calculator { border-width: 2px; }
+        .footer-country {
+            padding: 15px 30px;
+            border-bottom: 1px solid #dadce0;
+            font-size: 15px;
+            color: #70757a;
+        }
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .footer-left, .footer-right {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 15px 0;
+        }
+        .footer-links a {
+            color: #70757a;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            main { padding-top: 60px; }
+            .logo img { height: 70px; }
+            .search-box { padding: 0 20px; }
+            .footer-links { flex-direction: column; gap: 10px; }
+            .footer-left, .footer-right { justify-content: center; }
         }
     </style>
 </head>
 <body>
-    <div class="calc-wrapper">
-        <div class="calculator" role="application" aria-label="Kalkulyator">
-            <div class="display-area">
-                <div class="expression-row" id="expressionRow" aria-live="polite" aria-atomic="true">
-                    <div class="expression" id="expressionDisplay"></div>
-                </div>
-                <div class="result-row">
-                    <div class="result" id="resultDisplay" aria-live="assertive" aria-atomic="true">0</div>
-                </div>
-            </div>
 
-            <div class="keypad" role="grid" aria-label="Tugmalar paneli">
-                <!-- Row 1 -->
-                <button class="btn btn--func" data-action="clear" aria-label="Tozalash (AC)">AC</button>
-                <button class="btn btn--func" data-action="sign" aria-label="Ishtirok o'zgartirish (±)">±</button>
-                <button class="btn btn--func" data-action="percent" aria-label="Foiz (%)">%</button>
-                <button class="btn btn--accent" data-action="divide" aria-label="Bo'lish (÷)"><span class="btn-label">÷</span></button>
+<header>
+    <a href="#">About</a>
+    <a href="#">Store</a>
+    <div class="google-apps" title="Google apps">
+        <svg viewBox="0 0 24 24"><path d="M21 3H3v18h18V3zm-9 16h-2V11h2v8zm4-8h-2v12h2V11zm-8 8h-2V7h2v12z"/></svg>
+    </div>
+    <button class="sign-in-btn">Sign in</button>
+</header>
 
-                <!-- Row 2 -->
-                <button class="btn btn--primary" data-digit="7" aria-label="7">7</button>
-                <button class="btn btn--primary" data-digit="8" aria-label="8">8</button>
-                <button class="btn btn--primary" data-digit="9" aria-label="9">9</button>
-                <button class="btn btn--accent" data-action="multiply" aria-label="Ko'paytirish (×)"><span class="btn-label">×</span></button>
-
-                <!-- Row 3 -->
-                <button class="btn btn--primary" data-digit="4" aria-label="4">4</button>
-                <button class="btn btn--primary" data-digit="5" aria-label="5">5</button>
-                <button class="btn btn--primary" data-digit="6" aria-label="6">6</button>
-                <button class="btn btn--accent" data-action="subtract" aria-label="Ayirish (−)"><span class="btn-label">−</span></button>
-
-                <!-- Row 4 -->
-                <button class="btn btn--primary" data-digit="1" aria-label="1">1</button>
-                <button class="btn btn--primary" data-digit="2" aria-label="2">2</button>
-                <button class="btn btn--primary" data-digit="3" aria-label="3">3</button>
-                <button class="btn btn--accent" data-action="add" aria-label="Qo'shish (+)"><span class="btn-label">+</span></button>
-
-                <!-- Row 5 -->
-                <button class="btn btn--primary btn--wide" data-digit="0" aria-label="0"><span class="btn-label">0</span></button>
-                <button class="btn btn--primary" data-action="decimal" aria-label="Nuqta (.)"><span class="btn-label">.</span></button>
-                <button class="btn btn--accent btn--tall" data-action="equals" aria-label="Natija (=)"><span class="btn-label">=</span></button>
-            </div>
-        </div>
-
-        <p class="footer">Noor AI • Dark Mode Only</p>
+<main>
+    <div class="logo">
+        <!-- Google Logo SVG -->
+        <svg viewBox="0 0 272 92" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 0h272v92H0z" fill="none"/>
+            <path fill="#4285F4" d="M97.44 41.67c0-6.16 1.39-11.35 4.13-15.47H64.47v4.51h24.1c-1.1 3.48-1.75 7.57-1.75 12.03 0 10.4 6.82 18.45 18.55 18.45 8.82 0 14.46-5.14 16.87-11.91H97.44v-4.51zm38.98 16.54c-6.29 7.73-15.4 11.91-27.4 11.91-16.44 0-29.71-13.08-29.71-29.17 0-16.14 13.41-29.37 29.95-29.37 9.74 0 17.12 4.73 21.98 11.03l4.82-4.82C139.16 2.24 125.52 0 110.33 0 77.86 0 51.25 26.33 51.25 58.53c0 32.22 26.58 58.53 59.17 58.53 33.76 0 55.49-21.42 55.49-47.43 0-2.57-.21-5.13-.6-7.6H136.42z"/>
+            <path fill="#34A853" d="M136.42 104.47c15.1 0 27.48-8.94 32.03-21.53h-32.03v-7.53h47.14v-4.51H136.42v29.07h32.03c-4.63 13.55-17.54 22.68-32.03 22.68z"/>
+            <path fill="#FBBC05" d="M168.45 75.15c0 3.65-.45 7.19-1.35 10.57H221.1v-4.51h-28.5c1.85-7.09 2.97-15.48 2.97-25.04 0-14.44-5.2-26.12-14.86-34.85l11.5-11.5c10.8 9.68 17.2 23.55 17.2 39.54 0 24.75-16.36 44.36-38.46 44.36-11.66 0-21.5-5.52-27.9-13.71v-4.17h-7.71v7.84c8.03 9.96 20.38 16.5 34.26 16.5z"/>
+            <path fill="#EA4335" d="M221.1 74.25c0-1.85-.15-3.68-.4-5.47l-11.5 11.5c-.82 4.74-2.05 9.35-3.65 13.71h11.7v4.51h-11.7c-10.04 0-18.44-8.23-18.44-18.36 0-10.13 8.4-18.36 18.44-18.36 4.41 0 8.45 1.44 11.68 3.9l4.9-4.9C237.7 40.23 230.3 36 221.1 36c-24.75 0-44.36 16.36-44.36 38.46 0 11.68 4.26 22.23 11.15 29.97l-12.9 12.9C163.56 104.45 143 104.47 119.2 104.47c-32.55 0-59.17-26.31-59.17-58.53 0-32.22 26.62-58.53 59.17-58.53 24.15 0 43.16 11.93 55.74 29.68l-7.53 7.53C165.33 20.77 151.73 16 136.42 16c-15.1 0-28.72 6.18-38.42 16.23L81.8 16.05C98.8 5.85 121.1 0 146.8 0c30.48 0 55.53 17.27 68.3 42.25z"/>
+        </svg>
     </div>
 
-    <script>
-        (function() {
-            'use strict';
+    <div class="search-box">
+        <div class="search-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24"><path fill="#9aa0a6" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input type="text" class="search-input" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false">
+            <svg class="mic-icon" viewBox="0 0 24 24"><path fill="#4285f4" d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5.1c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.6z"/><path fill="none" d="M0 0h24v24H0z"/></svg>
+        </div>
+    </div>
 
-            // ===== DOM Elements =====
-            const resultDisplay = document.getElementById('resultDisplay');
-            const expressionDisplay = document.getElementById('expressionDisplay');
-            const expressionRow = document.getElementById('expressionRow');
-            const keypad = document.querySelector('.keypad');
+    <div class="buttons">
+        <button class="btn">Google Search</button>
+        <button class="btn">I'm Feeling Lucky</button>
+    </div>
 
-            // ===== State =====
-            let currentInput = '0';
-            let previousInput = '';
-            let operator = null;
-            let shouldResetScreen = false;
-            let justCalculated = false;
-            const MAX_DIGITS = 15;
-            const MAX_EXPRESSION_LENGTH = 60;
+    <div class="languages">
+        Google offered in: 
+        <a href="#">O'zbekcha</a>
+        <a href="#">Русский</a>
+        <a href="#">English</a>
+        <a href="#">Français</a>
+        <a href="#">Español</a>
+        <a href="#">Deutsch</a>
+        <!-- Add more languages as needed -->
+    </div>
+</main>
 
-            // ===== Operator Config =====
-            const OPERATORS = {
-                add: { symbol: '+', fn: (a, b) => a + b, precedence: 1 },
-                subtract: { symbol: '−', fn: (a, b) => a - b, precedence: 1 },
-                multiply: { symbol: '×', fn: (a, b) => a * b, precedence: 2 },
-                divide: { symbol: '÷', fn: (a, b) => b !== 0 ? a / b : NaN, precedence: 2 },
-            };
+<footer>
+    <div class="footer-country">Uzbekistan</div>
+    <div class="footer-links">
+        <div class="footer-left">
+            <a href="#">Advertising</a>
+            <a href="#">Business</a>
+            <a href="#">How Search works</a>
+        </div>
+        <div class="footer-right">
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+            <a href="#">Settings</a>
+        </div>
+    </div>
+</footer>
 
-            // ===== Format Number =====
-            function formatNumber(num) {
-                if (!isFinite(num)) return 'Error';
-                const str = String(num);
-                if (str.length <= MAX_DIGITS) return str;
-                if (Math.abs(num) >= 1e15 || (Math.abs(num) < 1e-6 && num !== 0)) {
-                    return num.toExponential(6);
-                }
-                return parseFloat(num.toPrecision(12)).toString();
-            }
-
-            function formatDisplayNumber(str) {
-                if (str === 'Error') return 'Error';
-                const parts = str.split('.');
-                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-                return parts.join('.');
-            }
-
-            function formatExpressionNumber(str) {
-                if (!str || str === 'Error') return str;
-                const parts = str.split('.');
-                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-                return parts.join('.');
-            }
-
-            // ===== Update Display =====
-            function updateDisplay() {
-                resultDisplay.textContent = formatDisplayNumber(currentInput);
-                if (previousInput !== '' && operator) {
-                    expressionDisplay.textContent = `${formatExpressionNumber(previousInput)} ${OPERATORS[operator].symbol}`;
-                    expressionRow.classList.add('has-content');
-                } else {
-                    expressionDisplay.textContent = '';
-                    expressionRow.classList.remove('has-content');
-                }
-            }
-
-            function flashResult(tempClass) {
-                resultDisplay.classList.add(tempClass);
-                requestAnimationFrame(() => {
-                    resultDisplay.classList.remove(tempClass);
-                });
-            }
-
-            // ===== Input Handlers =====
-            function inputDigit(digit) {
-                if (shouldResetScreen || justCalculated) {
-                    currentInput = '0';
-                    shouldResetScreen = false;
-                    justCalculated = false;
-                }
-                if (currentInput === 'Error') {
-                    currentInput = '0';
-                }
-                if (currentInput === '0' && digit !== '0') {
-                    currentInput = digit;
-                } else if (currentInput.replace(/[^0-9]/g, '').length < MAX_DIGITS) {
-                    currentInput += digit;
-                }
-                updateDisplay();
-            }
-
-            function inputDecimal() {
-                if (shouldResetScreen || justCalculated) {
-                    currentInput = '0';
-                    shouldResetScreen = false;
-                    justCalculated = false;
-                }
-                if (currentInput === 'Error') {
-                    currentInput = '0';
-                }
-                if (!currentInput.includes('.')) {
-                    currentInput += '.';
-                    updateDisplay();
-                }
-            }
-
-            function handleOperator(nextOp) {
-                if (currentInput === 'Error') return;
-
-                const inputValue = parseFloat(currentInput);
-
-                if (operator && !shouldResetScreen && !justCalculated) {
-                    const prevValue = parseFloat(previousInput);
-                    const result = OPERATORS[operator].fn(prevValue, inputValue);
-                    if (!isFinite(result)) {
-                        showError();
-                        return;
-                    }
-                    currentInput = formatNumber(result);
-                    previousInput = currentInput;
-                } else {
-                    previousInput = currentInput;
-                }
-
-                operator = nextOp;
-                shouldResetScreen = true;
-                justCalculated = false;
-                updateDisplay();
-            }
-
-            function calculate() {
-                if (!operator || shouldResetScreen || currentInput === 'Error') return;
-
-                const prevValue = parseFloat(previousInput);
-                const currentValue = parseFloat(currentInput);
-
-                const result = OPERATORS[operator].fn(prevValue, currentValue);
-
-                if (!isFinite(result)) {
-                    showError();
-                    return;
-                }
-
-                expressionDisplay.textContent = `${formatExpressionNumber(previousInput)} ${OPERATORS[operator].symbol} ${formatExpressionNumber(currentInput)} =`;
-                expressionRow.classList.add('has-content');
-
-                currentInput = formatNumber(result);
-                previousInput = '';
-                operator = null;
-                shouldResetScreen = true;
-                justCalculated = true;
-
-                flashResult('calculating');
-                updateDisplay();
-            }
-
-            function showError() {
-                currentInput = 'Error';
-                previousInput = '';
-                operator = null;
-                shouldResetScreen = true;
-                justCalculated = false;
-                resultDisplay.classList.add('error');
-                setTimeout(() => resultDisplay.classList.remove('error'), 300);
-                updateDisplay();
-            }
-
-            function clearAll() {
-                currentInput = '0';
-                previousInput = '';
-                operator = null;
-                shouldResetScreen = false;
-                justCalculated = false;
-                resultDisplay.classList.remove('error');
-                updateDisplay();
-            }
-
-            function toggleSign() {
-                if (currentInput === 'Error' || currentInput === '0') return;
-                if (currentInput.startsWith('-')) {
-                    currentInput = currentInput.slice(1);
-                } else {
-                    currentInput = '-' + currentInput;
-                }
-                updateDisplay();
-            }
-
-            function applyPercent() {
-                if (currentInput === 'Error') return;
-                const value = parseFloat(currentInput) / 100;
-                currentInput = formatNumber(value);
-                updateDisplay();
-            }
-
-            function handleBackspace() {
-                if (justCalculated || shouldResetScreen) {
-                    clearAll();
-                    return;
-                }
-                if (currentInput.length <= 1 || (currentInput.length === 2 && currentInput.startsWith('-'))) {
-                    currentInput = '0';
-                } else {
-                    currentInput = currentInput.slice(0, -1);
-                }
-                updateDisplay();
-            }
-
-            // ===== Keyboard Support =====
-            const KEY_MAP = {
-                '0': () => inputDigit('0'),
-                '1': () => inputDigit('1'),
-                '2': () => inputDigit('2'),
-                '3': () => inputDigit('3'),
-                '4': () => inputDigit('4'),
-                '5': () => inputDigit('5'),
-                '6': () => inputDigit('6'),
-                '7': () => inputDigit('7'),
-                '8': () => inputDigit('8'),
-                '9': () => inputDigit('9'),
-                '.': inputDecimal,
-                ',': inputDecimal,
-                '+': () => handleOperator('add'),
-                '-': () => handleOperator('subtract'),
-                '*': () => handleOperator('multiply'),
-                '/': () => handleOperator('divide'),
-                'Enter': calculate,
-                '=': calculate,
-                'Escape': clearAll,
-                'Backspace': handleBackspace,
-                '%': applyPercent,
-            };
-
-            function onKeydown(e) {
-                // Ignore if typing in input/textarea (not applicable here but good practice)
-                if (e.target.isContentEditable) return;
-                if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-                const handler = KEY_MAP[e.key];
-                if (handler) {
-                    e.preventDefault();
-                    handler();
-                    pressKeyVisual(e.key);
-                }
-            }
-
-            // Visual feedback for keyboard
-            const KEY_SELECTOR_MAP = {
-                '0': '[data-digit="0"]', '1': '[data-digit="1"]', '2': '[data-digit="2"]',
-                '3': '[data-digit="3"]', '4': '[data-digit="4"]', '5': '[data-digit="5"]',
-                '6': '[data-digit="6"]', '7': '[data-digit="7"]', '8': '[data-digit="8"]',
-                '9': '[data-digit="9"]', '.': '[data-action="decimal"]', ',': '[data-action="decimal"]',
-                '+': '[data-action="add"]', '-': '[data-action="subtract"]',
-                '*': '[data-action="multiply"]', '/': '[data-action="divide"]',
-                'Enter': '[data-action="equals"]', '=': '[data-action="equals"]',
-                'Escape': '[data-action="clear"]', 'Backspace': '[data-action="clear"]',
-                '%': '[data-action="percent"]',
-            };
-
-            function pressKeyVisual(key) {
-                const selector = KEY_SELECTOR_MAP[key];
-                if (!selector) return;
-                const btn = document.querySelector(selector);
-                if (btn) {
-                    btn.classList.add('btn-pressed');
-                    setTimeout(() => btn.classList.remove('btn-pressed'), 100);
-                }
-            }
-
-            // Add visual press style dynamically
-            const style = document.createElement('style');
-            style.textContent = `.btn.btn-pressed { transform: scale(0.92) !important; transition-duration: 0s !important; }`;
-            document.head.appendChild(style);
-
-            // ===== Event Listeners =====
-            keypad.addEventListener('click', (e) => {
-                const btn = e.target.closest('.btn');
-                if (!btn) return;
-
-                const action = btn.dataset.action;
-                const digit = btn.dataset.digit;
-
-                if (digit) {
-                    inputDigit(digit);
-                } else if (action) {
-                    switch (action) {
-                        case 'clear': clearAll(); break;
-                        case 'sign': toggleSign(); break;
-                        case 'percent': applyPercent(); break;
-                        case 'decimal': inputDecimal(); break;
-                        case 'add': case 'subtract': case 'multiply': case 'divide':
-                            handleOperator(action); break;
-                        case 'equals': calculate(); break;
-                    }
-                }
-            });
-
-            document.addEventListener('keydown', onKeydown);
-
-            // Prevent context menu on long press for buttons
-            keypad.addEventListener('contextmenu', (e) => {
-                if (e.target.closest('.btn')) e.preventDefault();
-            });
-
-            // ===== Init =====
-            updateDisplay();
-
-            // Expose for debugging (optional)
-            window.calcDebug = { getState: () => ({ currentInput, previousInput, operator }) };
-        })();
-    </script>
 </body>
 </html>
