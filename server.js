@@ -23,33 +23,63 @@ if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Cod
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
 if (!BYTEZ_KEY) console.warn('⚠️  BYTEZ_KEY .env faylida yo\'q — Noor-Image / Noor-Video / Noor-Audio ishlamaydi.');
 
-// Noor-Image / Noor-Video / Noor-Audio — Bytez (bytez.com) orqali bepul ochiq modellar bilan ishlaydi.
-// Har bir "id" uchun bir nechta "candidates" (zaxira modellar) beriladi — birinchisi ishlamasa,
-// avtomatik keyingisiga o'tadi. Sifatga qarab keyinchalik yangi versiya qo'shish uchun shu
-// ro'yxatga yozing (id o'zgarmasin, frontend shu id orqali murojaat qiladi).
-const BYTEZ_MODELS = {
-  image: [
-    { id: 'noor-image-1.0', label: 'Noor-Image 1.0', candidates: [
-      'black-forest-labs/FLUX.1-schnell',
-      'stabilityai/stable-diffusion-2-1',
-      'runwayml/stable-diffusion-v1-5',
-      'CompVis/stable-diffusion-v1-4'
-    ] }
-  ],
-  video: [
-    { id: 'noor-video-1.0', label: 'Noor-Video 1.0', candidates: [
-      'damo-vilab/text-to-video-ms-1.7b',
-      'ali-vilab/text-to-video-ms-1.7b',
-      'cerspense/zeroscope_v2_576w'
-    ] }
-  ],
-  audio: [
-    { id: 'noor-audio-1.0', label: 'Noor-Audio 1.0', candidates: [
-      'facebook/musicgen-small',
-      'facebook/musicgen-melody'
-    ] }
-  ]
-};
+// Noor-Image / Noor-Video / Noor-Audio — Bytez (bytez.com) orqali ishlaydi.
+// MUHIM: Bytez'da 175k+ model bo'lsa ham, ularning hammasi hali "katalogga qo'shilmagan"
+// (ya'ni to'g'ridan-to'g'ri ishlatib bo'lmaydi). Shuning uchun modelId'ni qo'lda taxmin qilish
+// o'rniga — server sizning BYTEZ_KEY'ingiz bilan Bytez'ning HAQIQIY, hozir ishlaydigan
+// modellar ro'yxatini so'raydi (GET /list/models?task=...) va shulardan avtomatik tanlaydi.
+// Har bir vazifa (image/video/audio) uchun bir nechta "versiya" (1.0, 1.5, 2.0 ...) — kichikroq/
+// tezroq modellar past raqamli, kattaroq/og'irroq modellar yuqori raqamli versiya bo'ladi.
+const BYTEZ_TASKS = { image: 'text-to-image', video: 'text-to-video', audio: 'text-to-audio' };
+const BYTEZ_LABELS = { image: 'Noor-Image', video: 'Noor-Video', audio: 'Noor-Audio' };
+const VERSION_STEPS = ['1.0', '1.5', '2.0'];
+const bytezCatalogCache = {}; // task -> { ts, tiers: [{version, candidates:[modelId,...]}] }
+const BYTEZ_CATALOG_TTL = 30 * 60 * 1000; // 30 daqiqa keshlanadi
+
+async function fetchBytezCatalog(task) {
+  const resp = await fetch(`https://api.bytez.com/models/v2/list/models?task=${encodeURIComponent(task)}`, {
+    headers: { 'Authorization': `Key ${BYTEZ_KEY}` }
+  });
+  let data;
+  try { data = await resp.json(); } catch (e) { data = null; }
+  if (!resp.ok || !data || data.error || !Array.isArray(data.output)) {
+    throw new Error((data && data.error) || `Bytez katalogini olib bo'lmadi ("${task}", status ${resp.status})`);
+  }
+  return data.output;
+}
+
+// Modellarni bepul (meter'da "free" bor)larni oldinga qo'yib, hajmi (params) bo'yicha
+// kichikdan kattaga saralaydi, so'ng 3 ta versiya bosqichiga bo'lib, har biriga zaxira
+// (fallback) ro'yxati bilan birga qaytaradi.
+async function getBytezTiers(task) {
+  const cached = bytezCatalogCache[task];
+  if (cached && (Date.now() - cached.ts) < BYTEZ_CATALOG_TTL) return cached.tiers;
+
+  const raw = await fetchBytezCatalog(task);
+  const sorted = raw
+    .filter(m => m && m.modelId)
+    .sort((a, b) => {
+      const aFree = (a.meter && String(a.meter).includes('free')) ? 0 : 1;
+      const bFree = (b.meter && String(b.meter).includes('free')) ? 0 : 1;
+      if (aFree !== bFree) return aFree - bFree;
+      return (a.params || 0) - (b.params || 0);
+    })
+    .map(m => m.modelId);
+
+  if (!sorted.length) throw new Error(`Bytez katalogida "${task}" vazifasi uchun hozircha model yo'q.`);
+
+  const tierCount = Math.min(VERSION_STEPS.length, sorted.length);
+  const tiers = [];
+  for (let i = 0; i < tierCount; i++) {
+    const idx = Math.floor((i / tierCount) * sorted.length);
+    const primary = sorted[idx];
+    // Asosiy model ishlamasa, ro'yxatning qolgan qismi zaxira sifatida sinaladi.
+    const candidates = [primary, ...sorted.filter(m => m !== primary)];
+    tiers.push({ version: VERSION_STEPS[i], candidates });
+  }
+  bytezCatalogCache[task] = { ts: Date.now(), tiers };
+  return tiers;
+}
 
 async function callBytez(bytezModelId, text) {
   const resp = await fetch(`https://api.bytez.com/models/v2/${bytezModelId}`, {
@@ -109,24 +139,32 @@ app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(__dirname));
 
-app.get('/api/generate/models', (req, res) => {
-  res.json({
-    image: BYTEZ_MODELS.image.map(m => ({ id: m.id, label: m.label })),
-    video: BYTEZ_MODELS.video.map(m => ({ id: m.id, label: m.label })),
-    audio: BYTEZ_MODELS.audio.map(m => ({ id: m.id, label: m.label }))
-  });
+app.get('/api/generate/models', async (req, res) => {
+  if (!BYTEZ_KEY) return res.json({ image: [], video: [], audio: [] });
+  const out = {};
+  for (const kind of Object.keys(BYTEZ_TASKS)) {
+    try {
+      const tiers = await getBytezTiers(BYTEZ_TASKS[kind]);
+      out[kind] = tiers.map(t => ({ id: `noor-${kind}-${t.version}`, label: `${BYTEZ_LABELS[kind]} ${t.version}` }));
+    } catch (e) {
+      console.warn(`⚠️  ${kind} katalogini olishda xato:`, e.message || e);
+      out[kind] = [];
+    }
+  }
+  res.json(out);
 });
 
-async function handleGenerate(req, res, task, mime, resultKey) {
+async function handleGenerate(req, res, kind, mime, resultKey) {
   if (!BYTEZ_KEY) return res.status(500).json({ error: 'Serverda BYTEZ_KEY sozlanmagan.' });
   const { prompt, modelId } = req.body || {};
   if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
-  const list = BYTEZ_MODELS[task];
-  const model = list.find(m => m.id === modelId) || list[0];
   try {
-    const result = await callBytezWithFallback(model.candidates, String(prompt).trim());
+    const tiers = await getBytezTiers(BYTEZ_TASKS[kind]);
+    const tier = tiers.find(t => `noor-${kind}-${t.version}` === modelId) || tiers[0];
+    if (!tier) return res.status(502).json({ error: `Bytez katalogida "${BYTEZ_TASKS[kind]}" uchun model topilmadi.` });
+    const result = await callBytezWithFallback(tier.candidates, String(prompt).trim());
     if (!result.ok) {
-      console.error(`Bytez ${task} xatosi (barcha modellar sinaldi):`, result.error);
+      console.error(`Bytez ${kind} xatosi (barcha zaxira modellar sinaldi):`, result.error);
       return res.status(502).json({ error: `Yaratib bo'lmadi: ${result.error}` });
     }
     res.json({ [resultKey]: toDataUrl(result.output, mime), model: result.usedModel });

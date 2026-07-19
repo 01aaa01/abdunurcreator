@@ -642,7 +642,22 @@ let chatHistory = [];
 let pendingImage = null; // {dataUrl, name}
 let currentChatMode = 'general'; // 'general' (1.5) | 'coder' (1.0, matn-only) | 'coder2' (2.0, vision+code)
 
-const CHAT_MODE_LABELS = { general: 'Noor AI 1.5', coder: 'Noor AI 1.0 (Coder)', coder2: 'Noor AI 2.0 (Coder)', 'noor-image-1.0': 'Noor-Image 1.0', 'noor-video-1.0': 'Noor-Video 1.0', 'noor-audio-1.0': 'Noor-Audio 1.0' };
+const CHAT_MODE_LABELS = { general: 'Noor AI 1.5', coder: 'Noor AI 1.0 (Coder)', coder2: 'Noor AI 2.0 (Coder)' };
+
+function mediaKindOf(mode) {
+  if (mode && mode.startsWith('noor-image-')) return 'image';
+  if (mode && mode.startsWith('noor-video-')) return 'video';
+  if (mode && mode.startsWith('noor-audio-')) return 'audio';
+  return null;
+}
+
+function modeDisplayLabel(mode) {
+  if (CHAT_MODE_LABELS[mode]) return CHAT_MODE_LABELS[mode];
+  const menu = document.getElementById('model-picker-menu');
+  const item = menu && menu.querySelector(`.model-picker-item[data-value="${mode}"]`);
+  if (item) return item.dataset.label || item.textContent.trim();
+  return mode;
+}
 
 function setChatMode(mode) {
   if (mode === currentChatMode) return;
@@ -652,16 +667,17 @@ function setChatMode(mode) {
   syncModelPickerUI(mode);
   const note = document.getElementById('chat-note');
   const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  const kind = mediaKindOf(mode);
   if (mode === 'coder') {
     note.textContent = t('chat.noteCoder', "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi).");
   } else if (mode === 'coder2') {
     note.textContent = t('chat.noteCoder2', "Noor AI 2.0 (Coder) — kod yozadi VA rasm/skrinshotlarni ham tushunadi.");
-  } else if (mode === 'noor-image-1.0') {
-    note.textContent = t('chat.noteImage', "Noor-Image 1.0 — pastga nima chizish kerakligini yozing, u sizga rasm yaratib beradi.");
-  } else if (mode === 'noor-video-1.0') {
-    note.textContent = t('chat.noteVideo', "Noor-Video 1.0 — pastga video mavzusini yozing, u qisqa video yaratib beradi (biroz vaqt olishi mumkin).");
-  } else if (mode === 'noor-audio-1.0') {
-    note.textContent = t('chat.noteAudio', "Noor-Audio 1.0 — pastga musiqa/audio mavzusini yozing, u audio yaratib beradi.");
+  } else if (kind === 'image') {
+    note.textContent = t('chat.noteImage', "Pastga nima chizish kerakligini yozing, sizga rasm yaratib beradi.");
+  } else if (kind === 'video') {
+    note.textContent = t('chat.noteVideo', "Pastga video mavzusini yozing, qisqa video yaratib beradi (biroz vaqt olishi mumkin).");
+  } else if (kind === 'audio') {
+    note.textContent = t('chat.noteAudio', "Pastga musiqa/audio mavzusini yozing, audio yaratib beradi.");
   } else {
     note.textContent = t('chat.noteGeneral', "Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.");
   }
@@ -669,7 +685,7 @@ function setChatMode(mode) {
   const container = document.getElementById('chat-msg-container');
   container.innerHTML = '';
   closeCodePanel();
-  appendChatBubble(`${CHAT_MODE_LABELS[mode] || mode} rejimiga o'tdingiz. Nima bilan yordam bera olaman?`, 'system');
+  appendChatBubble(`${modeDisplayLabel(mode)} rejimiga o'tdingiz. Nima bilan yordam bera olaman?`, 'system');
   persistActiveSession();
 }
 
@@ -795,9 +811,8 @@ async function sendMediaGenRequest(prompt) {
   inputEl.disabled = true;
   sendBtn.disabled = true;
 
-  const isVideo = currentChatMode === 'noor-video-1.0';
-  const isAudio = currentChatMode === 'noor-audio-1.0';
-  const endpoint = isVideo ? '/api/generate/video' : (isAudio ? '/api/generate/audio' : '/api/generate/image');
+  const kind = mediaKindOf(currentChatMode); // 'image' | 'video' | 'audio'
+  const endpoint = kind === 'video' ? '/api/generate/video' : (kind === 'audio' ? '/api/generate/audio' : '/api/generate/image');
 
   try {
     const r = await fetch(BASE_URL + endpoint, {
@@ -810,7 +825,7 @@ async function sendMediaGenRequest(prompt) {
     if (indicator) indicator.remove();
     const mediaUrl = d.image || d.video || d.audio;
     if (r.ok && mediaUrl) {
-      appendChatMedia(mediaUrl, isVideo ? 'video' : (isAudio ? 'audio' : 'image'));
+      appendChatMedia(mediaUrl, kind || 'image');
       persistActiveSession(prompt);
     } else {
       appendChatBubble('Xatolik: ' + (d.error || 'Yaratib bo\'lmadi.'), 'system');
@@ -835,7 +850,7 @@ async function sendChatMsg() {
   const text = inputEl.value.trim();
   if (!text && !pendingImage) return;
 
-  if (currentChatMode === 'noor-image-1.0' || currentChatMode === 'noor-video-1.0' || currentChatMode === 'noor-audio-1.0') {
+  if (mediaKindOf(currentChatMode)) {
     await sendMediaGenRequest(text);
     return;
   }
@@ -914,11 +929,48 @@ document.getElementById('chat-user-input').addEventListener('keydown', (e) => {
   }
 });
 
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadMediaModelOptions() {
+  const group = document.getElementById('model-picker-media-group');
+  const select = document.getElementById('chat-model-select');
+  if (!group) return;
+  try {
+    const r = await fetch(BASE_URL + '/api/generate/models');
+    const d = await r.json();
+    const sections = [
+      { list: d.image || [], tagClass: 'model-picker-tag-img', tagText: 'RASM' },
+      { list: d.video || [], tagClass: 'model-picker-tag-vid', tagText: 'VIDEO' },
+      { list: d.audio || [], tagClass: 'model-picker-tag-audio', tagText: 'AUDIO' }
+    ];
+    let html = '';
+    sections.forEach((sec) => {
+      sec.list.forEach((m) => {
+        html += `<button type="button" class="model-picker-item" data-value="${escapeHtml(m.id)}" data-label="${escapeHtml(m.label)}">${escapeHtml(m.label)}<span class="model-picker-tag ${sec.tagClass}">${sec.tagText}</span></button>`;
+        if (select && !select.querySelector(`option[value="${m.id}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.label;
+          select.appendChild(opt);
+        }
+      });
+    });
+    group.innerHTML = html;
+  } catch (e) {
+    console.warn('Media model ro\'yxatini olib bo\'lmadi:', e);
+  }
+}
+
 // "+" biriktirish menyusi: rasm yuklash, kameraga tushirish, skrinshot — ishlaydi.
 // Fayl yuklash va rasm yaratish hozircha o'chirilgan (keyingi Noor 2.5/rasm integratsiyasi uchun).
 // === MODEL PICKER (chat-model-select o'rniga sayt uslubidagi maxsus dropdown) ===
 // Haqiqiy <select id="chat-model-select"> DOM'da yashirin holda qoladi — eski kod (.value
 // o'qish/yozish) buzilmasligi uchun. Ko'rinadigan qism esa quyidagi tugma + menyu.
+// Bo'limlar (Noor-Image/Video/Audio) dinamik — serverdan Bytez'ning HAQIQIY, hozir ishlaydigan
+// katalogi asosida yuklanadi (loadMediaModelOptions), shuning uchun bu yerda click uchun
+// event delegation ishlatiladi — keyin qo'shiladigan tugmalar ham avtomatik ishlaydi.
 function syncModelPickerUI(mode) {
   const menu = document.getElementById('model-picker-menu');
   const label = document.getElementById('model-picker-label');
@@ -942,13 +994,13 @@ function syncModelPickerUI(mode) {
     e.stopPropagation();
     menu.classList.contains('hidden') ? openMenu() : closeMenu();
   });
-  menu.querySelectorAll('.model-picker-item').forEach((item) => {
-    item.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (item.disabled || item.classList.contains('is-disabled')) return; // ishlamaydigan variantlar bosilmaydi
-      setChatMode(item.dataset.value);
-      closeMenu();
-    });
+  menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.model-picker-item');
+    if (!item) return;
+    e.stopPropagation();
+    if (item.disabled || item.classList.contains('is-disabled')) return; // ishlamaydigan variantlar bosilmaydi
+    setChatMode(item.dataset.value);
+    closeMenu();
   });
   document.addEventListener('click', (e) => {
     if (!menu.classList.contains('hidden') && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
@@ -956,6 +1008,7 @@ function syncModelPickerUI(mode) {
     }
   });
   syncModelPickerUI(currentChatMode);
+  loadMediaModelOptions().then(() => syncModelPickerUI(currentChatMode));
 })();
 
 const attachPlusBtn = document.getElementById('chat-attach-btn');
