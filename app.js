@@ -141,28 +141,22 @@ async function handleGoogleCredential(response) {
   } catch (e) { err.textContent = 'Server bilan aloqa yo\'q.'; }
 }
 let googleInitialized = false;
-async function triggerGoogleSignIn() {
+async function triggerGoogleSignIn(auto) {
   const err = document.getElementById('login-err');
-  err.textContent = '';
+  if (!auto) err.textContent = '';
   const clientId = await getGoogleClientId();
-  if (!clientId) { err.textContent = 'Google orqali kirish hali serverda sozlanmagan (GOOGLE_CLIENT_ID kerak).'; return; }
-  if (typeof google === 'undefined' || !google.accounts) { err.textContent = 'Google xizmati yuklanmadi, internetni tekshiring.'; return; }
+  if (!clientId) { if (!auto) err.textContent = 'Google orqali kirish hali serverda sozlanmagan (GOOGLE_CLIENT_ID kerak).'; return; }
+  if (typeof google === 'undefined' || !google.accounts) { if (!auto) err.textContent = 'Google xizmati yuklanmadi, internetni tekshiring.'; return; }
   if (!googleInitialized) {
     google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleCredential, ux_mode: 'popup' });
     googleInitialized = true;
   }
-  // Muhim: faqat prompt() (One Tap) ga tayanmaymiz — brauzer/cookie sozlamalari yoki
-  // FedCM tufayli u ko'p hollarda hech qanday xatosiz "jim" ishlamay qoladi.
-  // Shu sabab haqiqiy Google tugmasini ham chizamiz — bu ancha ishonchli usul.
+  // Haqiqiy Google tugmasini darhol chizamiz — foydalanuvchi avval "soxta" tugmani bosib,
+  // keyin haqiqiysini yana bosishiga hojat qolmasin. Bitta tugma, bitta bosish.
   const container = document.getElementById('google-btn-container');
   container.classList.remove('hidden');
   container.innerHTML = '';
   google.accounts.id.renderButton(container, { theme: 'filled_black', size: 'large', width: 280, shape: 'pill', text: 'continue_with' });
-  google.accounts.id.prompt((notification) => {
-    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-      // One Tap ko'rsatilmadi — bu normal holat, yuqoridagi Google tugmasidan foydalanish kifoya.
-    }
-  });
 }
 
 function logout(){
@@ -174,9 +168,11 @@ function logout(){
   showStage('stage-login');
 }
 
-// Sahifa ochilganda avval saqlangan sessiya bormi tekshiramiz
+// Sahifa ochilganda avval saqlangan sessiya bormi tekshiramiz, va Google tugmasini
+// darhol chizib qo'yamiz (ikkinchi bosishga hojat qolmasligi uchun).
 document.addEventListener('DOMContentLoaded',()=>{
   restoreSession();
+  triggerGoogleSignIn(true);
 });
 
 // === PROFIL (rasm + ism, username o'zgarmaydi) ===
