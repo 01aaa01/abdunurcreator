@@ -40,7 +40,9 @@ p.sub{color:var(--td);font-size:0.9rem;margin-bottom:24px;line-height:1.5;}
 .err{color:var(--p);font-size:.82rem;margin-top:8px;min-height:16px;}
 .ok{color:var(--c);font-size:.82rem;margin-top:8px;min-height:16px;}
 .hidden{display:none!important;}
-.google-btn-container{display:flex;justify-content:center;margin-top:14px;}
+.google-btn-wrap{position:relative;width:100%;}
+.google-btn-overlay{position:absolute;inset:0;opacity:.01;overflow:hidden;border-radius:12px;z-index:5;}
+.google-btn-wrap .auth-btn.google{pointer-events:none;}
 .link-btn{background:none;border:none;color:var(--td);font-family:var(--mn);font-size:.75rem;cursor:pointer;margin-top:12px;text-decoration:underline;}
 .link-btn:hover{color:var(--t);}
 .hint{font-size:.78rem;color:var(--td);margin-top:16px;line-height:1.5;}

@@ -68,9 +68,6 @@ function chooseAuthMethod(paneKind, method) {
   if (paneKind === 'login') {
     document.getElementById('login-sub-telegram').classList.toggle('hidden', method !== 'telegram');
     document.getElementById('login-sub-password').classList.toggle('hidden', method !== 'password');
-    if (method === 'google') triggerGoogleSignIn();
-  } else {
-    if (method === 'google') triggerGoogleSignIn();
   }
 }
 
@@ -141,22 +138,19 @@ async function handleGoogleCredential(response) {
   } catch (e) { err.textContent = 'Server bilan aloqa yo\'q.'; }
 }
 let googleInitialized = false;
-async function triggerGoogleSignIn(auto) {
-  const err = document.getElementById('login-err');
-  if (!auto) err.textContent = '';
+async function renderGoogleOverlay(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
   const clientId = await getGoogleClientId();
-  if (!clientId) { if (!auto) err.textContent = 'Google orqali kirish hali serverda sozlanmagan (GOOGLE_CLIENT_ID kerak).'; return; }
-  if (typeof google === 'undefined' || !google.accounts) { if (!auto) err.textContent = 'Google xizmati yuklanmadi, internetni tekshiring.'; return; }
+  if (!clientId) return; // hali sozlanmagan — jim turadi, xato ko'rsatmaymiz
+  if (typeof google === 'undefined' || !google.accounts) return;
   if (!googleInitialized) {
     google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleCredential, ux_mode: 'popup' });
     googleInitialized = true;
   }
-  // Haqiqiy Google tugmasini darhol chizamiz — foydalanuvchi avval "soxta" tugmani bosib,
-  // keyin haqiqiysini yana bosishiga hojat qolmasin. Bitta tugma, bitta bosish.
-  const container = document.getElementById('google-btn-container');
-  container.classList.remove('hidden');
   container.innerHTML = '';
-  google.accounts.id.renderButton(container, { theme: 'filled_black', size: 'large', width: 280, shape: 'pill', text: 'continue_with' });
+  const w = Math.min(container.parentElement ? container.parentElement.offsetWidth : 300, 400) || 300;
+  google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', width: w, text: 'continue_with' });
 }
 
 function logout(){
@@ -168,11 +162,13 @@ function logout(){
   showStage('stage-login');
 }
 
-// Sahifa ochilganda avval saqlangan sessiya bormi tekshiramiz, va Google tugmasini
-// darhol chizib qo'yamiz (ikkinchi bosishga hojat qolmasligi uchun).
+// Sahifa ochilganda avval saqlangan sessiya bormi tekshiramiz, va Google tugmalarini
+// (login/signup) darhol, ko'rinmas holda chizib qo'yamiz — sizning chiroyli tugmangiz
+// tepada ko'rinadi, bosilganda esa aynan shu joydagi haqiqiy Google oynasi ochiladi.
 document.addEventListener('DOMContentLoaded',()=>{
   restoreSession();
-  triggerGoogleSignIn(true);
+  renderGoogleOverlay('google-btn-overlay-login');
+  renderGoogleOverlay('google-btn-overlay-signup');
 });
 
 // === PROFIL (rasm + ism, username o'zgarmaydi) ===
