@@ -186,7 +186,11 @@ app.get('/', (req, res) => {
 
 // DB
 let db = { users: {}, ads: [], pendingUsers: {} };
-const dbPath = path.join(__dirname, 'data.json');
+// Agar Render'da "Disk" ulangan bo'lsa, DATA_DIR shu diskning mount path'iga
+// ko'rsatilsin (masalan /var/data) — shunda data.json har deploy'da o'chib qolmaydi.
+// Hech narsa sozlanmasa, oldingidek loyihaning o'z papkasiga yoziladi (lokal ishlash uchun yetarli).
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const dbPath = path.join(DATA_DIR, 'data.json');
 
 if (fs.existsSync(dbPath)) {
   try { db = JSON.parse(fs.readFileSync(dbPath, 'utf8')); }
@@ -387,7 +391,11 @@ app.post('/api/profile', (req, res) => {
   const { username, name, photo } = req.body;
   if (!username) return res.status(400).json({ error: 'Username kerak.' });
   const key = username.toLowerCase().replace('@', '');
-  if (!db.users[key]) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+  // MUHIM: agar server bazasi qayta ishga tushirilganda tozalangan bo'lsa (masalan,
+  // Render'da doimiy disk ulanmagan bo'lsa), foydalanuvchi baribir saytda "kirgan"
+  // holatda turadi (brauzerda sessiya saqlangan) — shu holatda xato berish o'rniga
+  // yozuvni qaytadan yaratamiz, aks holda profil hech qachon saqlanmaydi.
+  if (!db.users[key]) db.users[key] = { username: key, chatId: null, code: null };
   if (typeof name === 'string') db.users[key].name = name.slice(0, 60);
   if (typeof photo === 'string') db.users[key].photo = photo.slice(0, 2_000_000);
   saveDB();
@@ -398,7 +406,7 @@ app.get('/api/profile', (req, res) => {
   const { username } = req.query;
   const key = (username || '').toLowerCase().replace('@', '');
   const u = db.users[key];
-  if (!u) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+  if (!u) return res.json({ name: '', photo: '', email: '' }); // yozuv hali yo'q — bo'sh profil, xato emas
   res.json({ name: u.name || '', photo: u.photo || '', email: u.email || '' });
 });
 
@@ -670,7 +678,7 @@ app.post('/api/keys/create', (req, res) => {
   const { username } = req.body || {};
   if (!username) return res.status(400).json({ error: 'username kerak.' });
   const key = String(username).toLowerCase();
-  if (!db.users[key]) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+  if (!db.users[key]) db.users[key] = { username: key, chatId: null, code: null };
   if (!db.users[key].apiKey) {
     db.users[key].apiKey = genApiKey();
     saveDB();

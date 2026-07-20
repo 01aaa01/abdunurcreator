@@ -200,6 +200,32 @@ document.getElementById('profile-photo-input').addEventListener('change', async 
   pendingProfilePhoto = dataUrl;
   document.getElementById('profile-photo-preview').src = dataUrl;
 });
+async function testApiKey() {
+  const input = document.getElementById('profile-api-key');
+  const result = document.getElementById('profile-api-test-result');
+  if (!input.value) { result.textContent = "Avval API kalit yarating."; result.style.color = 'var(--td)'; return; }
+  result.textContent = 'Tekshirilmoqda...';
+  result.style.color = 'var(--td)';
+  try {
+    const r = await fetch(BASE_URL + '/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + input.value },
+      body: JSON.stringify({ model: 'noor-ai-1.5', messages: [{ role: 'user', content: 'Salom, bu sinov xabari. Faqat "Ishlayapti!" deb javob ber.' }] })
+    });
+    const d = await r.json();
+    if (r.ok && d.choices && d.choices[0]) {
+      result.textContent = '✅ Ishlayapti! Model javobi: ' + d.choices[0].message.content;
+      result.style.color = '#00c896';
+    } else {
+      result.textContent = '❌ Ishlamayapti: ' + (d.error || 'noma\'lum xato');
+      result.style.color = '#e74c3c';
+    }
+  } catch (e) {
+    result.textContent = '❌ Serverga ulanib bo\'lmadi: ' + e.message;
+    result.style.color = '#e74c3c';
+  }
+}
+
 async function createOrShowApiKey() {
   const input = document.getElementById('profile-api-key');
   const err = document.getElementById('profile-err');
