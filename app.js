@@ -186,6 +186,11 @@ async function openProfile() {
       if (d.photo) document.getElementById('profile-photo-preview').src = d.photo;
     }
   } catch (e) {}
+  try {
+    const r2 = await fetch(BASE_URL + '/api/keys/mine?username=' + encodeURIComponent(currentUser));
+    const d2 = await r2.json();
+    document.getElementById('profile-api-key').value = (r2.ok && d2.apiKey) ? d2.apiKey : '';
+  } catch (e) {}
   document.getElementById('profile-overlay').classList.add('active');
 }
 document.getElementById('profile-photo-input').addEventListener('change', async (e) => {
@@ -195,6 +200,27 @@ document.getElementById('profile-photo-input').addEventListener('change', async 
   pendingProfilePhoto = dataUrl;
   document.getElementById('profile-photo-preview').src = dataUrl;
 });
+async function createOrShowApiKey() {
+  const input = document.getElementById('profile-api-key');
+  const err = document.getElementById('profile-err');
+  const ok = document.getElementById('profile-ok');
+  err.textContent = ''; ok.textContent = '';
+  if (input.value) { ok.textContent = "API kalitingiz allaqachon bor, pastda ko'rinib turibdi."; return; }
+  try {
+    const r = await fetch(BASE_URL + '/api/keys/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: currentUser }) });
+    const d = await r.json();
+    if (r.ok) { input.value = d.apiKey; ok.textContent = 'API kalit yaratildi!'; }
+    else err.textContent = d.error || 'Xatolik.';
+  } catch (e) { err.textContent = 'Server xatoligi.'; }
+}
+function copyApiKey() {
+  const input = document.getElementById('profile-api-key');
+  if (!input.value) return;
+  input.select();
+  navigator.clipboard && navigator.clipboard.writeText(input.value).catch(() => {});
+  const ok = document.getElementById('profile-ok');
+  ok.textContent = 'Nusxalandi!';
+}
 async function saveProfile() {
   const name = document.getElementById('profile-name').value.trim();
   const err = document.getElementById('profile-err');

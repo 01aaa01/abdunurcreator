@@ -253,14 +253,14 @@
           </button>
           <div class="model-picker-menu hidden" id="model-picker-menu">
             <div class="model-picker-group-label" data-i18n-label="chat.groupChat">Suhbat</div>
-            <button type="button" class="model-picker-item" data-value="general" data-label="Noor AI 1.5">Noor AI 1.5</button>
             <button type="button" class="model-picker-item" data-value="coder" data-label="Noor AI 1.0 (Coder)">Noor AI 1.0 (Coder)</button>
+            <button type="button" class="model-picker-item" data-value="general" data-label="Noor AI 1.5">Noor AI 1.5</button>
             <button type="button" class="model-picker-item" data-value="coder2" data-label="Noor AI 2.0 (Coder)">Noor AI 2.0 (Coder)<span class="model-picker-tag">YANGI</span></button>
             <div id="model-picker-media-group"></div>
           </div>
           <select id="chat-model-select" class="hidden" onchange="setChatMode(this.value)">
-            <option value="general">Noor AI 1.5</option>
             <option value="coder">Noor AI 1.0 (Coder)</option>
+            <option value="general">Noor AI 1.5</option>
             <option value="coder2">Noor AI 2.0 (Coder)</option>
           </select>
         </div>
@@ -302,6 +302,16 @@
     <button class="btn" onclick="saveProfile()" data-i18n="profile.save">Saqlash</button>
     <div class="err" id="profile-err"></div>
     <div class="ok" id="profile-ok"></div>
+
+    <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--gb);">
+      <label style="display:block;margin-bottom:8px;color:var(--td);font-size:.85rem;" data-i18n="profile.apiKeyLabel">Noor AI API kaliti (dasturchilar uchun, bepul)</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="profile-api-key" readonly placeholder="•••• hali yaratilmagan" style="flex:1;font-family:var(--mn);font-size:.78rem;">
+        <button class="btn ghost sm" style="width:auto;flex-shrink:0;" onclick="copyApiKey()" data-i18n="profile.copy">Nusxa</button>
+      </div>
+      <button class="btn ghost sm" style="width:auto;margin-top:8px;" onclick="createOrShowApiKey()" data-i18n="profile.apiKeyBtn">API kalit yaratish</button>
+      <p class="hint" style="margin-top:8px;" data-i18n="profile.apiKeyHint">Ushbu kalit bilan noor-ai-1.0, noor-ai-1.5, noor-ai-2.0 modellariga o'zingizning kodingizdan bepul murojaat qilishingiz mumkin. Hujjat: /api/v1/chat/completions</p>
+    </div>
   </div>
 </div>
 

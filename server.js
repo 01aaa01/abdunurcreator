@@ -583,17 +583,11 @@ function fakeChatResponse(text) {
   return { choices: [{ message: { role: 'assistant', content: text } }] };
 }
 
-// API: OpenRouter/OpenCode Chat Proxy (Noor AI 1.5 / 1.0 Coder / 2.0 Coder)
-app.post('/api/chat', async (req, res) => {
-  const { messages, mode } = req.body;
-
-  if (typeof fetch !== 'function') {
-    return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past). AI chat ishlashi uchun Node.js 18 yoki undan yangi versiyasini o\'rnating: https://nodejs.org' });
-  }
-
-  // Noor AI 1.0 (Coder) rasm o'qiy olmaydi — 2.0 ni taklif qilib, modelga umuman murojaat qilmaymiz
+// Ichki chat UI VA tashqi ommaviy API (/api/v1/chat/completions) ikkalasi ham shu
+// funksiyani ishlatadi — bitta joyda mantiq, ikki joyda ishlatiladi.
+async function runNoorChat(mode, messages) {
   if (mode === 'coder' && messagesContainImage(messages)) {
-    return res.json(fakeChatResponse("Kechirasiz, men (Noor AI 1.0 Coder) rasm o'qiy olmayman. Rasmni tushuntirib berishimni xohlasangiz, iltimos **Noor AI 2.0 (Coder)** rejimini sinab ko'ring."));
+    return { status: 200, data: fakeChatResponse("Kechirasiz, men (Noor AI 1.0 Coder) rasm o'qiy olmayman. Rasmni tushuntirib berishimni xohlasangiz, iltimos **Noor AI 2.0 (Coder)** rejimini sinab ko'ring.") };
   }
 
   const systemPrompt = mode === 'coder2' ? NOOR_CODER2_SYSTEM_PROMPT : (mode === 'coder' ? NOOR_CODER_SYSTEM_PROMPT : NOOR_SYSTEM_PROMPT);
@@ -605,12 +599,12 @@ app.post('/api/chat', async (req, res) => {
       for (const model of CODER2_MODEL_CHAIN) {
         try {
           const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
-          if (ok) return res.json(data);
+          if (ok) return { status: 200, data };
           lastError = data.error?.message;
         } catch (e) { lastError = e.message; }
       }
     }
-    return res.status(502).json({ error: 'Noor AI 2.0 (Coder) hozircha band. Birozdan so\'ng qayta urinib ko\'ring: ' + (lastError || 'noma\'lum xatolik') });
+    return { status: 502, data: { error: 'Noor AI 2.0 (Coder) hozircha band. Birozdan so\'ng qayta urinib ko\'ring: ' + (lastError || 'noma\'lum xatolik') } };
   }
 
   if (mode === 'coder') {
@@ -618,7 +612,7 @@ app.post('/api/chat', async (req, res) => {
       for (const model of OPENCODE_MODEL_CHAIN) {
         try {
           const { ok, data } = await callOpenCodeZen(model, outgoingMessages, OPENCODE_KEY);
-          if (ok) return res.json(data);
+          if (ok) return { status: 200, data };
           lastError = data.error?.message;
           console.error(`⚠️  Noor Coder: "${model}" (OpenCode Zen) javob bermadi:`, lastError);
         } catch (e) {
@@ -631,22 +625,22 @@ app.post('/api/chat', async (req, res) => {
       for (const model of CODER_OPENROUTER_FALLBACK) {
         try {
           const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
-          if (ok) return res.json(data);
+          if (ok) return { status: 200, data };
           lastError = data.error?.message;
         } catch (e) { lastError = e.message; }
       }
     }
-    return res.status(502).json({ error: 'Noor Coder hozircha band (barcha bepul modellar javob bermadi): ' + (lastError || 'noma\'lum xatolik') });
+    return { status: 502, data: { error: 'Noor Coder hozircha band (barcha bepul modellar javob bermadi): ' + (lastError || 'noma\'lum xatolik') } };
   }
 
   // === UMUMIY REJIM (Noor AI 1.5) ===
   if (!OPENROUTER_KEY) {
-    return res.status(500).json({ error: 'Serverda OPENROUTER_KEY sozlanmagan.' });
+    return { status: 500, data: { error: 'Serverda OPENROUTER_KEY sozlanmagan.' } };
   }
   for (const model of NOOR_MODEL_CHAIN) {
     try {
       const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
-      if (ok) return res.json(data);
+      if (ok) return { status: 200, data };
       lastError = data.error?.message;
       console.error(`⚠️  Noor AI: "${model}" javob bermadi, keyingisiga o'tilmoqda:`, lastError);
     } catch (e) {
@@ -654,7 +648,68 @@ app.post('/api/chat', async (req, res) => {
       console.error(`⚠️  Noor AI: "${model}" ulanish xatosi, keyingisiga o'tilmoqda:`, lastError);
     }
   }
-  res.status(502).json({ error: 'Noor AI hozircha band (barcha bepul modellar javob bermadi): ' + (lastError || 'noma\'lum xatolik') });
+  return { status: 502, data: { error: 'Noor AI hozircha band (barcha bepul modellar javob bermadi): ' + (lastError || 'noma\'lum xatolik') } };
+}
+
+// API: OpenRouter/OpenCode Chat Proxy (Noor AI 1.5 / 1.0 Coder / 2.0 Coder) — saytning o'z chati
+app.post('/api/chat', async (req, res) => {
+  const { messages, mode } = req.body;
+  if (typeof fetch !== 'function') {
+    return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past). AI chat ishlashi uchun Node.js 18 yoki undan yangi versiyasini o\'rnating: https://nodejs.org' });
+  }
+  const result = await runNoorChat(mode, messages);
+  res.status(result.status).json(result.data);
+});
+
+// === OMMAVIY API — dasturchilar o'z shaxsiy API kaliti bilan Noor AI'ga bepul murojaat qilishi uchun ===
+function genApiKey() {
+  return 'noor_' + crypto.randomBytes(24).toString('hex');
+}
+
+app.post('/api/keys/create', (req, res) => {
+  const { username } = req.body || {};
+  if (!username) return res.status(400).json({ error: 'username kerak.' });
+  const key = String(username).toLowerCase();
+  if (!db.users[key]) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+  if (!db.users[key].apiKey) {
+    db.users[key].apiKey = genApiKey();
+    saveDB();
+  }
+  res.json({ apiKey: db.users[key].apiKey });
+});
+
+app.get('/api/keys/mine', (req, res) => {
+  const { username } = req.query || {};
+  if (!username) return res.status(400).json({ error: 'username kerak.' });
+  const key = String(username).toLowerCase();
+  const u = db.users[key];
+  res.json({ apiKey: (u && u.apiKey) || null });
+});
+
+const PUBLIC_MODEL_MAP = { 'noor-ai-1.0': 'coder', 'noor-ai-1.5': 'general', 'noor-ai-2.0': 'coder2' };
+
+// Tashqi dasturchilar uchun ochiq, bepul chat completions endpoint.
+// Sinov: curl -X POST https://SIZNING-DOMEN/api/v1/chat/completions \
+//   -H "Authorization: Bearer noor_..." -H "Content-Type: application/json" \
+//   -d '{"model":"noor-ai-1.5","messages":[{"role":"user","content":"Salom!"}]}'
+app.post('/api/v1/chat/completions', async (req, res) => {
+  const authHeader = req.headers['authorization'] || '';
+  const apiKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : String(req.headers['x-api-key'] || '');
+  if (!apiKey) return res.status(401).json({ error: 'API kalit kerak. Header: Authorization: Bearer <kalit>' });
+
+  const owner = Object.values(db.users).find(u => u.apiKey === apiKey);
+  if (!owner) return res.status(401).json({ error: 'API kalit noto\'g\'ri yoki bekor qilingan.' });
+
+  const { model, messages } = req.body || {};
+  const mode = PUBLIC_MODEL_MAP[model];
+  if (!mode) return res.status(400).json({ error: `Noma'lum model "${model}". Quyidagilardan birini tanlang: ${Object.keys(PUBLIC_MODEL_MAP).join(', ')}` });
+  if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'messages massivi kerak, masalan: [{"role":"user","content":"Salom"}]' });
+  if (typeof fetch !== 'function') {
+    return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past).' });
+  }
+
+  const result = await runNoorChat(mode, messages);
+  res.status(result.status).json(result.data);
 });
 
 const PORT = process.env.PORT || 3000;
