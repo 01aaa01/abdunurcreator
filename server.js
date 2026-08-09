@@ -18,10 +18,17 @@ const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
 const OPENCODE_KEY = process.env.OPENCODE_KEY || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const BYTEZ_KEY = process.env.BYTEZ_KEY || '';
+// Noor AI 2.5 / Noor AI 3.0 — OmniRoute gateway orqali (o'zingiz Render'ga qo'ygan instance).
+const OMNIROUTE_KEY = process.env.OMNIROUTE_KEY || '';
+const OMNIROUTE_URL = (process.env.OMNIROUTE_URL || '').replace(/\/+$/, '');
+const OMNIROUTE_MODEL_25 = process.env.OMNIROUTE_MODEL_25 || 'auto/best-free';
+const OMNIROUTE_MODEL_30 = process.env.OMNIROUTE_MODEL_30 || 'auto/best';
 if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
 if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
 if (!BYTEZ_KEY) console.warn('⚠️  BYTEZ_KEY .env faylida yo\'q — Noor-Image / Noor-Video / Noor-Audio ishlamaydi.');
+if (!OMNIROUTE_KEY) console.warn('⚠️  OMNIROUTE_KEY .env faylida yo\'q — Noor AI 2.5 / Noor AI 3.0 ishlamaydi.');
+if (!OMNIROUTE_URL || OMNIROUTE_URL.includes('SIZNING-OMNIROUTE')) console.warn('⚠️  OMNIROUTE_URL sozlanmagan — .env faylda uni Render\'ga qo\'ygan OmniRoute manzilingizga almashtiring, aks holda Noor AI 2.5 / 3.0 ishlamaydi.');
 
 // Noor-Image / Noor-Video / Noor-Audio — Bytez (bytez.com) orqali ishlaydi.
 // MUHIM: Bytez'da 175k+ model bo'lsa ham, ularning hammasi hali "katalogga qo'shilmagan"
@@ -532,6 +539,16 @@ const NOOR_CODER2_SYSTEM_PROMPT = {
   content: "Sening isming Noor AI 2.0 (Coder). Seni AbdunurCreator ishlab chiqargan. Sen kod yozish, kodni tushuntirish, xatolarni topish (debug) bo'yicha ixtisoslashgansan, VA rasm/skrinshotlarni ham to'liq tushuna olasan (masalan xato skrinshoti, dizayn maketi, diagramma). Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI 2.0 (Coder) man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon haqiqiy AI modeli yoki kompaniya nomini aytma (GPT, OpenAI, Claude, Anthropic, Gemini, Google, Qwen, DeepSeek, MiniMax, Kimi, OpenCode va h.k.), hatto to'g'ridan-to'g'ri so'rashsa ham. Kodni HAR DOIM to'g'ri tildagi toza, izohli markdown kod bloki ichida ber (masalan ```python, ```javascript, ```html, ```css). Kod bilan birga qisqacha, aniq tushuntirish ham qo'sh."
 };
 
+const NOOR_25_SYSTEM_PROMPT = {
+  role: 'system',
+  content: "Sening isming Noor AI 2.5. Seni AbdunurCreator ishlab chiqargan. Sen suhbat, kodlash VA rasm/skrinshotlarni tushunish (vision) bo'yicha Noor AI 1.5/2.0'dan sezilarli kuchliroq, aniqroq va tezkor javob beruvchi modelsan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI 2.5 man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon GPT, OpenAI, Gemini, Google, Qwen, Alibaba, Llama, Meta, Claude, Anthropic, DeepSeek, MiniMax, Kimi, OpenCode, OmniRoute yoki boshqa haqiqiy sun'iy intellekt modeli yoki kompaniyasi nomini aytma yoki ular ekaningni tan olma, hatto to'g'ridan-to'g'ri so'rashsa ham. Kod yozib berishing kerak bo'lsa, HAR DOIM uni to'g'ri tildagi markdown kod bloki ichida ber (masalan ```python, ```javascript, ```html, ```css). Rasm yuborishsa, uni diqqat bilan tahlil qilib, aniq va foydali javob ber."
+};
+
+const NOOR_30_SYSTEM_PROMPT = {
+  role: 'system',
+  content: "Sening isming Noor AI 3.0. Seni AbdunurCreator ishlab chiqargan. Sen platformadagi ENG KUCHLI (flagship) model — chuqur fikrlash, murakkab kodlash, uzun va aniq tahlillar, VA rasm/skrinshotlarni tushunish (vision) bo'yicha barcha boshqa Noor AI versiyalaridan ustunsan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI 3.0 man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon GPT, OpenAI, Gemini, Google, Qwen, Alibaba, Llama, Meta, Claude, Anthropic, DeepSeek, MiniMax, Kimi, OpenCode, OmniRoute yoki boshqa haqiqiy sun'iy intellekt modeli yoki kompaniyasi nomini aytma yoki ular ekaningni tan olma, hatto to'g'ridan-to'g'ri so'rashsa ham. Kod yozib berishing kerak bo'lsa, HAR DOIM uni to'g'ri tildagi markdown kod bloki ichida ber (masalan ```python, ```javascript, ```html, ```css). Rasm yuborishsa, uni diqqat bilan tahlil qilib, chuqur va foydali javob ber."
+};
+
 // Noor AI 1.5 (umumiy) — OpenRouter'ning bepul router'i + zaxira modellar
 const NOOR_MODEL_CHAIN = [
   'openrouter/free',
@@ -554,6 +571,16 @@ const CODER_OPENROUTER_FALLBACK = ['qwen/qwen3-coder:free', 'openrouter/free'];
 
 // Noor AI 2.0 (Coder) — kod + rasm/skrinshotni tushunadigan (vision) zanjir
 const CODER2_MODEL_CHAIN = ['openrouter/free', 'qwen/qwen3-coder:free'];
+
+// Noor AI 2.5 / Noor AI 3.0 — OmniRoute gateway'dagi modellar (haqiqiy vision qo'llab-quvvatlaydi).
+// Asosiy model ishlamasa, zaxira sifatida bir-birining modeliga ham urinib ko'radi.
+const OMNIROUTE_25_MODEL_CHAIN = [OMNIROUTE_MODEL_25, OMNIROUTE_MODEL_30].filter(Boolean);
+const OMNIROUTE_30_MODEL_CHAIN = [OMNIROUTE_MODEL_30, OMNIROUTE_MODEL_25].filter(Boolean);
+
+// Rasm (vision) qo'llab-quvvatlaydigan rejimlar — FAQAT yangi, OmniRoute'ga ulangan
+// Noor AI 2.5 va Noor AI 3.0. Eski uchtasi (1.0 Coder / 1.5 / 2.0 Coder) bepul, matn-only
+// modellardan foydalanadi, shuning uchun rasm yuborilsa muloyimlik bilan rad etiladi.
+const VISION_CAPABLE_MODES = ['noor25', 'noor30'];
 
 function messagesContainImage(messages) {
   return (messages || []).some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image_url'));
@@ -587,6 +614,19 @@ async function callOpenCodeZen(model, messages, apiKey) {
   return { ok: response.ok, status: response.status, data };
 }
 
+async function callOmniRoute(model, messages, apiKey) {
+  const response = await fetch(`${OMNIROUTE_URL}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ model, messages })
+  });
+  const data = await response.json();
+  return { ok: response.ok, status: response.status, data };
+}
+
 function fakeChatResponse(text) {
   return { choices: [{ message: { role: 'assistant', content: text } }] };
 }
@@ -594,13 +634,42 @@ function fakeChatResponse(text) {
 // Ichki chat UI VA tashqi ommaviy API (/api/v1/chat/completions) ikkalasi ham shu
 // funksiyani ishlatadi — bitta joyda mantiq, ikki joyda ishlatiladi.
 async function runNoorChat(mode, messages) {
-  if (mode === 'coder' && messagesContainImage(messages)) {
-    return { status: 200, data: fakeChatResponse("Kechirasiz, men (Noor AI 1.0 Coder) rasm o'qiy olmayman. Rasmni tushuntirib berishimni xohlasangiz, iltimos **Noor AI 2.0 (Coder)** rejimini sinab ko'ring.") };
+  // Eski uchta bepul rejim (1.0 Coder / 1.5 / 2.0 Coder) haqiqiy vision modellarga ega emas —
+  // shuning uchun rasm yuborilsa, foydalanuvchini haqiqiy vision qo'llab-quvvatlaydigan
+  // Noor AI 2.5 / 3.0 rejimiga yo'naltiramiz (server tomonida ham himoya — front-end'da ham
+  // bu uchta rejimda rasm biriktirish tugmasi o'chirilgan).
+  if (!VISION_CAPABLE_MODES.includes(mode) && messagesContainImage(messages)) {
+    const modeLabel = mode === 'coder' ? 'Noor AI 1.0 (Coder)' : (mode === 'coder2' ? 'Noor AI 2.0 (Coder)' : 'Noor AI 1.5');
+    return { status: 200, data: fakeChatResponse(`Kechirasiz, men (${modeLabel}) rasm o'qiy olmayman. Rasmni tushuntirib berishimni xohlasangiz, iltimos **Noor AI 2.5** yoki **Noor AI 3.0** rejimini sinab ko'ring.`) };
   }
 
-  const systemPrompt = mode === 'coder2' ? NOOR_CODER2_SYSTEM_PROMPT : (mode === 'coder' ? NOOR_CODER_SYSTEM_PROMPT : NOOR_SYSTEM_PROMPT);
+  const systemPrompt = mode === 'noor30' ? NOOR_30_SYSTEM_PROMPT
+    : mode === 'noor25' ? NOOR_25_SYSTEM_PROMPT
+    : mode === 'coder2' ? NOOR_CODER2_SYSTEM_PROMPT
+    : mode === 'coder' ? NOOR_CODER_SYSTEM_PROMPT
+    : NOOR_SYSTEM_PROMPT;
   const outgoingMessages = [systemPrompt, ...(messages || [])];
   let lastError = null;
+
+  if (mode === 'noor25' || mode === 'noor30') {
+    const modeLabel = mode === 'noor30' ? 'Noor AI 3.0' : 'Noor AI 2.5';
+    if (!OMNIROUTE_KEY || !OMNIROUTE_URL || OMNIROUTE_URL.includes('SIZNING-OMNIROUTE')) {
+      return { status: 500, data: { error: `Serverda OMNIROUTE_KEY yoki OMNIROUTE_URL sozlanmagan — ${modeLabel} ishlashi uchun .env faylga to'g'ri qiymatlarni kiriting.` } };
+    }
+    const chain = mode === 'noor30' ? OMNIROUTE_30_MODEL_CHAIN : OMNIROUTE_25_MODEL_CHAIN;
+    for (const model of chain) {
+      try {
+        const { ok, data } = await callOmniRoute(model, outgoingMessages, OMNIROUTE_KEY);
+        if (ok) return { status: 200, data };
+        lastError = data.error?.message || data.error;
+        console.error(`⚠️  ${modeLabel}: "${model}" (OmniRoute) javob bermadi:`, lastError);
+      } catch (e) {
+        lastError = e.message;
+        console.error(`⚠️  ${modeLabel}: "${model}" ulanish xatosi:`, lastError);
+      }
+    }
+    return { status: 502, data: { error: `${modeLabel} hozircha band. Birozdan so'ng qayta urinib ko'ring: ` + (lastError || 'noma\'lum xatolik') } };
+  }
 
   if (mode === 'coder2') {
     if (OPENROUTER_KEY) {
@@ -694,7 +763,7 @@ app.get('/api/keys/mine', (req, res) => {
   res.json({ apiKey: (u && u.apiKey) || null });
 });
 
-const PUBLIC_MODEL_MAP = { 'noor-ai-1.0': 'coder', 'noor-ai-1.5': 'general', 'noor-ai-2.0': 'coder2' };
+const PUBLIC_MODEL_MAP = { 'noor-ai-1.0': 'coder', 'noor-ai-1.5': 'general', 'noor-ai-2.0': 'coder2', 'noor-ai-2.5': 'noor25', 'noor-ai-3.0': 'noor30' };
 
 // Tashqi dasturchilar uchun ochiq, bepul chat completions endpoint.
 // Sinov: curl -X POST https://SIZNING-DOMEN/api/v1/chat/completions \

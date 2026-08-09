@@ -684,9 +684,35 @@ try { ${block.code} } catch(e) { log('❌ Xatolik: ' + e.message); }
 // Foydalanuvchi rasm tashlasa (drop/tanlasa), Noor AI uni ham "ko'radi" va tushunadi.
 let chatHistory = [];
 let pendingImage = null; // {dataUrl, name}
-let currentChatMode = 'general'; // 'general' (1.5) | 'coder' (1.0, matn-only) | 'coder2' (2.0, vision+code)
+let currentChatMode = 'general'; // 'general' (1.5) | 'coder' (1.0) | 'coder2' (2.0) | 'noor25' (2.5) | 'noor30' (3.0)
 
-const CHAT_MODE_LABELS = { general: 'Noor AI 1.5', coder: 'Noor AI 1.0 (Coder)', coder2: 'Noor AI 2.0 (Coder)' };
+const CHAT_MODE_LABELS = {
+  general: 'Noor AI 1.5',
+  coder: 'Noor AI 1.0 (Coder)',
+  coder2: 'Noor AI 2.0 (Coder)',
+  noor25: 'Noor AI 2.5',
+  noor30: 'Noor AI 3.0'
+};
+
+// Rasm (vision) faqat yangi, kuchli OmniRoute'ga ulangan modellarda ishlaydi.
+// Eski uchtasi (1.0 Coder / 1.5 / 2.0 Coder) bepul matn-only modellardan foydalanadi.
+const VISION_CAPABLE_MODES = ['noor25', 'noor30'];
+function modeSupportsVision(mode) { return VISION_CAPABLE_MODES.includes(mode); }
+
+// Rasm biriktirish tugmalarini joriy rejimga qarab yoqadi/o'chiradi.
+function updateAttachAvailability(mode) {
+  const canVision = modeSupportsVision(mode);
+  const visionIds = ['attach-item-image', 'attach-item-camera', 'attach-item-screenshot'];
+  visionIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = !canVision;
+    el.classList.toggle('disabled', !canVision);
+  });
+  const note = document.getElementById('attach-menu-vision-note');
+  if (note) note.classList.toggle('hidden', canVision);
+  if (!canVision) clearPendingChatImage();
+}
 
 function mediaKindOf(mode) {
   if (mode && mode.startsWith('noor-image-')) return 'image';
@@ -715,7 +741,11 @@ function setChatMode(mode) {
   if (mode === 'coder') {
     note.textContent = t('chat.noteCoder', "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi).");
   } else if (mode === 'coder2') {
-    note.textContent = t('chat.noteCoder2', "Noor AI 2.0 (Coder) — kod yozadi VA rasm/skrinshotlarni ham tushunadi.");
+    note.textContent = t('chat.noteCoder2', "Noor AI 2.0 (Coder) — bepul, kodlashga ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi — rasm uchun Noor AI 2.5/3.0'ni tanlang).");
+  } else if (mode === 'noor25') {
+    note.textContent = t('chat.noteNoor25', "Noor AI 2.5 — suhbat, kodlash va rasm/skrinshotni tushunish bo'yicha 1.5/2.0'dan kuchliroq. Rasm tashlang yoki yuklang — u ko'radi va tushunadi.");
+  } else if (mode === 'noor30') {
+    note.textContent = t('chat.noteNoor30', "Noor AI 3.0 — platformadagi ENG KUCHLI model: chuqur fikrlash, murakkab kod va rasm/skrinshotni tushunish. Rasm tashlang yoki yuklang — u ko'radi va tushunadi.");
   } else if (kind === 'image') {
     note.textContent = t('chat.noteImage', "Pastga nima chizish kerakligini yozing, sizga rasm yaratib beradi.");
   } else if (kind === 'video') {
@@ -723,8 +753,9 @@ function setChatMode(mode) {
   } else if (kind === 'audio') {
     note.textContent = t('chat.noteAudio', "Pastga musiqa/audio mavzusini yozing, audio yaratib beradi.");
   } else {
-    note.textContent = t('chat.noteGeneral', "Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.");
+    note.textContent = t('chat.noteGeneral', "Noor AI 1.5 — bepul, suhbat va kodlash uchun eng yaxshi modelni o'zi avtomatik tanlaydi (matn bilan, rasmni o'qiy olmaydi — rasm uchun Noor AI 2.5/3.0'ni tanlang).");
   }
+  updateAttachAvailability(mode);
   chatHistory = [];
   const container = document.getElementById('chat-msg-container');
   container.innerHTML = '';
@@ -1052,6 +1083,7 @@ function syncModelPickerUI(mode) {
     }
   });
   syncModelPickerUI(currentChatMode);
+  updateAttachAvailability(currentChatMode);
   loadMediaModelOptions().then(() => syncModelPickerUI(currentChatMode));
 })();
 

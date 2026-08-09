@@ -132,7 +132,7 @@
   <div class="hero">
     <div class="eyebrow" data-i18n="hero.eyebrow">The Future is Now</div>
     <h1>AbdunurCreator × AI</h1>
-    <p data-i18n="hero.sub">Noor AI 1.5 bilan suhbatlashing, rasm yarating va eng so'nggi AI vositalarini bir joyda kashf eting.</p>
+    <p data-i18n="hero.sub">Noor AI (1.0 dan 3.0 gacha) bilan suhbatlashing, rasm yarating va eng so'nggi AI vositalarini bir joyda kashf eting.</p>
     <div class="welcome-tag"><span data-i18n="hero.welcome">Xush kelibsiz,</span> <b id="welcome-name">@user</b></div>
   </div>
 
@@ -221,21 +221,22 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           </button>
           <div class="attach-menu hidden" id="attach-menu">
-            <button type="button" class="attach-menu-item disabled" id="attach-item-image" disabled>
+            <div class="attach-menu-note hidden" id="attach-menu-vision-note" data-i18n="attach.visionNote">Rasm yuklash faqat Noor AI 2.5 va Noor AI 3.0 rejimlarida ishlaydi.</div>
+            <button type="button" class="attach-menu-item" id="attach-item-image">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-              <span data-i18n="attach.image">Rasm yuklash (tez orada)</span>
+              <span data-i18n="attach.image">Rasm yuklash</span>
             </button>
-            <button type="button" class="attach-menu-item disabled" id="attach-item-camera" disabled>
+            <button type="button" class="attach-menu-item" id="attach-item-camera">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              <span data-i18n="attach.camera">Kameraga tushirish (tez orada)</span>
+              <span data-i18n="attach.camera">Kameraga tushirish</span>
             </button>
-            <button type="button" class="attach-menu-item disabled" id="attach-item-screenshot" disabled>
+            <button type="button" class="attach-menu-item" id="attach-item-screenshot">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-              <span data-i18n="attach.screenshot">Skrinshot olish (tez orada)</span>
+              <span data-i18n="attach.screenshot">Skrinshot olish</span>
             </button>
             <button type="button" class="attach-menu-item disabled" id="attach-item-file" disabled>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-              <span data-i18n="attach.file">Fayl yuklash (tez orada — Noor 2.5)</span>
+              <span data-i18n="attach.file">Fayl yuklash (tez orada)</span>
             </button>
             <button type="button" class="attach-menu-item disabled" id="attach-item-create" disabled>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h.01M15 9h.01M8 15c1 1.3 2.4 2 4 2s3-.7 4-2"/></svg>
@@ -252,16 +253,21 @@
             <svg class="model-picker-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <div class="model-picker-menu hidden" id="model-picker-menu">
-            <div class="model-picker-group-label" data-i18n-label="chat.groupChat">Suhbat</div>
-            <button type="button" class="model-picker-item" data-value="coder" data-label="Noor AI 1.0 (Coder)">Noor AI 1.0 (Coder)</button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupPro">Kuchli · Rasmni tushunadi</div>
+            <button type="button" class="model-picker-item" data-value="noor30" data-label="Noor AI 3.0" data-vision="1">Noor AI 3.0<span class="model-picker-tag model-picker-tag-pro">ENG KUCHLI</span></button>
+            <button type="button" class="model-picker-item" data-value="noor25" data-label="Noor AI 2.5" data-vision="1">Noor AI 2.5<span class="model-picker-tag model-picker-tag-pro">YANGI</span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupChat">Tezkor · Bepul</div>
+            <button type="button" class="model-picker-item" data-value="coder2" data-label="Noor AI 2.0 (Coder)">Noor AI 2.0 (Coder)</button>
             <button type="button" class="model-picker-item" data-value="general" data-label="Noor AI 1.5">Noor AI 1.5</button>
-            <button type="button" class="model-picker-item" data-value="coder2" data-label="Noor AI 2.0 (Coder)">Noor AI 2.0 (Coder)<span class="model-picker-tag">YANGI</span></button>
+            <button type="button" class="model-picker-item" data-value="coder" data-label="Noor AI 1.0 (Coder)">Noor AI 1.0 (Coder)</button>
             <div id="model-picker-media-group"></div>
           </div>
           <select id="chat-model-select" class="hidden" onchange="setChatMode(this.value)">
-            <option value="coder">Noor AI 1.0 (Coder)</option>
-            <option value="general">Noor AI 1.5</option>
+            <option value="noor30">Noor AI 3.0</option>
+            <option value="noor25">Noor AI 2.5</option>
             <option value="coder2">Noor AI 2.0 (Coder)</option>
+            <option value="general">Noor AI 1.5</option>
+            <option value="coder">Noor AI 1.0 (Coder)</option>
           </select>
         </div>
         <button class="chat-send-arrow" id="chat-send-btn" onclick="sendChatMsg()" title="Yuborish">

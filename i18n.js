@@ -27,12 +27,17 @@ const NOOR_TRANSLATIONS = {
     'chat.newChat': 'Yangi suhbat',
     'chat.backToSite': 'Saytga qaytish',
     'chat.codePanelTitle': 'Kod',
-    'chat.noteCoder2': "Noor AI 2.0 (Coder) — kod yozadi VA rasm/skrinshotlarni ham tushunadi.",
+    'chat.noteCoder2': "Noor AI 2.0 (Coder) — bepul, kodlashga ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi — rasm uchun Noor AI 2.5/3.0'ni tanlang).",
+    'chat.noteNoor25': "Noor AI 2.5 — suhbat, kodlash va rasm/skrinshotni tushunish (vision) bo'yicha 1.5/2.0'dan kuchliroq. Rasm tashlang yoki yuklang — u ko'radi va tushunadi.",
+    'chat.noteNoor30': "Noor AI 3.0 — platformadagi ENG KUCHLI model: chuqur fikrlash, murakkab kod va rasm/skrinshotni tushunish (vision). Rasm tashlang yoki yuklang — u ko'radi va tushunadi.",
+    'chat.groupPro': 'Kuchli · Rasmni tushunadi',
+    'chat.groupChat': 'Tezkor · Bepul',
     'attach.image': 'Rasm yuklash',
     'attach.camera': 'Kameraga tushirish',
     'attach.screenshot': 'Skrinshot olish',
-    'attach.file': "Fayl yuklash (tez orada — Noor 2.5)",
+    'attach.file': "Fayl yuklash (tez orada)",
     'attach.createImage': 'Rasm yaratish (tez orada)',
+    'attach.visionNote': 'Rasm yuklash faqat Noor AI 2.5 va Noor AI 3.0 rejimlarida ishlaydi.',
     'profile.title': 'Profil',
     'profile.changePhoto': "Rasmni o'zgartirish",
     'profile.usernameLabel': "Username (o'zgartirib bo'lmaydi)",
@@ -42,14 +47,14 @@ const NOOR_TRANSLATIONS = {
     'profile.apiKeyBtn': 'API kalit yaratish',
     'profile.apiKeyTest': "Sinab ko'rish",
     'profile.copy': 'Nusxa',
-    'profile.apiKeyHint': "Ushbu kalit bilan noor-ai-1.0, noor-ai-1.5, noor-ai-2.0 modellariga o'zingizning kodingizdan bepul murojaat qilishingiz mumkin.",
+    'profile.apiKeyHint': "Ushbu kalit bilan noor-ai-1.0, noor-ai-1.5, noor-ai-2.0, noor-ai-2.5, noor-ai-3.0 modellariga o'zingizning kodingizdan bepul murojaat qilishingiz mumkin.",
     'nav.logout': 'Chiqish',
     'hero.eyebrow': 'The Future is Now',
-    'hero.sub': "Noor AI 1.5 bilan suhbatlashing, rasm yarating va eng so'nggi AI vositalarini bir joyda kashf eting.",
+    'hero.sub': "Noor AI (1.0 dan 3.0 gacha) bilan suhbatlashing, rasm yarating va eng so'nggi AI vositalarini bir joyda kashf eting.",
     'hero.welcome': 'Xush kelibsiz,',
     'chat.sectionTitle': "Noor AI bilan suhbat",
     'chat.live': 'Live AI Assistant',
-    'chat.noteGeneral': "Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.",
+    'chat.noteGeneral': "Noor AI 1.5 — bepul, suhbat va kodlash uchun eng yaxshi modelni o'zi avtomatik tanlaydi (matn bilan, rasmni o'qiy olmaydi — rasm uchun Noor AI 2.5/3.0'ni tanlang).",
     'chat.noteCoder': "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan. Kod so'rang, u yozadi, siz sinab ko'rasiz.",
     'chat.welcomeMsg': "Suhbatni boshlash uchun quyida xabar yozing yoki rasm tashlang. Noor AI sizga yordam berishga tayyor.",
     'chat.inputPh': 'AI ga savol bering yoki rasm tashlang...',
@@ -134,12 +139,17 @@ const NOOR_TRANSLATIONS = {
     'chat.newChat': 'Новый чат',
     'chat.backToSite': 'Вернуться на сайт',
     'chat.codePanelTitle': 'Код',
-    'chat.noteCoder2': 'Noor AI 2.0 (Coder) — пишет код И понимает изображения/скриншоты.',
+    'chat.noteCoder2': 'Noor AI 2.0 (Coder) — бесплатный, специализирован на коде (только текст, изображения не понимает — для изображений выберите Noor AI 2.5/3.0).',
+    'chat.noteNoor25': 'Noor AI 2.5 — сильнее 1.5/2.0 в общении, коде и понимании изображений/скриншотов (vision). Прикрепите или перетащите изображение — он его поймёт.',
+    'chat.noteNoor30': 'Noor AI 3.0 — САМАЯ мощная модель платформы: глубокий анализ, сложный код и понимание изображений/скриншотов (vision). Прикрепите или перетащите изображение — он его поймёт.',
+    'chat.groupPro': 'Мощные · Понимают изображения',
+    'chat.groupChat': 'Быстрые · Бесплатные',
     'attach.image': 'Загрузить изображение',
     'attach.camera': 'Снять на камеру',
     'attach.screenshot': 'Сделать скриншот',
-    'attach.file': 'Загрузка файлов (скоро — Noor 2.5)',
+    'attach.file': 'Загрузка файлов (скоро)',
     'attach.createImage': 'Создать изображение (скоро)',
+    'attach.visionNote': 'Загрузка изображений работает только в режимах Noor AI 2.5 и Noor AI 3.0.',
     'profile.title': 'Профиль',
     'profile.changePhoto': 'Изменить фото',
     'profile.usernameLabel': 'Username (нельзя изменить)',
@@ -149,14 +159,14 @@ const NOOR_TRANSLATIONS = {
     'profile.apiKeyBtn': 'Создать API-ключ',
     'profile.apiKeyTest': 'Проверить',
     'profile.copy': 'Копия',
-    'profile.apiKeyHint': 'С этим ключом вы можете бесплатно обращаться к моделям noor-ai-1.0, noor-ai-1.5, noor-ai-2.0 из своего кода.',
+    'profile.apiKeyHint': 'С этим ключом вы можете бесплатно обращаться к моделям noor-ai-1.0, noor-ai-1.5, noor-ai-2.0, noor-ai-2.5, noor-ai-3.0 из своего кода.',
     'nav.logout': 'Выйти',
     'hero.eyebrow': 'The Future is Now',
-    'hero.sub': 'Общайтесь с Noor AI 1.5, создавайте изображения и открывайте лучшие AI-инструменты в одном месте.',
+    'hero.sub': 'Общайтесь с Noor AI (от 1.0 до 3.0), создавайте изображения и открывайте лучшие AI-инструменты в одном месте.',
     'hero.welcome': 'Добро пожаловать,',
     'chat.sectionTitle': 'Чат с Noor AI',
     'chat.live': 'Live AI Assistant',
-    'chat.noteGeneral': 'Noor AI 1.5 сам автоматически выбирает лучшую бесплатную модель для общения, кода и понимания изображений. Прикрепите или перетащите изображение — он тоже его поймёт.',
+    'chat.noteGeneral': 'Noor AI 1.5 бесплатный, сам автоматически выбирает лучшую модель для общения и кода (только текст, изображения не понимает — для изображений выберите Noor AI 2.5/3.0).',
     'chat.noteCoder': 'Noor AI 1.0 (Coder) — специализируется только на программировании. Опишите задачу, он напишет код, вы сразу его протестируете.',
     'chat.welcomeMsg': 'Напишите сообщение или прикрепите изображение, чтобы начать разговор. Noor AI готов помочь.',
     'chat.inputPh': 'Задайте вопрос AI или прикрепите изображение...',
@@ -241,12 +251,17 @@ const NOOR_TRANSLATIONS = {
     'chat.newChat': 'New chat',
     'chat.backToSite': 'Back to site',
     'chat.codePanelTitle': 'Code',
-    'chat.noteCoder2': 'Noor AI 2.0 (Coder) — writes code AND understands images/screenshots.',
+    'chat.noteCoder2': "Noor AI 2.0 (Coder) — free, specialized in code (text only, can't read images — pick Noor AI 2.5/3.0 for images).",
+    'chat.noteNoor25': 'Noor AI 2.5 — stronger than 1.5/2.0 at chat, coding, and understanding images/screenshots (vision). Drop or upload an image — it can see it.',
+    'chat.noteNoor30': "Noor AI 3.0 — the platform's MOST powerful model: deep reasoning, complex code, and image/screenshot understanding (vision). Drop or upload an image — it can see it.",
+    'chat.groupPro': 'Powerful · Understands images',
+    'chat.groupChat': 'Fast · Free',
     'attach.image': 'Upload image',
     'attach.camera': 'Take a photo',
     'attach.screenshot': 'Take a screenshot',
-    'attach.file': 'Upload file (coming soon — Noor 2.5)',
+    'attach.file': 'Upload file (coming soon)',
     'attach.createImage': 'Create image (coming soon)',
+    'attach.visionNote': 'Image upload only works in Noor AI 2.5 and Noor AI 3.0 modes.',
     'profile.title': 'Profile',
     'profile.changePhoto': 'Change photo',
     'profile.usernameLabel': "Username (can't be changed)",
@@ -256,14 +271,14 @@ const NOOR_TRANSLATIONS = {
     'profile.apiKeyBtn': 'Generate API key',
     'profile.apiKeyTest': 'Test it',
     'profile.copy': 'Copy',
-    'profile.apiKeyHint': 'Use this key to call noor-ai-1.0, noor-ai-1.5, noor-ai-2.0 from your own code, free of charge.',
+    'profile.apiKeyHint': 'Use this key to call noor-ai-1.0, noor-ai-1.5, noor-ai-2.0, noor-ai-2.5, noor-ai-3.0 from your own code, free of charge.',
     'nav.logout': 'Log out',
     'hero.eyebrow': 'The Future is Now',
-    'hero.sub': 'Chat with Noor AI 1.5, generate images, and discover the latest AI tools all in one place.',
+    'hero.sub': 'Chat with Noor AI (1.0 through 3.0), generate images, and discover the latest AI tools all in one place.',
     'hero.welcome': 'Welcome,',
     'chat.sectionTitle': 'Chat with Noor AI',
     'chat.live': 'Live AI Assistant',
-    'chat.noteGeneral': 'Noor AI 1.5 automatically picks the best free model for chatting, coding, and understanding images. Drop or upload an image — it can read that too.',
+    'chat.noteGeneral': "Noor AI 1.5 is free and automatically picks the best model for chatting and coding (text only — it can't read images; pick Noor AI 2.5/3.0 for that).",
     'chat.noteCoder': 'Noor AI 1.0 (Coder) — specialized purely for coding. Ask for code, it writes it, you can run it right away.',
     'chat.welcomeMsg': 'Type a message or drop an image below to start the conversation. Noor AI is ready to help.',
     'chat.inputPh': 'Ask the AI a question or drop an image...',
@@ -348,6 +363,11 @@ function applyNoorLang(lang) {
     const val = noorT(key);
     if (val !== undefined) el.setAttribute('placeholder', val);
   });
+  document.querySelectorAll('[data-i18n-label]').forEach(el => {
+    const key = el.getAttribute('data-i18n-label');
+    const val = noorT(key);
+    if (val !== undefined) el.textContent = val;
+  });
   document.querySelectorAll('.lang-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.lang === lang);
   });
@@ -355,7 +375,8 @@ function applyNoorLang(lang) {
   // Chat izohini joriy rejimga mos holda yangilaymiz (agar sahifa allaqachon ochilgan bo'lsa)
   const note = document.getElementById('chat-note');
   if (note && typeof currentChatMode !== 'undefined') {
-    note.textContent = currentChatMode === 'coder' ? noorT('chat.noteCoder') : noorT('chat.noteGeneral');
+    const NOTE_KEY_BY_MODE = { coder: 'chat.noteCoder', coder2: 'chat.noteCoder2', noor25: 'chat.noteNoor25', noor30: 'chat.noteNoor30' };
+    note.textContent = noorT(NOTE_KEY_BY_MODE[currentChatMode] || 'chat.noteGeneral');
   }
 }
 
