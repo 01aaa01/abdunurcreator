@@ -573,9 +573,26 @@ const CODER_OPENROUTER_FALLBACK = ['qwen/qwen3-coder:free', 'openrouter/free'];
 const CODER2_MODEL_CHAIN = ['openrouter/free', 'qwen/qwen3-coder:free'];
 
 // Noor AI 2.5 / Noor AI 3.0 — OmniRoute gateway'dagi modellar (haqiqiy vision qo'llab-quvvatlaydi).
-// Asosiy model ishlamasa, zaxira sifatida bir-birining modeliga ham urinib ko'radi.
-const OMNIROUTE_25_MODEL_CHAIN = [OMNIROUTE_MODEL_25, OMNIROUTE_MODEL_30].filter(Boolean);
-const OMNIROUTE_30_MODEL_CHAIN = [OMNIROUTE_MODEL_30, OMNIROUTE_MODEL_25].filter(Boolean);
+// MUHIM: bu ro'yxatdagi model nomlari faqat OmniRoute panelingizda ULANGAN provayderlar
+// (masalan GitHub Models, Gemini CLI, Codex, OpenRouter va h.k.) uchun ishlaydi. Agar
+// OmniRoute'da hech qanday provayder ulanmagan bo'lsa, quyidagi ro'yxat qanday bo'lishidan
+// qat'i nazar, HECH BIRI ishlamaydi — avval OmniRoute panelida kamida bitta provayder
+// (masalan GitHub Models yoki OpenRouter) ulanganini tekshiring.
+// .env orqali (OMNIROUTE_MODEL_25 / OMNIROUTE_MODEL_30) o'zingiz xohlagan model bilan
+// ro'yxat boshini almashtirishingiz mumkin — shunda u eng birinchi sinaladi.
+const OMNIROUTE_FREE_POOL = [
+  'auto/best-free',
+  'auto/best',
+  'gh/gpt-5',
+  'gh/claude-4.5-sonnet',
+  'gh/gemini-3-pro',
+  'gc/gemini-3-flash-preview',
+  'gc/gemini-2.5-pro',
+  'cx/gpt-5.2-codex',
+  'cx/gpt-5.1-codex-max'
+];
+const OMNIROUTE_25_MODEL_CHAIN = [...new Set([OMNIROUTE_MODEL_25, ...OMNIROUTE_FREE_POOL].filter(Boolean))];
+const OMNIROUTE_30_MODEL_CHAIN = [...new Set([OMNIROUTE_MODEL_30, 'auto/best', ...OMNIROUTE_FREE_POOL].filter(Boolean))];
 
 // Rasm (vision) qo'llab-quvvatlaydigan rejimlar — FAQAT yangi, OmniRoute'ga ulangan
 // Noor AI 2.5 va Noor AI 3.0. Eski uchtasi (1.0 Coder / 1.5 / 2.0 Coder) bepul, matn-only
@@ -668,7 +685,7 @@ async function runNoorChat(mode, messages) {
         console.error(`⚠️  ${modeLabel}: "${model}" ulanish xatosi:`, lastError);
       }
     }
-    return { status: 502, data: { error: `${modeLabel} hozircha band. Birozdan so'ng qayta urinib ko'ring: ` + (lastError || 'noma\'lum xatolik') } };
+    return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (barcha modellar sinaldi, hech biri ishlamadi: ${lastError || "noma'lum xatolik"}). Eng ehtimoliy sabab: OmniRoute panelingizda hali hech qanday AI provayder ulanmagan yoki OMNIROUTE_URL noto'g'ri. OmniRoute dashboard'ga kiring va kamida bitta provayder (masalan GitHub Models yoki OpenRouter) ulanganini tekshiring.` } };
   }
 
   if (mode === 'coder2') {
