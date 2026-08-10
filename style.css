@@ -159,13 +159,15 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 .model-picker-menu{position:absolute;bottom:48px;right:0;background:#12141c;border:1px solid var(--gb);border-radius:14px;padding:6px;min-width:270px;max-height:320px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:20;backdrop-filter:blur(18px) saturate(140%);}
 .model-picker-menu.hidden{display:none;}
 .model-picker-group-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--td);font-family:var(--mn);padding:10px 12px 4px;}
-.model-picker-item{width:100%;height:40px;box-sizing:border-box;display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--t);font-family:var(--bd);font-size:.85rem;padding:0 12px;border-radius:8px;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s;}
+.model-picker-item{width:100%;height:40px;box-sizing:border-box;display:flex;align-items:center;background:none;border:none;color:var(--t);font-family:var(--bd);font-size:.85rem;padding:0 12px;border-radius:8px;cursor:pointer;text-align:left;transition:background .15s;}
 .model-picker-item:hover:not(.is-disabled),
 .model-picker-item.active{background:rgba(0,212,255,.1);box-shadow:0 0 12px rgba(0,212,255,.18);}
 .model-picker-item.active{color:var(--c);}
-.model-picker-item.active::after{content:'✓';margin-left:auto;color:var(--c);flex-shrink:0;}
+.model-picker-item.active::after{content:'✓';margin-left:6px;color:var(--c);flex-shrink:0;}
 .model-picker-item.is-disabled{color:#555;cursor:not-allowed;}
-.model-picker-tag{margin-left:6px;flex-shrink:0;font-family:var(--mn);font-size:.62rem;color:var(--v);background:rgba(108,92,231,.15);border:1px solid rgba(108,92,231,.3);padding:2px 6px;border-radius:100px;}
+.model-picker-item .mp-label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.model-picker-item .mp-right{margin-left:auto;flex-shrink:0;display:flex;align-items:center;}
+.model-picker-tag{flex-shrink:0;font-family:var(--mn);font-size:.62rem;color:var(--v);background:rgba(108,92,231,.15);border:1px solid rgba(108,92,231,.3);padding:2px 6px;border-radius:100px;}
 .model-picker-tag-img{color:var(--c);background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.3);}
 .model-picker-tag-vid{color:var(--p);background:rgba(255,0,153,.12);border-color:rgba(255,0,153,.3);}
 .model-picker-tag-audio{color:#ffd166;background:rgba(255,209,102,.12);border-color:rgba(255,209,102,.3);}
@@ -329,3 +331,37 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
   .nav-btn{font-size:.62rem;padding:6px 9px;}
 }
 
+/* === Custom tasdiqlash oynasi (confirm) va bildirishnoma (toast) — native alert/confirm o'rniga === */
+.noor-modal-overlay{position:fixed;inset:0;background:rgba(6,7,12,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:999;opacity:0;transition:opacity .18s;padding:20px;}
+.noor-modal-overlay.show{opacity:1;}
+.noor-modal{background:#12141c;border:1px solid var(--gb);border-radius:16px;padding:22px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.55);transform:translateY(8px);transition:transform .18s;}
+.noor-modal-overlay.show .noor-modal{transform:translateY(0);}
+.noor-modal-msg{color:var(--t);font-family:var(--bd);font-size:.92rem;line-height:1.5;margin-bottom:18px;}
+.noor-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+.noor-modal-btn{font-family:var(--bd);font-size:.82rem;padding:9px 16px;border-radius:10px;border:1px solid var(--gb);background:transparent;color:var(--t);cursor:pointer;transition:background .15s,border-color .15s;}
+.noor-modal-btn.noor-modal-cancel:hover{background:rgba(255,255,255,.06);}
+.noor-modal-btn.noor-modal-confirm{background:var(--c);border-color:var(--c);color:#04141a;font-weight:600;}
+.noor-modal-btn.noor-modal-confirm.danger{background:#ff4d6d;border-color:#ff4d6d;color:#2a0008;}
+.noor-modal-btn.noor-modal-confirm:hover{filter:brightness(1.08);}
+.noor-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,16px);background:#12141c;border:1px solid var(--gb);color:var(--t);font-family:var(--bd);font-size:.82rem;padding:11px 18px;border-radius:100px;box-shadow:0 12px 30px rgba(0,0,0,.4);z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center;}
+.noor-toast.show{opacity:1;transform:translate(-50%,0);}
+
+/* === Noor AI IMG — "Rasm yaratish" paneli va natija ko'rsatuvchi tugmalar === */
+.create-img-panel{position:absolute;bottom:48px;left:0;background:#12141c;border:1px solid var(--gb);border-radius:14px;padding:12px 14px;min-width:240px;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:20;display:flex;flex-direction:column;gap:10px;}
+.create-img-panel.hidden{display:none;}
+.create-img-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.create-img-row label{font-family:var(--mn);font-size:.68rem;color:var(--td);text-transform:uppercase;letter-spacing:.4px;}
+.create-img-row select{background:#0d0f16;border:1px solid var(--gb);color:var(--t);font-family:var(--bd);font-size:.8rem;padding:6px 10px;border-radius:8px;cursor:pointer;flex:1;max-width:150px;}
+.create-img-close{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--td);font-size:1.1rem;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px;}
+.create-img-close:hover{color:var(--t);background:rgba(255,255,255,.06);}
+
+.noor-img-bubble{display:flex;flex-direction:column;gap:10px;max-width:340px;}
+.noor-img-actions{display:flex;gap:8px;}
+.noor-img-btn{font-family:var(--bd);font-size:.78rem;padding:7px 14px;border-radius:100px;border:1px solid var(--gb);background:rgba(255,255,255,.04);color:var(--t);text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s;display:inline-flex;align-items:center;gap:4px;}
+.noor-img-btn:hover{background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.3);color:var(--c);}
+.noor-img-share-box{display:flex;gap:8px;background:#0d0f16;border:1px solid var(--gb);border-radius:10px;padding:6px 6px 6px 12px;align-items:center;}
+.noor-img-share-box.hidden{display:none;}
+.noor-img-share-box input{flex:1;background:none;border:none;color:var(--td);font-family:var(--mn);font-size:.72rem;outline:none;min-width:0;}
+.noor-img-copy-btn{font-family:var(--bd);font-size:.74rem;padding:6px 12px;border-radius:8px;border:none;background:var(--c);color:#04141a;font-weight:600;cursor:pointer;flex-shrink:0;}
+.noor-img-copy-btn:hover{filter:brightness(1.08);}
+@media(max-width:480px){.create-img-panel{left:0;right:0;min-width:0;}.noor-img-bubble{max-width:100%;}}

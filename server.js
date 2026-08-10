@@ -18,11 +18,20 @@ const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
 const OPENCODE_KEY = process.env.OPENCODE_KEY || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const BYTEZ_KEY = process.env.BYTEZ_KEY || '';
+const ADMIN_PASSWORD = '0101';
 // Noor AI 2.5 / Noor AI 3.0 — OmniRoute gateway orqali (o'zingiz Render'ga qo'ygan instance).
 const OMNIROUTE_KEY = process.env.OMNIROUTE_KEY || '';
 const OMNIROUTE_URL = (process.env.OMNIROUTE_URL || '').replace(/\/+$/, '');
 const OMNIROUTE_MODEL_25 = process.env.OMNIROUTE_MODEL_25 || 'auto/best-free';
 const OMNIROUTE_MODEL_30 = process.env.OMNIROUTE_MODEL_30 || 'auto/best';
+// Noor AI IMG — rasm yaratish (Cloudflare Worker orqali).
+const IMAGE_API_URL = process.env.IMAGE_API_URL || 'https://image-api.trachitz.workers.dev';
+const IMAGE_API_KEY = process.env.IMAGE_API_KEY || '12345678';
+const IMG_SIZE_HINTS = {
+  square: 'square image, 1:1 aspect ratio',
+  portrait: 'portrait image, 3:4 aspect ratio',
+  landscape: 'landscape image, 16:9 aspect ratio, widescreen'
+};
 if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
 if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
@@ -185,6 +194,103 @@ app.post('/api/generate/image', (req, res) => handleGenerate(req, res, 'image', 
 app.post('/api/generate/video', (req, res) => handleGenerate(req, res, 'video', 'video/mp4', 'video'));
 app.post('/api/generate/audio', (req, res) => handleGenerate(req, res, 'audio', 'audio/wav', 'audio'));
 
+// === Noor AI IMG — rasm yaratish (Cloudflare Worker orqali), pastiga shaffof "Noor AI"
+// suvbelgisi (watermark) qo'yiladi, natija saqlanadi va ulashish uchun link beriladi. ===
+function escapeHtmlServer(s) {
+  return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function watermarkImage(buffer) {
+  const sharp = require('sharp');
+  const img = sharp(buffer).rotate();
+  const meta = await img.metadata();
+  const w = meta.width || 1024, h = meta.height || 1024;
+  const fontSize = Math.max(16, Math.round(w * 0.032));
+  const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+    <text x="${w / 2}" y="${h - fontSize}" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="700" fill="#ffffff" fill-opacity="0.5" text-anchor="middle" letter-spacing="1">Noor AI</text>
+  </svg>`;
+  return img.composite([{ input: Buffer.from(svg), gravity: 'south' }]).jpeg({ quality: 92 }).toBuffer();
+}
+
+app.post('/api/chat/generate-image', async (req, res) => {
+  const { prompt, size } = req.body || {};
+  const cleanPrompt = String(prompt || '').trim();
+  if (!cleanPrompt) return res.status(400).json({ error: "Nima rasm yaratish kerakligini yozing." });
+
+  const sizeHint = IMG_SIZE_HINTS[size] || '';
+  const finalPrompt = sizeHint ? `${cleanPrompt}, ${sizeHint}` : cleanPrompt;
+
+  // DIQQAT: bu buyruq FAQAT server konsolida (Render loglarida) ko'rinadi — saytda,
+  // foydalanuvchiga hech qachon ko'rsatilmaydi.
+  console.log(`[Noor AI IMG] curl -X POST ${IMAGE_API_URL} -H "Authorization: Bearer ${IMAGE_API_KEY}" -H "Content-Type: application/json" -d "{\\"prompt\\": \\"${finalPrompt.replace(/"/g, '\\"')}\\"}" --output image.jpg`);
+
+  try {
+    const resp = await fetch(IMAGE_API_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${IMAGE_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: finalPrompt })
+    });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      console.error('⚠️  Noor AI IMG xizmati xatosi:', resp.status, errText);
+      return res.status(502).json({ error: "Rasm yaratib bo'lmadi. Birozdan so'ng qayta urinib ko'ring." });
+    }
+    const arrBuf = await resp.arrayBuffer();
+    let outBuf = Buffer.from(arrBuf);
+    try {
+      outBuf = await watermarkImage(outBuf);
+    } catch (e) {
+      console.warn("⚠️  Watermark qo'yishda xato (rasm watermarksiz saqlanadi):", e.message || e);
+    }
+    const id = crypto.randomBytes(8).toString('hex');
+    const filename = `${id}.jpg`;
+    fs.writeFileSync(path.join(GENERATED_DIR, filename), outBuf);
+    db.generatedImages[id] = { prompt: cleanPrompt, size: size || '', filename, createdAt: new Date().toISOString() };
+    saveDB();
+    res.json({ id, imageUrl: `/generated/${filename}`, shareUrl: `/share/${id}` });
+  } catch (e) {
+    console.error('⚠️  Noor AI IMG so\'rov xatosi:', e.message || e);
+    res.status(502).json({ error: "Rasm yaratish xizmatiga ulanib bo'lmadi." });
+  }
+});
+
+// Ulashish sahifasi — link bosilganda shu yerda ko'rinadi (saytning o'zida, tashqarida emas)
+app.get('/share/:id', (req, res) => {
+  const rec = db.generatedImages[req.params.id];
+  if (!rec) return res.status(404).send('<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8"><title>Topilmadi</title></head><body style="background:#0a0b10;color:#f2f2f7;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">Bu rasm topilmadi yoki o\'chirilgan.</body></html>');
+  const imgUrl = `/generated/${rec.filename}`;
+  res.send(`<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Noor AI — Yaratilgan rasm</title>
+<link rel="icon" type="image/png" href="/cat.png">
+<meta property="og:title" content="Noor AI orqali yaratilgan rasm">
+<meta property="og:image" content="${imgUrl}">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#0a0b10;color:#f2f2f7;font-family:system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;align-items:center;padding:40px 16px;min-height:100vh;}
+  h1{font-size:.95rem;font-weight:700;color:#00d4ff;margin:0 0 22px;letter-spacing:.3px;}
+  img{max-width:100%;max-height:74vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.08);}
+  p{color:#9a9ab0;font-size:.85rem;max-width:520px;text-align:center;margin-top:18px;line-height:1.5;}
+  .row{display:flex;gap:10px;margin-top:20px;}
+  a.btn{background:#00d4ff;color:#04141a;text-decoration:none;font-weight:700;padding:11px 24px;border-radius:100px;font-size:.85rem;}
+  a.btn.ghost{background:transparent;color:#f2f2f7;border:1px solid rgba(255,255,255,.18);}
+</style>
+</head>
+<body>
+  <h1>✦ NOOR AI</h1>
+  <img src="${imgUrl}" alt="Noor AI rasm">
+  ${rec.prompt ? `<p>${escapeHtmlServer(rec.prompt)}</p>` : ''}
+  <div class="row">
+    <a class="btn" href="${imgUrl}" download>Yuklab olish</a>
+    <a class="btn ghost" href="/a.html">Noor AI'ni sinab ko'ring</a>
+  </div>
+</body>
+</html>`);
+});
+
 // "/" manziliga kirganda avtomatik a.html'ga yo'naltirish
 // (chunki bosh sahifa fayli index.html emas, a.html deb nomlangan)
 app.get('/', (req, res) => {
@@ -204,6 +310,7 @@ if (fs.existsSync(dbPath)) {
   catch (e) { console.error("DB parse xatosi", e); }
 }
 if (!db.pendingUsers) db.pendingUsers = {};
+if (!db.generatedImages) db.generatedImages = {};
 
 function saveDB() {
   try {
@@ -212,6 +319,11 @@ function saveDB() {
     console.error('⚠️  DB saqlashda xatolik:', e.message);
   }
 }
+
+// === Noor AI IMG — yaratilgan rasmlar shu papkaga saqlanadi va /generated/... orqali ochiladi ===
+const GENERATED_DIR = path.join(DATA_DIR, 'generated');
+if (!fs.existsSync(GENERATED_DIR)) fs.mkdirSync(GENERATED_DIR, { recursive: true });
+app.use('/generated', express.static(GENERATED_DIR));
 
 // === PAROL YORDAMCHILARI (Node'ning o'zidagi crypto — qo'shimcha paket kerak emas) ===
 function hashPassword(plain, salt) {
@@ -650,7 +762,14 @@ function fakeChatResponse(text) {
 
 // Ichki chat UI VA tashqi ommaviy API (/api/v1/chat/completions) ikkalasi ham shu
 // funksiyani ishlatadi — bitta joyda mantiq, ikki joyda ishlatiladi.
-async function runNoorChat(mode, messages) {
+async function runNoorChat(mode, messages, isAdminCaller) {
+  // Noor AI 2.5 / 3.0 — hozircha faqat admin uchun ishlaydi. Oddiy foydalanuvchilarga
+  // haqiqiy AI chaqirilmaydi, buning o'rniga "Pro sotib oling" degan chiroyli javob qaytariladi.
+  if ((mode === 'noor25' || mode === 'noor30') && !isAdminCaller) {
+    const modeLabel = mode === 'noor30' ? 'Noor AI 3.0' : 'Noor AI 2.5';
+    return { status: 200, data: fakeChatResponse(`${modeLabel} — bu Noor AI Pro imkoniyati. Undan foydalanish uchun Noor AI ning Pro versiyasini sotib olishingiz kerak. Hozircha Noor AI 1.0, 1.5 yoki 2.0 (Coder) bepul va ochiq.`) };
+  }
+
   // Eski uchta bepul rejim (1.0 Coder / 1.5 / 2.0 Coder) haqiqiy vision modellarga ega emas —
   // shuning uchun rasm yuborilsa, foydalanuvchini haqiqiy vision qo'llab-quvvatlaydigan
   // Noor AI 2.5 / 3.0 rejimiga yo'naltiramiz (server tomonida ham himoya — front-end'da ham
@@ -747,11 +866,12 @@ async function runNoorChat(mode, messages) {
 
 // API: OpenRouter/OpenCode Chat Proxy (Noor AI 1.5 / 1.0 Coder / 2.0 Coder) — saytning o'z chati
 app.post('/api/chat', async (req, res) => {
-  const { messages, mode } = req.body;
+  const { messages, mode, password } = req.body;
   if (typeof fetch !== 'function') {
     return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past). AI chat ishlashi uchun Node.js 18 yoki undan yangi versiyasini o\'rnating: https://nodejs.org' });
   }
-  const result = await runNoorChat(mode, messages);
+  const isAdminCaller = password === ADMIN_PASSWORD;
+  const result = await runNoorChat(mode, messages, isAdminCaller);
   res.status(result.status).json(result.data);
 });
 
@@ -791,7 +911,8 @@ app.post('/api/v1/chat/completions', async (req, res) => {
   const apiKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : String(req.headers['x-api-key'] || '');
   if (!apiKey) return res.status(401).json({ error: 'API kalit kerak. Header: Authorization: Bearer <kalit>' });
 
-  const owner = Object.values(db.users).find(u => u.apiKey === apiKey);
+  const ownerKey = Object.keys(db.users).find(k => db.users[k].apiKey === apiKey);
+  const owner = ownerKey ? db.users[ownerKey] : null;
   if (!owner) return res.status(401).json({ error: 'API kalit noto\'g\'ri yoki bekor qilingan.' });
 
   const { model, messages } = req.body || {};
@@ -802,7 +923,7 @@ app.post('/api/v1/chat/completions', async (req, res) => {
     return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past).' });
   }
 
-  const result = await runNoorChat(mode, messages);
+  const result = await runNoorChat(mode, messages, ownerKey === 'abdunurcreator');
   res.status(result.status).json(result.data);
 });
 

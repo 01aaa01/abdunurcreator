@@ -322,19 +322,63 @@ function renameSession(id, titleSpan) {
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
 }
 
-function deleteSession(id) {
-  if (!confirm("Ushbu suhbatni o'chirishga ishonchingiz komilmi?")) return;
-  chatSessions = chatSessions.filter(s => s.id !== id);
-  saveSessionsToStorage();
-  if (activeSessionId === id) {
-    if (chatSessions.length > 0) {
-      loadChatSession(chatSessions[chatSessions.length - 1].id);
-    } else {
-      startNewChatSession();
-    }
-  } else {
-    renderSidebarSessions();
+// === Chiroyli, saytga mos tasdiqlash oynasi va bildirishnoma (native confirm()/alert() o'rniga) ===
+function noorConfirm(message, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'noor-modal-overlay';
+    overlay.innerHTML = `
+      <div class="noor-modal">
+        <div class="noor-modal-msg">${escapeHtml(message)}</div>
+        <div class="noor-modal-actions">
+          <button type="button" class="noor-modal-btn noor-modal-cancel">${escapeHtml(opts.cancelText || 'Bekor qilish')}</button>
+          <button type="button" class="noor-modal-btn noor-modal-confirm${opts.danger ? ' danger' : ''}">${escapeHtml(opts.confirmText || 'Ha')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('show'));
+    const close = (result) => {
+      overlay.classList.remove('show');
+      setTimeout(() => overlay.remove(), 180);
+      resolve(result);
+    };
+    overlay.querySelector('.noor-modal-cancel').addEventListener('click', () => close(false));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+    overlay.querySelector('.noor-modal-confirm').addEventListener('click', () => close(true));
+  });
+}
+
+let noorToastTimer = null;
+function noorToast(message) {
+  let el = document.getElementById('noor-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'noor-toast';
+    el.className = 'noor-toast';
+    document.body.appendChild(el);
   }
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(noorToastTimer);
+  noorToastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function deleteSession(id) {
+  noorConfirm("Ushbu suhbatni o'chirishga ishonchingiz komilmi?", { danger: true, confirmText: "O'chirish" }).then((ok) => {
+    if (!ok) return;
+    chatSessions = chatSessions.filter(s => s.id !== id);
+    saveSessionsToStorage();
+    if (activeSessionId === id) {
+      if (chatSessions.length > 0) {
+        loadChatSession(chatSessions[chatSessions.length - 1].id);
+      } else {
+        startNewChatSession();
+      }
+    } else {
+      renderSidebarSessions();
+    }
+  });
 }
 function startNewChatSession() {
   const session = { id: 'sess' + Date.now(), title: 'Yangi suhbat', mode: 'general', messages: [] };
@@ -454,7 +498,8 @@ async function loadPendingUsers(){
 
 // === USERNI O'CHIRISH ===
 async function deleteUser(username){
-  if(!confirm(`@${username} ni ro'yxatdan butunlay o'chirishga ishonchingiz komilmi?\n(U qayta /start bossa, yangi foydalanuvchi sifatida qayta paydo bo'ladi.)`))return;
+  const ok = await noorConfirm(`@${username} ni ro'yxatdan butunlay o'chirishga ishonchingiz komilmi? (U qayta /start bossa, yangi foydalanuvchi sifatida qayta paydo bo'ladi.)`, { danger: true, confirmText: "O'chirish" });
+  if(!ok)return;
   try{
     const r=await fetch(BASE_URL+'/api/admin/delete-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:adminPass,username})});
     const d=await r.json();
@@ -462,9 +507,9 @@ async function deleteUser(username){
       if(selectedMsgUser===username){document.getElementById('msg-composer').classList.add('hidden');selectedMsgUser='';}
       loadPendingUsers();
     }else{
-      alert(d.error||'O\'chirishda xatolik yuz berdi.');
+      noorToast(d.error||'O\'chirishda xatolik yuz berdi.');
     }
-  }catch(e){alert('Server bilan aloqa yo\'q.');}
+  }catch(e){noorToast('Server bilan aloqa yo\'q.');}
 }
 
 function selectUser(username){
@@ -699,6 +744,120 @@ const CHAT_MODE_LABELS = {
 const VISION_CAPABLE_MODES = ['noor25', 'noor30'];
 function modeSupportsVision(mode) { return VISION_CAPABLE_MODES.includes(mode); }
 
+// === Noor AI IMG — "Rasm yaratish" (+ menyusi orqali) ===
+function enterNoorImgMode() {
+  persistActiveSession();
+  currentChatMode = 'noorimg';
+  document.getElementById('attach-menu')?.classList.add('hidden');
+  document.getElementById('create-img-panel')?.classList.remove('hidden');
+  updateAttachAvailability(currentChatMode);
+  const label = document.getElementById('model-picker-label');
+  if (label) label.textContent = 'Noor AI IMG';
+  const menu = document.getElementById('model-picker-menu');
+  menu?.querySelectorAll('.model-picker-item').forEach((it) => it.classList.remove('active'));
+  const note = document.getElementById('chat-note');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  if (note) note.textContent = t('chat.noteNoorImg', "Noor AI IMG — tepadan o'lchamni tanlang, pastga nima chizish kerakligini yozing va yuboring.");
+  const inputEl = document.getElementById('chat-user-input');
+  if (inputEl) {
+    inputEl.placeholder = t('createImg.placeholder', 'Nima chizish kerakligini yozing...');
+    inputEl.focus();
+  }
+}
+
+document.getElementById('attach-item-create')?.addEventListener('click', () => {
+  document.getElementById('attach-menu')?.classList.add('hidden');
+  enterNoorImgMode();
+});
+document.getElementById('create-img-close-btn')?.addEventListener('click', () => {
+  document.getElementById('create-img-panel')?.classList.add('hidden');
+  setChatMode('general');
+  const inputEl = document.getElementById('chat-user-input');
+  if (inputEl) inputEl.placeholder = '';
+});
+
+async function sendNoorImgGenRequest(prompt) {
+  const inputEl = document.getElementById('chat-user-input');
+  const container = document.getElementById('chat-msg-container');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  if (!prompt) { noorToast(t('createImg.placeholder', 'Nima chizish kerakligini yozing...')); return; }
+
+  appendChatBubble(prompt, 'user');
+  inputEl.value = '';
+
+  const typingIndicator = document.createElement('div');
+  typingIndicator.className = 'typing-indicator';
+  typingIndicator.id = 'chat-typing-indicator';
+  typingIndicator.innerHTML = `<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
+  container.appendChild(typingIndicator);
+  container.scrollTop = container.scrollHeight;
+  inputEl.disabled = true;
+
+  const sizeSel = document.getElementById('create-img-size-select');
+  const size = sizeSel ? sizeSel.value : 'square';
+
+  try {
+    const r = await fetch(BASE_URL + '/api/chat/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, size })
+    });
+    const d = await r.json();
+    document.getElementById('chat-typing-indicator')?.remove();
+    if (r.ok) {
+      appendGeneratedImageBubble(d.imageUrl, d.shareUrl, prompt);
+      persistActiveSession(prompt);
+    } else {
+      appendChatBubble('Xatolik: ' + (d.error || "Rasm yaratib bo'lmadi."), 'system');
+    }
+  } catch (e) {
+    document.getElementById('chat-typing-indicator')?.remove();
+    appendChatBubble('Server bilan ulanishda xatolik yuz berdi.', 'system');
+  } finally {
+    inputEl.disabled = false;
+    inputEl.focus();
+  }
+}
+
+function appendGeneratedImageBubble(imageUrl, shareUrl, prompt) {
+  const container = document.getElementById('chat-msg-container');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-msg ai noor-img-bubble';
+  const fullShareUrl = window.location.origin + shareUrl;
+  bubble.innerHTML = `
+    <img src="${imageUrl}" class="chat-generated-media" alt="${escapeHtml(prompt)}">
+    <div class="noor-img-actions">
+      <a class="noor-img-btn" href="${imageUrl}" download>⬇ ${t('createImg.download', 'Yuklab olish')}</a>
+      <button type="button" class="noor-img-btn noor-img-share-btn">🔗 ${t('createImg.share', 'Ulashish')}</button>
+    </div>
+    <div class="noor-img-share-box hidden">
+      <input type="text" readonly value="${fullShareUrl}">
+      <button type="button" class="noor-img-copy-btn">${t('createImg.copy', 'Nusxalash')}</button>
+    </div>`;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+
+  const shareBtn = bubble.querySelector('.noor-img-share-btn');
+  const shareBox = bubble.querySelector('.noor-img-share-box');
+  shareBtn.addEventListener('click', () => {
+    shareBox.classList.toggle('hidden');
+    container.scrollTop = container.scrollHeight;
+  });
+  bubble.querySelector('.noor-img-copy-btn').addEventListener('click', () => {
+    const inp = bubble.querySelector('.noor-img-share-box input');
+    inp.select();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(inp.value)
+        .then(() => noorToast(t('createImg.copied', 'Havola nusxalandi!')))
+        .catch(() => { document.execCommand('copy'); noorToast(t('createImg.copied', 'Havola nusxalandi!')); });
+    } else {
+      document.execCommand('copy');
+      noorToast(t('createImg.copied', 'Havola nusxalandi!'));
+    }
+  });
+}
+
 // Rasm biriktirish tugmalarini joriy rejimga qarab yoqadi/o'chiradi.
 function updateAttachAvailability(mode) {
   const canVision = modeSupportsVision(mode);
@@ -733,6 +892,7 @@ function setChatMode(mode) {
   if (mode === currentChatMode) return;
   persistActiveSession();
   currentChatMode = mode;
+  document.getElementById('create-img-panel')?.classList.add('hidden');
   document.getElementById('chat-model-select').value = mode;
   syncModelPickerUI(mode);
   const note = document.getElementById('chat-note');
@@ -925,8 +1085,23 @@ async function sendChatMsg() {
   const text = inputEl.value.trim();
   if (!text && !pendingImage) return;
 
+  if (currentChatMode === 'noorimg') {
+    await sendNoorImgGenRequest(text);
+    return;
+  }
+
   if (mediaKindOf(currentChatMode)) {
     await sendMediaGenRequest(text);
+    return;
+  }
+
+  // Noor AI 2.5 / 3.0 — hozircha faqat admin uchun. Boshqalarga server ham xuddi shu javobni
+  // qaytaradi, lekin bu yerda tekshirib qo'yish bejiz so'rov yubormaslik uchun kerak.
+  if ((currentChatMode === 'noor25' || currentChatMode === 'noor30') && !isAdmin) {
+    const modeLabel = currentChatMode === 'noor30' ? 'Noor AI 3.0' : 'Noor AI 2.5';
+    if (text) appendChatBubble(text, 'user');
+    inputEl.value = '';
+    appendChatBubble(`${modeLabel} — bu Noor AI Pro imkoniyati. Undan foydalanish uchun Noor AI ning Pro versiyasini sotib olishingiz kerak. Hozircha Noor AI 1.0, 1.5 yoki 2.0 (Coder) bepul va ochiq.`, 'ai');
     return;
   }
 
@@ -969,7 +1144,7 @@ async function sendChatMsg() {
     const r = await fetch(BASE_URL + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: chatHistory, mode: currentChatMode })
+      body: JSON.stringify({ messages: chatHistory, mode: currentChatMode, password: isAdmin ? adminPass : '' })
     });
     const d = await r.json();
 
@@ -1023,7 +1198,7 @@ async function loadMediaModelOptions() {
     let html = '';
     sections.forEach((sec) => {
       sec.list.forEach((m) => {
-        html += `<button type="button" class="model-picker-item" data-value="${escapeHtml(m.id)}" data-label="${escapeHtml(m.label)}">${escapeHtml(m.label)}<span class="model-picker-tag ${sec.tagClass}">${sec.tagText}</span></button>`;
+        html += `<button type="button" class="model-picker-item" data-value="${escapeHtml(m.id)}" data-label="${escapeHtml(m.label)}"><span class="mp-label">${escapeHtml(m.label)}</span><span class="mp-right"><span class="model-picker-tag ${sec.tagClass}">${sec.tagText}</span></span></button>`;
         if (select && !select.querySelector(`option[value="${m.id}"]`)) {
           const opt = document.createElement('option');
           opt.value = m.id;
