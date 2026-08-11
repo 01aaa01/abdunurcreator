@@ -34,7 +34,7 @@ const IMG_SIZE_HINTS = {
 };
 // Noor AI 2.5 — Gemini API orqali to'g'ridan-to'g'ri (haqiqiy, ishonchli vision).
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-1.5-flash'; // .env ni e'tiborga olmasdan to'g'ridan-to'g'ri 1.5-flash'ni ishlatamiz
 if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
 if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
@@ -674,13 +674,13 @@ function proSystemPrompt(versionLabel) {
 // hech qanday provayder ulanmagan bo'lsa, ro'yxat qanday bo'lishidan qat'i nazar HECH BIRI
 // ishlamaydi — avval OmniRoute panelida kamida bitta provayder ulanganini tekshiring.
 const OMNIROUTE_FREE_POOL = [
-  'qwen/qwen-2.5-coder-32b-instruct:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'google/gemma-2-9b-it:free',
-  'mistralai/mistral-nemo:free',
-  'microsoft/phi-3-mini-128k-instruct:free',
-  'cognitivecomputations/dolphin3.0-r1-mistral-24b:free',
-  'openrouter/free'
+  'gc/gemini-1.5-flash',
+  'gh/gpt-4o-mini',
+  'gh/Meta-Llama-3.1-70B-Instruct',
+  'gh/Cohere-command-r',
+  'gh/Phi-3-mini-4k-instruct',
+  'gh/Mistral-nemo',
+  'gh/AI21-Jamba-1.5-Mini'
 ];
 
 // PRO_TIERS — Noor AI 2.5 dan boshlab har bir Pro versiyaning "dvigateli"ni belgilaydi.
@@ -851,25 +851,24 @@ async function runNoorChat(mode, messages, isAdminCaller) {
     }
 
     if (tier.engine === 'omniroute') {
-      if (!OPENROUTER_KEY) {
-        return { status: 500, data: { error: `Serverda OPENROUTER_KEY sozlanmagan — ${modeLabel} ishlashi uchun .env faylga to'g'ri qiymatlarni kiriting.` } };
+      if (!OMNIROUTE_KEY || !OMNIROUTE_URL || OMNIROUTE_URL.includes('SIZNING-OMNIROUTE')) {
+        return { status: 500, data: { error: `Serverda OMNIROUTE_KEY yoki OMNIROUTE_URL sozlanmagan — ${modeLabel} ishlashi uchun .env faylga to'g'ri qiymatlarni kiriting.` } };
       }
       
       const idx = OMNIROUTE_FREE_POOL.indexOf(tier.model);
-      const chain = [...new Set([tier.model, OMNIROUTE_FREE_POOL[idx + 1], 'openrouter/free'].filter(Boolean))];
+      const chain = [...new Set([tier.model, OMNIROUTE_FREE_POOL[idx + 1], 'auto/best', 'auto/best-free'].filter(Boolean))];
       for (const model of chain) {
         try {
-          // OmniRoute o'rniga to'g'ridan-to'g'ri OpenRouter'dan foydalanamiz
-          const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
+          const { ok, data } = await callOmniRoute(model, outgoingMessages, OMNIROUTE_KEY);
           if (ok) return { status: 200, data };
           lastError = data.error?.message || data.error;
-          console.error(`⚠️  ${modeLabel}: "${model}" (OpenRouter) javob bermadi:`, lastError);
+          console.error(`⚠️  ${modeLabel}: "${model}" (OmniRoute) javob bermadi:`, lastError);
         } catch (e) {
           lastError = e.message;
           console.error(`⚠️  ${modeLabel}: "${model}" ulanish xatosi:`, lastError);
         }
       }
-      return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (barcha modellar sinaldi: ${lastError || "noma'lum xatolik"}). API kalit yoki internetni tekshiring.` } };
+      return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (barcha modellar sinaldi: ${lastError || "noma'lum xatolik"}). Eng ehtimoliy sabab: OmniRoute panelida "${tier.model}" provayderi ulanmagan. OmniRoute dashboard'ni tekshiring.` } };
     }
   }
 
