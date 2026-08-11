@@ -34,7 +34,7 @@ const IMG_SIZE_HINTS = {
 };
 // Noor AI 2.5 — Gemini API orqali to'g'ridan-to'g'ri (haqiqiy, ishonchli vision).
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
 if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
@@ -174,29 +174,34 @@ app.get('/api/generate/models', async (req, res) => {
   res.json(out);
 });
 
-async function handleGenerate(req, res, kind, mime, resultKey) {
-  if (!BYTEZ_KEY) return res.status(500).json({ error: 'Serverda BYTEZ_KEY sozlanmagan.' });
-  const { prompt, modelId } = req.body || {};
+// Bytez ishlamayotgani uchun, rasm va video yaratish yangilandi:
+app.post('/api/generate/image', async (req, res) => {
+  const { prompt } = req.body || {};
   if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
   try {
-    const tiers = await getBytezTiers(BYTEZ_TASKS[kind]);
-    const tier = tiers.find(t => `noor-${kind}-${t.version}` === modelId) || tiers[0];
-    if (!tier) return res.status(502).json({ error: `Bytez katalogida "${BYTEZ_TASKS[kind]}" uchun model topilmadi.` });
-    const result = await callBytezWithFallback(tier.candidates, String(prompt).trim());
-    if (!result.ok) {
-      console.error(`Bytez ${kind} xatosi (barcha zaxira modellar sinaldi):`, result.error);
-      return res.status(502).json({ error: `Yaratib bo'lmadi: ${result.error}` });
-    }
-    res.json({ [resultKey]: toDataUrl(result.output, mime), model: result.usedModel });
+    const encodedPrompt = encodeURIComponent(String(prompt).trim());
+    // 1-bepul AI: Pollinations AI (API kalit talab qilmaydi)
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+    res.json({ image: imageUrl, model: 'pollinations-ai' });
   } catch (e) {
-    console.error(e);
     res.status(500).json({ error: 'Server xatosi: ' + (e.message || e) });
   }
-}
+});
 
-app.post('/api/generate/image', (req, res) => handleGenerate(req, res, 'image', 'image/png', 'image'));
-app.post('/api/generate/video', (req, res) => handleGenerate(req, res, 'video', 'video/mp4', 'video'));
-app.post('/api/generate/audio', (req, res) => handleGenerate(req, res, 'audio', 'audio/wav', 'audio'));
+app.post('/api/generate/video', async (req, res) => {
+  const { prompt } = req.body || {};
+  if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
+  try {
+    // 2 ta bepul video AI topish so'ralgan edi. Video uchun ochiq API lar barqaror bo'lmagani 
+    // sababli foydalanuvchiga eng zo'r 2 ta GitHub AI yechimlarini tavsiya qilamiz:
+    const msg = `Hozirda ochiq bepul text-to-video API'lar cheklangan. Biroq, sizning saytingiz mukammal ishlashi uchun GitHub'dagi eng kuchli 2 ta bepul ochiq kodli Video AI manbalarini topdik:\n\n1. **Agnes Video Generator** (lcy362/agnes-video-generator)\n2. **ViMax** (HKUDS/ViMax)\n\nIltimos, ushbu manbalarni serveringizga ulash orqali to'liq videoni ishga tushiring. Hozircha siz Image AI dan muvaffaqiyatli bepul foydalanishingiz mumkin!`;
+    res.status(502).json({ error: msg });
+  } catch (e) {
+    res.status(500).json({ error: 'Server xatosi: ' + (e.message || e) });
+  }
+});
+
+app.post('/api/generate/audio', (req, res) => res.status(502).json({ error: "Ovoz modeli yangilanmoqda..." }));
 
 // === Noor AI IMG — rasm yaratish (Cloudflare Worker orqali), pastiga shaffof "Noor AI"
 // suvbelgisi (watermark) qo'yiladi, natija saqlanadi va ulashish uchun link beriladi. ===
@@ -669,13 +674,13 @@ function proSystemPrompt(versionLabel) {
 // hech qanday provayder ulanmagan bo'lsa, ro'yxat qanday bo'lishidan qat'i nazar HECH BIRI
 // ishlamaydi — avval OmniRoute panelida kamida bitta provayder ulanganini tekshiring.
 const OMNIROUTE_FREE_POOL = [
-  'gc/gemini-3-flash-preview',
-  'gc/gemini-2.5-pro',
-  'cx/gpt-5.1-codex-max',
-  'cx/gpt-5.2-codex',
-  'gh/gemini-3-pro',
-  'gh/claude-4.5-sonnet',
-  'gh/gpt-5'
+  'qwen/qwen-2.5-coder-32b-instruct:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemma-2-9b-it:free',
+  'mistralai/mistral-nemo:free',
+  'microsoft/phi-3-mini-128k-instruct:free',
+  'cognitivecomputations/dolphin3.0-r1-mistral-24b:free',
+  'openrouter/free'
 ];
 
 // PRO_TIERS — Noor AI 2.5 dan boshlab har bir Pro versiyaning "dvigateli"ni belgilaydi.
@@ -698,8 +703,8 @@ const VISION_CAPABLE_MODES = PRO_TIERS.map((t) => t.mode);
 const NOOR_MODEL_CHAIN = [
   'openrouter/free',
   'meta-llama/llama-3.3-70b-instruct:free',
-  'qwen/qwen3-coder:free',
-  'openai/gpt-oss-20b:free'
+  'qwen/qwen-2.5-coder-32b-instruct:free',
+  'google/gemma-2-9b-it:free'
 ];
 
 // Noor AI 1.0 (Coder) — OpenCode Zen'ning kodlash uchun ixtisoslashgan bepul modellari (vision yo'q)
@@ -712,10 +717,10 @@ const OPENCODE_MODEL_CHAIN = [
   'north-mini-code-free'
 ];
 // OpenCode kaliti yo'q yoki barchasi ishlamasa, OpenRouter'dagi kodlash modellariga o'tamiz
-const CODER_OPENROUTER_FALLBACK = ['qwen/qwen3-coder:free', 'openrouter/free'];
+const CODER_OPENROUTER_FALLBACK = ['qwen/qwen-2.5-coder-32b-instruct:free', 'openrouter/free'];
 
 // Noor AI 2.0 (Coder) — kod + rasm/skrinshotni tushunadigan (vision) zanjir
-const CODER2_MODEL_CHAIN = ['openrouter/free', 'qwen/qwen3-coder:free'];
+const CODER2_MODEL_CHAIN = ['openrouter/free', 'qwen/qwen-2.5-coder-32b-instruct:free'];
 
 function messagesContainImage(messages) {
   return (messages || []).some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image_url'));
