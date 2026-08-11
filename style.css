@@ -357,7 +357,7 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 
 .noor-img-bubble{display:flex;flex-direction:column;gap:10px;max-width:340px;}
 .noor-img-actions{display:flex;gap:8px;}
-.noor-img-btn{font-family:var(--bd);font-size:.78rem;padding:7px 14px;border-radius:100px;border:1px solid var(--gb);background:rgba(255,255,255,.04);color:var(--t);text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s;display:inline-flex;align-items:center;gap:4px;}
+.noor-img-btn{flex:1;justify-content:center;font-family:var(--bd);font-size:.78rem;padding:7px 14px;border-radius:100px;border:1px solid var(--gb);background:rgba(255,255,255,.04);color:var(--t);text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s;display:inline-flex;align-items:center;gap:4px;}
 .noor-img-btn:hover{background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.3);color:var(--c);}
 .noor-img-share-box{display:flex;gap:8px;background:#0d0f16;border:1px solid var(--gb);border-radius:10px;padding:6px 6px 6px 12px;align-items:center;}
 .noor-img-share-box.hidden{display:none;}

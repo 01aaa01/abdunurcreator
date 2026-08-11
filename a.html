@@ -247,7 +247,8 @@
             <div class="create-img-row">
               <label data-i18n="createImg.ai">AI</label>
               <select id="create-img-ai-select">
-                <option value="noorimg">Noor AI IMG</option>
+                <option value="noorimg">Noor AI IMG 1.0</option>
+                <option value="noorimg15" disabled>Noor AI IMG 1.5 (tez orada)</option>
               </select>
             </div>
             <div class="create-img-row">
@@ -271,15 +272,33 @@
           </button>
           <div class="model-picker-menu hidden" id="model-picker-menu">
             <div class="model-picker-group-label" data-i18n-label="chat.groupPro">Kuchli · Rasmni tushunadi</div>
+            <button type="button" class="model-picker-item" data-value="noor60" data-label="Noor AI 6.0" data-vision="1"><span class="mp-label">Noor AI 6.0</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor55" data-label="Noor AI 5.5" data-vision="1"><span class="mp-label">Noor AI 5.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor50" data-label="Noor AI 5.0" data-vision="1"><span class="mp-label">Noor AI 5.0</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor45" data-label="Noor AI 4.5" data-vision="1"><span class="mp-label">Noor AI 4.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor40" data-label="Noor AI 4.0" data-vision="1"><span class="mp-label">Noor AI 4.0</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor35" data-label="Noor AI 3.5" data-vision="1"><span class="mp-label">Noor AI 3.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
             <button type="button" class="model-picker-item" data-value="noor30" data-label="Noor AI 3.0" data-vision="1"><span class="mp-label">Noor AI 3.0</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
             <button type="button" class="model-picker-item" data-value="noor25" data-label="Noor AI 2.5" data-vision="1"><span class="mp-label">Noor AI 2.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
             <div class="model-picker-group-label" data-i18n-label="chat.groupChat">Tezkor · Bepul</div>
             <button type="button" class="model-picker-item" data-value="coder2" data-label="Noor AI 2.0 (Coder)"><span class="mp-label">Noor AI 2.0 (Coder)</span><span class="mp-right"></span></button>
             <button type="button" class="model-picker-item" data-value="general" data-label="Noor AI 1.5"><span class="mp-label">Noor AI 1.5</span><span class="mp-right"></span></button>
             <button type="button" class="model-picker-item" data-value="coder" data-label="Noor AI 1.0 (Coder)"><span class="mp-label">Noor AI 1.0 (Coder)</span><span class="mp-right"></span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupImg">Rasm yaratish</div>
+            <button type="button" class="model-picker-item" data-value="noorimg" data-label="Noor AI IMG 1.0"><span class="mp-label">Noor AI IMG 1.0</span><span class="mp-right"></span></button>
+            <button type="button" class="model-picker-item is-disabled" data-value="noorimg15" data-label="Noor AI IMG 1.5"><span class="mp-label">Noor AI IMG 1.5</span><span class="mp-right"><span class="model-picker-tag">TEZ ORADA</span></span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupVideo">Video yaratish</div>
+            <button type="button" class="model-picker-item is-disabled" data-value="noorvideo10" data-label="Noor AI Video 1.0"><span class="mp-label">Noor AI Video 1.0</span><span class="mp-right"><span class="model-picker-tag">TEZ ORADA</span></span></button>
+            <button type="button" class="model-picker-item is-disabled" data-value="noorvideo15" data-label="Noor AI Video 1.5"><span class="mp-label">Noor AI Video 1.5</span><span class="mp-right"><span class="model-picker-tag">TEZ ORADA</span></span></button>
             <div id="model-picker-media-group"></div>
           </div>
           <select id="chat-model-select" class="hidden" onchange="setChatMode(this.value)">
+            <option value="noor60">Noor AI 6.0</option>
+            <option value="noor55">Noor AI 5.5</option>
+            <option value="noor50">Noor AI 5.0</option>
+            <option value="noor45">Noor AI 4.5</option>
+            <option value="noor40">Noor AI 4.0</option>
+            <option value="noor35">Noor AI 3.5</option>
             <option value="noor30">Noor AI 3.0</option>
             <option value="noor25">Noor AI 2.5</option>
             <option value="coder2">Noor AI 2.0 (Coder)</option>

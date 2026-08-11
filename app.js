@@ -729,19 +729,22 @@ try { ${block.code} } catch(e) { log('❌ Xatolik: ' + e.message); }
 // Foydalanuvchi rasm tashlasa (drop/tanlasa), Noor AI uni ham "ko'radi" va tushunadi.
 let chatHistory = [];
 let pendingImage = null; // {dataUrl, name}
-let currentChatMode = 'general'; // 'general' (1.5) | 'coder' (1.0) | 'coder2' (2.0) | 'noor25' (2.5) | 'noor30' (3.0)
+let currentChatMode = 'general'; // 'general' (1.5) | 'coder' (1.0) | 'coder2' (2.0) | 'noor25'..'noor60' (Pro) | 'noorimg'
 
 const CHAT_MODE_LABELS = {
   general: 'Noor AI 1.5',
   coder: 'Noor AI 1.0 (Coder)',
   coder2: 'Noor AI 2.0 (Coder)',
-  noor25: 'Noor AI 2.5',
-  noor30: 'Noor AI 3.0'
+  noorimg: 'Noor AI IMG 1.0'
 };
+// Noor AI 2.5 dan 6.0 gacha (0.5 qadam bilan) — serverdagi PRO_TIERS bilan bir xil.
+const PRO_TIER_VERSIONS = ['2.5', '3.0', '3.5', '4.0', '4.5', '5.0', '5.5', '6.0'];
+const PRO_TIER_MODES = PRO_TIER_VERSIONS.map(v => 'noor' + v.replace('.', ''));
+PRO_TIER_VERSIONS.forEach((v, i) => { CHAT_MODE_LABELS[PRO_TIER_MODES[i]] = 'Noor AI ' + v; });
 
-// Rasm (vision) faqat yangi, kuchli OmniRoute'ga ulangan modellarda ishlaydi.
+// Rasm (vision) faqat Noor AI 2.5 dan yuqori Pro versiyalarda ishlaydi.
 // Eski uchtasi (1.0 Coder / 1.5 / 2.0 Coder) bepul matn-only modellardan foydalanadi.
-const VISION_CAPABLE_MODES = ['noor25', 'noor30'];
+const VISION_CAPABLE_MODES = PRO_TIER_MODES;
 function modeSupportsVision(mode) { return VISION_CAPABLE_MODES.includes(mode); }
 
 // === Noor AI IMG — "Rasm yaratish" (+ menyusi orqali) ===
@@ -751,13 +754,10 @@ function enterNoorImgMode() {
   document.getElementById('attach-menu')?.classList.add('hidden');
   document.getElementById('create-img-panel')?.classList.remove('hidden');
   updateAttachAvailability(currentChatMode);
-  const label = document.getElementById('model-picker-label');
-  if (label) label.textContent = 'Noor AI IMG';
-  const menu = document.getElementById('model-picker-menu');
-  menu?.querySelectorAll('.model-picker-item').forEach((it) => it.classList.remove('active'));
+  syncModelPickerUI('noorimg');
   const note = document.getElementById('chat-note');
   const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
-  if (note) note.textContent = t('chat.noteNoorImg', "Noor AI IMG — tepadan o'lchamni tanlang, pastga nima chizish kerakligini yozing va yuboring.");
+  if (note) note.textContent = t('chat.noteNoorImg', "Noor AI IMG 1.0 — tepadan o'lchamni tanlang, pastga nima chizish kerakligini yozing va yuboring.");
   const inputEl = document.getElementById('chat-user-input');
   if (inputEl) {
     inputEl.placeholder = t('createImg.placeholder', 'Nima chizish kerakligini yozing...');
@@ -770,8 +770,18 @@ document.getElementById('attach-item-create')?.addEventListener('click', () => {
   enterNoorImgMode();
 });
 document.getElementById('create-img-close-btn')?.addEventListener('click', () => {
+  // MUHIM: setChatMode('general') chaqirilmaydi — u butun suhbatni (yaratilgan
+  // rasmlar bilan birga) tozalab yuboradi. Bu yerda faqat panelni yopib, rejimni
+  // "general"ga qaytaramiz, suhbat tarixiga tegmaymiz.
   document.getElementById('create-img-panel')?.classList.add('hidden');
-  setChatMode('general');
+  currentChatMode = 'general';
+  const selectEl = document.getElementById('chat-model-select');
+  if (selectEl) selectEl.value = 'general';
+  syncModelPickerUI('general');
+  updateAttachAvailability('general');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  const note = document.getElementById('chat-note');
+  if (note) note.textContent = t('chat.noteGeneral', "Noor AI 1.5 — bepul, suhbat va kodlash uchun eng yaxshi modelni o'zi avtomatik tanlaydi (matn bilan, rasmni o'qiy olmaydi — rasm uchun Noor AI 2.5/3.0'ni tanlang).");
   const inputEl = document.getElementById('chat-user-input');
   if (inputEl) inputEl.placeholder = '';
 });
@@ -902,10 +912,9 @@ function setChatMode(mode) {
     note.textContent = t('chat.noteCoder', "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi).");
   } else if (mode === 'coder2') {
     note.textContent = t('chat.noteCoder2', "Noor AI 2.0 (Coder) — bepul, kodlashga ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi — rasm uchun Noor AI 2.5/3.0'ni tanlang).");
-  } else if (mode === 'noor25') {
-    note.textContent = t('chat.noteNoor25', "Noor AI 2.5 — suhbat, kodlash va rasm/skrinshotni tushunish bo'yicha 1.5/2.0'dan kuchliroq. Rasm tashlang yoki yuklang — u ko'radi va tushunadi.");
-  } else if (mode === 'noor30') {
-    note.textContent = t('chat.noteNoor30', "Noor AI 3.0 — platformadagi ENG KUCHLI model: chuqur fikrlash, murakkab kod va rasm/skrinshotni tushunish. Rasm tashlang yoki yuklang — u ko'radi va tushunadi.");
+  } else if (PRO_TIER_MODES.includes(mode)) {
+    const versionLabel = (CHAT_MODE_LABELS[mode] || 'Noor AI').replace('Noor AI ', '');
+    note.textContent = t('chat.noteProTier', "Noor AI {v} — suhbat, kodlash va rasm/skrinshotni tushunish (vision) bo'yicha kuchli Pro model. Rasm tashlang yoki yuklang — u ko'radi va tushunadi.").replace('{v}', versionLabel);
   } else if (kind === 'image') {
     note.textContent = t('chat.noteImage', "Pastga nima chizish kerakligini yozing, sizga rasm yaratib beradi.");
   } else if (kind === 'video') {
@@ -1095,10 +1104,10 @@ async function sendChatMsg() {
     return;
   }
 
-  // Noor AI 2.5 / 3.0 — hozircha faqat admin uchun. Boshqalarga server ham xuddi shu javobni
+  // Noor AI 2.5-6.0 — hozircha faqat admin uchun. Boshqalarga server ham xuddi shu javobni
   // qaytaradi, lekin bu yerda tekshirib qo'yish bejiz so'rov yubormaslik uchun kerak.
-  if ((currentChatMode === 'noor25' || currentChatMode === 'noor30') && !isAdmin) {
-    const modeLabel = currentChatMode === 'noor30' ? 'Noor AI 3.0' : 'Noor AI 2.5';
+  if (PRO_TIER_MODES.includes(currentChatMode) && !isAdmin) {
+    const modeLabel = CHAT_MODE_LABELS[currentChatMode] || 'Noor AI Pro';
     if (text) appendChatBubble(text, 'user');
     inputEl.value = '';
     appendChatBubble(`${modeLabel} — bu Noor AI Pro imkoniyati. Undan foydalanish uchun Noor AI ning Pro versiyasini sotib olishingiz kerak. Hozircha Noor AI 1.0, 1.5 yoki 2.0 (Coder) bepul va ochiq.`, 'ai');
@@ -1249,6 +1258,11 @@ function syncModelPickerUI(mode) {
     if (!item) return;
     e.stopPropagation();
     if (item.disabled || item.classList.contains('is-disabled')) return; // ishlamaydigan variantlar bosilmaydi
+    if (item.dataset.value === 'noorimg') {
+      enterNoorImgMode();
+      closeMenu();
+      return;
+    }
     setChatMode(item.dataset.value);
     closeMenu();
   });
