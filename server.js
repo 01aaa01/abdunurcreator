@@ -851,24 +851,25 @@ async function runNoorChat(mode, messages, isAdminCaller) {
     }
 
     if (tier.engine === 'omniroute') {
-      if (!OMNIROUTE_KEY || !OMNIROUTE_URL || OMNIROUTE_URL.includes('SIZNING-OMNIROUTE')) {
-        return { status: 500, data: { error: `Serverda OMNIROUTE_KEY yoki OMNIROUTE_URL sozlanmagan — ${modeLabel} ishlashi uchun .env faylga to'g'ri qiymatlarni kiriting.` } };
+      if (!OPENROUTER_KEY) {
+        return { status: 500, data: { error: `Serverda OPENROUTER_KEY sozlanmagan — ${modeLabel} ishlashi uchun .env faylga to'g'ri qiymatlarni kiriting.` } };
       }
-      // Avval o'zining modeli, ishlamasa undan bir pog'ona kuchli modelga, oxirida "auto"ga o'tadi.
+      
       const idx = OMNIROUTE_FREE_POOL.indexOf(tier.model);
-      const chain = [...new Set([tier.model, OMNIROUTE_FREE_POOL[idx + 1], 'auto/best', 'auto/best-free'].filter(Boolean))];
+      const chain = [...new Set([tier.model, OMNIROUTE_FREE_POOL[idx + 1], 'openrouter/free'].filter(Boolean))];
       for (const model of chain) {
         try {
-          const { ok, data } = await callOmniRoute(model, outgoingMessages, OMNIROUTE_KEY);
+          // OmniRoute o'rniga to'g'ridan-to'g'ri OpenRouter'dan foydalanamiz
+          const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
           if (ok) return { status: 200, data };
           lastError = data.error?.message || data.error;
-          console.error(`⚠️  ${modeLabel}: "${model}" (OmniRoute) javob bermadi:`, lastError);
+          console.error(`⚠️  ${modeLabel}: "${model}" (OpenRouter) javob bermadi:`, lastError);
         } catch (e) {
           lastError = e.message;
           console.error(`⚠️  ${modeLabel}: "${model}" ulanish xatosi:`, lastError);
         }
       }
-      return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (barcha modellar sinaldi: ${lastError || "noma'lum xatolik"}). Eng ehtimoliy sabab: OmniRoute panelida "${tier.model}" provayderi ulanmagan. OmniRoute dashboard'ni tekshiring.` } };
+      return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (barcha modellar sinaldi: ${lastError || "noma'lum xatolik"}). API kalit yoki internetni tekshiring.` } };
     }
   }
 
