@@ -737,6 +737,8 @@ const CHAT_MODE_LABELS = {
   coder2: 'Noor AI 2.0 (Coder)',
   noorimg: 'Noor AI IMG 1.0',
   noorimg15: 'Noor AI IMG 1.5',
+  noorvideo10: 'Noor AI Video 1.0',
+  noorvideo15: 'Noor AI Video 1.5',
   nooraudio: 'Noor Audio'
 };
 // Noor AI 2.5 dan 6.0 gacha (0.5 qadam bilan) — serverdagi PRO_TIERS bilan bir xil.
@@ -756,6 +758,7 @@ function exitGenPanelsToGeneral() {
   // rejimni "general"ga qaytaramiz, suhbat tarixiga tegmaymiz.
   document.getElementById('create-img-panel')?.classList.add('hidden');
   document.getElementById('create-audio-panel')?.classList.add('hidden');
+  document.getElementById('create-video-panel')?.classList.add('hidden');
   currentChatMode = 'general';
   const selectEl = document.getElementById('chat-model-select');
   if (selectEl) selectEl.value = 'general';
@@ -773,6 +776,7 @@ function enterNoorImgMode(preferredAi) {
   currentChatMode = 'noorimg';
   document.getElementById('attach-menu')?.classList.add('hidden');
   document.getElementById('create-audio-panel')?.classList.add('hidden');
+  document.getElementById('create-video-panel')?.classList.add('hidden');
   document.getElementById('create-img-panel')?.classList.remove('hidden');
   const aiSel = document.getElementById('create-img-ai-select');
   if (aiSel && (preferredAi === 'noorimg' || preferredAi === 'noorimg15')) aiSel.value = preferredAi;
@@ -793,6 +797,7 @@ function enterNoorAudioMode() {
   currentChatMode = 'nooraudio';
   document.getElementById('attach-menu')?.classList.add('hidden');
   document.getElementById('create-img-panel')?.classList.add('hidden');
+  document.getElementById('create-video-panel')?.classList.add('hidden');
   document.getElementById('create-audio-panel')?.classList.remove('hidden');
   updateAttachAvailability(currentChatMode);
   syncModelPickerUI('nooraudio');
@@ -806,12 +811,34 @@ function enterNoorAudioMode() {
   }
 }
 
+function enterNoorVideoMode(preferredAi) {
+  persistActiveSession();
+  currentChatMode = 'noorvideo';
+  document.getElementById('attach-menu')?.classList.add('hidden');
+  document.getElementById('create-img-panel')?.classList.add('hidden');
+  document.getElementById('create-audio-panel')?.classList.add('hidden');
+  document.getElementById('create-video-panel')?.classList.remove('hidden');
+  const aiSel = document.getElementById('create-video-ai-select');
+  if (aiSel && (preferredAi === 'noorvideo10' || preferredAi === 'noorvideo15')) aiSel.value = preferredAi;
+  updateAttachAvailability(currentChatMode);
+  syncModelPickerUI(preferredAi === 'noorvideo15' ? 'noorvideo15' : 'noorvideo10');
+  const note = document.getElementById('chat-note');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  if (note) note.textContent = t('chat.noteNoorVideo', "Noor AI Video — tepadan AI'ni tanlang, pastga nima video kerakligini yozing va yuboring (yaratish biroz vaqt olishi mumkin).");
+  const inputEl = document.getElementById('chat-user-input');
+  if (inputEl) {
+    inputEl.placeholder = t('noorVideo.placeholder', 'Qanday video kerakligini yozing...');
+    inputEl.focus();
+  }
+}
+
 document.getElementById('attach-item-create')?.addEventListener('click', () => {
   document.getElementById('attach-menu')?.classList.add('hidden');
   enterNoorImgMode();
 });
 document.getElementById('create-img-close-btn')?.addEventListener('click', exitGenPanelsToGeneral);
 document.getElementById('create-audio-close-btn')?.addEventListener('click', exitGenPanelsToGeneral);
+document.getElementById('create-video-close-btn')?.addEventListener('click', exitGenPanelsToGeneral);
 
 // === Panda avatar boshqaruvi (Noor Audio ijro etilayotganda ko'rinadi va "gapiradi") ===
 let noorAudioPlayer = null;
@@ -914,6 +941,88 @@ function appendGeneratedAudioBubble(audioUrl, text) {
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
   bubble.querySelector('.noor-audio-play-btn').addEventListener('click', () => playNoorAudio(audioUrl));
+}
+
+async function sendNoorVideoGenRequest(prompt) {
+  const inputEl = document.getElementById('chat-user-input');
+  const container = document.getElementById('chat-msg-container');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  if (!prompt) { noorToast(t('noorVideo.placeholder', 'Qanday video kerakligini yozing...')); return; }
+
+  appendChatBubble(prompt, 'user');
+  inputEl.value = '';
+
+  const typingIndicator = document.createElement('div');
+  typingIndicator.className = 'typing-indicator';
+  typingIndicator.id = 'chat-typing-indicator';
+  typingIndicator.innerHTML = `<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div><span style="margin-left:8px;font-size:.72rem;color:var(--td);">${t('noorVideo.wait', "Video yaratilmoqda, biroz kuting...")}</span>`;
+  container.appendChild(typingIndicator);
+  container.scrollTop = container.scrollHeight;
+  inputEl.disabled = true;
+
+  const aiSel = document.getElementById('create-video-ai-select');
+  const ai = aiSel ? aiSel.value : 'noorvideo10';
+
+  try {
+    const r = await fetch(BASE_URL + '/api/chat/generate-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, ai })
+    });
+    const d = await r.json();
+    document.getElementById('chat-typing-indicator')?.remove();
+    if (r.ok) {
+      appendGeneratedVideoBubble(d.videoUrl, d.shareUrl, prompt);
+      persistActiveSession(prompt);
+    } else {
+      appendChatBubble('Xatolik: ' + (d.error || "Video yaratib bo'lmadi."), 'system');
+    }
+  } catch (e) {
+    document.getElementById('chat-typing-indicator')?.remove();
+    appendChatBubble('Server bilan ulanishda xatolik yuz berdi.', 'system');
+  } finally {
+    inputEl.disabled = false;
+    inputEl.focus();
+  }
+}
+
+function appendGeneratedVideoBubble(videoUrl, shareUrl, prompt) {
+  const container = document.getElementById('chat-msg-container');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-msg ai noor-img-bubble';
+  const fullShareUrl = window.location.origin + shareUrl;
+  bubble.innerHTML = `
+    <video src="${videoUrl}" class="chat-generated-media" controls loop playsinline></video>
+    <div class="noor-img-actions">
+      <a class="noor-img-btn" href="${videoUrl}" download>⬇ ${t('createImg.download', 'Yuklab olish')}</a>
+      <button type="button" class="noor-img-btn noor-img-share-btn">🔗 ${t('createImg.share', 'Ulashish')}</button>
+    </div>
+    <div class="noor-img-share-box hidden">
+      <input type="text" readonly value="${fullShareUrl}">
+      <button type="button" class="noor-img-copy-btn">${t('createImg.copy', 'Nusxalash')}</button>
+    </div>`;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+
+  const shareBtn = bubble.querySelector('.noor-img-share-btn');
+  const shareBox = bubble.querySelector('.noor-img-share-box');
+  shareBtn.addEventListener('click', () => {
+    shareBox.classList.toggle('hidden');
+    container.scrollTop = container.scrollHeight;
+  });
+  bubble.querySelector('.noor-img-copy-btn').addEventListener('click', () => {
+    const inp = bubble.querySelector('.noor-img-share-box input');
+    inp.select();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(inp.value)
+        .then(() => noorToast(t('createImg.copied', 'Havola nusxalandi!')))
+        .catch(() => { document.execCommand('copy'); noorToast(t('createImg.copied', 'Havola nusxalandi!')); });
+    } else {
+      document.execCommand('copy');
+      noorToast(t('createImg.copied', 'Havola nusxalandi!'));
+    }
+  });
 }
 
 async function sendNoorImgGenRequest(prompt) {
@@ -1245,6 +1354,11 @@ async function sendChatMsg() {
     return;
   }
 
+  if (currentChatMode === 'noorvideo') {
+    await sendNoorVideoGenRequest(text);
+    return;
+  }
+
   if (mediaKindOf(currentChatMode)) {
     await sendMediaGenRequest(text);
     return;
@@ -1406,6 +1520,11 @@ function syncModelPickerUI(mode) {
     if (item.disabled || item.classList.contains('is-disabled')) return; // ishlamaydigan variantlar bosilmaydi
     if (item.dataset.value === 'noorimg' || item.dataset.value === 'noorimg15') {
       enterNoorImgMode(item.dataset.value);
+      closeMenu();
+      return;
+    }
+    if (item.dataset.value === 'noorvideo10' || item.dataset.value === 'noorvideo15') {
+      enterNoorVideoMode(item.dataset.value);
       closeMenu();
       return;
     }

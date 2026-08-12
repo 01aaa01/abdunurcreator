@@ -45,6 +45,10 @@ const NOOR_TRANSLATIONS = {
     'noorAudio.play': 'Ijro etish',
     'noorAudio.listen': 'Tinglash',
     'noorAudio.error': "Ovoz yaratib bo'lmadi.",
+    'noorVideo.ai': 'AI',
+    'noorVideo.placeholder': 'Qanday video kerakligini yozing...',
+    'noorVideo.wait': 'Video yaratilmoqda, biroz kuting...',
+    'chat.noteNoorVideo': "Noor AI Video — tepadan AI'ni tanlang, pastga nima video kerakligini yozing va yuboring (yaratish biroz vaqt olishi mumkin).",
     'chat.noteProTier': 'Noor AI {v} — suhbat, kodlash va rasm/skrinshotni tushunish (vision) bo\'yicha kuchli Pro model. Rasm tashlang yoki yuklang — u ko\'radi va tushunadi.',
     'attach.image': 'Rasm yuklash',
     'attach.camera': 'Kameraga tushirish',
@@ -181,6 +185,10 @@ const NOOR_TRANSLATIONS = {
     'noorAudio.play': 'Воспроизвести',
     'noorAudio.listen': 'Слушать',
     'noorAudio.error': 'Не удалось создать аудио.',
+    'noorVideo.ai': 'ИИ',
+    'noorVideo.placeholder': 'Опишите нужное видео...',
+    'noorVideo.wait': 'Видео создаётся, подождите немного...',
+    'chat.noteNoorVideo': 'Noor AI Video — выберите AI сверху, опишите видео снизу и отправьте (создание может занять время).',
     'chat.noteProTier': 'Noor AI {v} — мощная Pro-модель для общения, кода и понимания изображений/скриншотов (vision). Прикрепите или перетащите изображение — он его поймёт.',
     'attach.image': 'Загрузить изображение',
     'attach.camera': 'Снять на камеру',
@@ -317,6 +325,10 @@ const NOOR_TRANSLATIONS = {
     'noorAudio.play': 'Play',
     'noorAudio.listen': 'Listen',
     'noorAudio.error': 'Could not generate audio.',
+    'noorVideo.ai': 'AI',
+    'noorVideo.placeholder': 'Describe the video you want...',
+    'noorVideo.wait': 'Generating video, please wait...',
+    'chat.noteNoorVideo': 'Noor AI Video — pick an AI above, describe the video below, and send (generation can take a while).',
     'chat.noteProTier': "Noor AI {v} — a powerful Pro model for chat, coding, and understanding images/screenshots (vision). Drop or upload an image — it can see it.",
     'attach.image': 'Upload image',
     'attach.camera': 'Take a photo',
@@ -447,8 +459,20 @@ function applyNoorLang(lang) {
   // Chat izohini joriy rejimga mos holda yangilaymiz (agar sahifa allaqachon ochilgan bo'lsa)
   const note = document.getElementById('chat-note');
   if (note && typeof currentChatMode !== 'undefined') {
-    const NOTE_KEY_BY_MODE = { coder: 'chat.noteCoder', coder2: 'chat.noteCoder2', noor25: 'chat.noteNoor25', noor30: 'chat.noteNoor30' };
-    note.textContent = noorT(NOTE_KEY_BY_MODE[currentChatMode] || 'chat.noteGeneral');
+    const NOTE_KEY_BY_MODE = {
+      coder: 'chat.noteCoder',
+      coder2: 'chat.noteCoder2',
+      noorimg: 'chat.noteNoorImg',
+      noorimg15: 'chat.noteNoorImg',
+      noorvideo: 'chat.noteNoorVideo',
+      nooraudio: 'chat.noteNoorAudio'
+    };
+    if (typeof PRO_TIER_MODES !== 'undefined' && PRO_TIER_MODES.includes(currentChatMode)) {
+      const versionLabel = (CHAT_MODE_LABELS[currentChatMode] || 'Noor AI').replace('Noor AI ', '');
+      note.textContent = noorT('chat.noteProTier').replace('{v}', versionLabel);
+    } else {
+      note.textContent = noorT(NOTE_KEY_BY_MODE[currentChatMode] || 'chat.noteGeneral');
+    }
   }
 }
 

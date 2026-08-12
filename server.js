@@ -318,24 +318,73 @@ app.post('/api/chat/generate-audio', async (req, res) => {
   }
 });
 
+// === Noor AI Video 1.0 / 1.5 — Pollinations orqali (Seedance/Veo/Wan modellari). ===
+// MUHIM: rasmdan farqli o'laroq, video Pollinations'da BEPUL-CHEKSIZ EMAS — Pollen kredit
+// talab qiladi. Ishlashi uchun POLLINATIONS_KEY (.env) kerak: https://enter.pollinations.ai
+// saytida ro'yxatdan o'tib, "sk_" bilan boshlanadigan kalit oling.
+const POLLINATIONS_KEY = process.env.POLLINATIONS_KEY || '';
+// 1.0 — tezroq/arzonroq model, 1.5 — sifatliroq model.
+const NOOR_VIDEO_MODEL_10 = process.env.NOOR_VIDEO_MODEL_10 || 'wan-fast';
+const NOOR_VIDEO_MODEL_15 = process.env.NOOR_VIDEO_MODEL_15 || 'seedance-pro';
+
+async function generatePollinationsVideo(prompt, model) {
+  console.log(`[Noor AI Video] POST https://gen.pollinations.ai/v1/videos/generations model=${model} prompt="${prompt.slice(0, 60)}..."`);
+  const resp = await fetch('https://gen.pollinations.ai/v1/videos/generations', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${POLLINATIONS_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, prompt, duration: 5, aspectRatio: '16:9' })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`Noor AI Video xizmati xatosi (${resp.status}): ${errText.slice(0, 200)}`);
+  }
+  return Buffer.from(await resp.arrayBuffer());
+}
+
+app.post('/api/chat/generate-video', async (req, res) => {
+  const { prompt, ai } = req.body || {};
+  const cleanPrompt = String(prompt || '').trim();
+  if (!cleanPrompt) return res.status(400).json({ error: "Nima video yaratish kerakligini yozing." });
+  if (!POLLINATIONS_KEY) {
+    return res.status(500).json({ error: "Serverda POLLINATIONS_KEY sozlanmagan. https://enter.pollinations.ai saytidan ro'yxatdan o'tib, sk_ kalit olib, .env fayliga qo'ying." });
+  }
+  const model = ai === 'noorvideo15' ? NOOR_VIDEO_MODEL_15 : NOOR_VIDEO_MODEL_10;
+  try {
+    const buf = await generatePollinationsVideo(cleanPrompt, model);
+    const id = crypto.randomBytes(8).toString('hex');
+    const filename = `${id}.mp4`;
+    fs.writeFileSync(path.join(GENERATED_DIR, filename), buf);
+    db.generatedImages[id] = { prompt: cleanPrompt, engine: 'pollinations-video', model, filename, createdAt: new Date().toISOString() };
+    saveDB();
+    res.json({ id, videoUrl: `/generated/${filename}`, shareUrl: `/share/${id}` });
+  } catch (e) {
+    console.error('⚠️  Noor AI Video xatosi:', e.message || e);
+    res.status(502).json({ error: e.message || "Video yaratib bo'lmadi." });
+  }
+});
+
 app.get('/share/:id', (req, res) => {
   const rec = db.generatedImages[req.params.id];
-  if (!rec) return res.status(404).send('<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8"><title>Topilmadi</title></head><body style="background:#0a0b10;color:#f2f2f7;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">Bu rasm topilmadi yoki o\'chirilgan.</body></html>');
-  const imgUrl = `/generated/${rec.filename}`;
+  if (!rec) return res.status(404).send('<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8"><title>Topilmadi</title></head><body style="background:#0a0b10;color:#f2f2f7;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">Bu fayl topilmadi yoki o\'chirilgan.</body></html>');
+  const mediaUrl = `/generated/${rec.filename}`;
+  const isVideo = rec.filename.endsWith('.mp4');
+  const mediaTag = isVideo
+    ? `<video src="${mediaUrl}" controls autoplay loop playsinline></video>`
+    : `<img src="${mediaUrl}" alt="Noor AI rasm">`;
   res.send(`<!DOCTYPE html>
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Noor AI — Yaratilgan rasm</title>
+<title>Noor AI — Yaratilgan ${isVideo ? 'video' : 'rasm'}</title>
 <link rel="icon" type="image/png" href="/cat.png">
-<meta property="og:title" content="Noor AI orqali yaratilgan rasm">
-<meta property="og:image" content="${imgUrl}">
+<meta property="og:title" content="Noor AI orqali yaratilgan ${isVideo ? 'video' : 'rasm'}">
+<meta property="og:image" content="${mediaUrl}">
 <style>
   *{box-sizing:border-box;}
   body{margin:0;background:#0a0b10;color:#f2f2f7;font-family:system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;align-items:center;padding:40px 16px;min-height:100vh;}
   h1{font-size:.95rem;font-weight:700;color:#00d4ff;margin:0 0 22px;letter-spacing:.3px;}
-  img{max-width:100%;max-height:74vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.08);}
+  img,video{max-width:100%;max-height:74vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.08);}
   p{color:#9a9ab0;font-size:.85rem;max-width:520px;text-align:center;margin-top:18px;line-height:1.5;}
   .row{display:flex;gap:10px;margin-top:20px;}
   a.btn{background:#00d4ff;color:#04141a;text-decoration:none;font-weight:700;padding:11px 24px;border-radius:100px;font-size:.85rem;}
@@ -344,10 +393,10 @@ app.get('/share/:id', (req, res) => {
 </head>
 <body>
   <h1>✦ NOOR AI</h1>
-  <img src="${imgUrl}" alt="Noor AI rasm">
+  ${mediaTag}
   ${rec.prompt ? `<p>${escapeHtmlServer(rec.prompt)}</p>` : ''}
   <div class="row">
-    <a class="btn" href="${imgUrl}" download>Yuklab olish</a>
+    <a class="btn" href="${mediaUrl}" download>Yuklab olish</a>
     <a class="btn ghost" href="/a.html">Noor AI'ni sinab ko'ring</a>
   </div>
 </body>
