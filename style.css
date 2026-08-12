@@ -365,3 +365,25 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 .noor-img-copy-btn{font-family:var(--bd);font-size:.74rem;padding:6px 12px;border-radius:8px;border:none;background:var(--c);color:#04141a;font-weight:600;cursor:pointer;flex-shrink:0;}
 .noor-img-copy-btn:hover{filter:brightness(1.08);}
 @media(max-width:480px){.create-img-panel{left:0;right:0;min-width:0;}.noor-img-bubble{max-width:100%;}}
+
+/* === Noor Audio — gapiradigan kichik panda avatar va audio panel === */
+.noor-panda{position:fixed;right:22px;bottom:100px;z-index:500;filter:drop-shadow(0 8px 20px rgba(0,0,0,.45));animation:noor-panda-float 2.6s ease-in-out infinite;pointer-events:none;}
+.noor-panda.hidden{display:none;}
+.noor-panda-inner{background:radial-gradient(circle at 35% 30%, rgba(0,212,255,.16), rgba(18,20,28,.0));border-radius:100%;}
+@keyframes noor-panda-float{0%,100%{transform:translateY(0) rotate(-2deg);}50%{transform:translateY(-10px) rotate(2deg);}}
+.noor-panda-mouth{transform-origin:50px 74px;transition:d .1s;}
+.noor-panda.talking .noor-panda-mouth{animation:noor-panda-talk .32s ease-in-out infinite alternate;}
+@keyframes noor-panda-talk{0%{d:path("M38 72 Q50 78 62 72");}100%{d:path("M40 72 Q50 86 60 72");}}
+
+.create-audio-panel{position:absolute;bottom:48px;left:0;background:#12141c;border:1px solid var(--gb);border-radius:14px;padding:12px 14px;min-width:220px;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:20;display:flex;flex-direction:column;gap:10px;}
+.create-audio-panel.hidden{display:none;}
+
+.noor-audio-bubble{display:flex;flex-direction:column;gap:10px;max-width:320px;}
+.noor-audio-player{display:flex;align-items:center;gap:10px;background:#0d0f16;border:1px solid var(--gb);border-radius:100px;padding:8px 14px;}
+.noor-audio-play-btn{width:34px;height:34px;border-radius:100%;border:none;background:var(--c);color:#04141a;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.9rem;}
+.noor-audio-play-btn:hover{filter:brightness(1.08);}
+.noor-audio-label{font-family:var(--bd);font-size:.8rem;color:var(--t);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.chat-msg-speak-btn{margin-top:8px;background:rgba(255,255,255,.05);border:1px solid var(--gb);color:var(--td);font-family:var(--bd);font-size:.72rem;padding:5px 12px;border-radius:100px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .15s,color .15s;}
+.chat-msg-speak-btn:hover{background:rgba(0,212,255,.1);color:var(--c);border-color:rgba(0,212,255,.3);}
+.chat-msg-speak-btn.speaking{color:var(--c);border-color:rgba(0,212,255,.4);}

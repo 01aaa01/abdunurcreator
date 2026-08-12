@@ -34,13 +34,13 @@ const IMG_SIZE_HINTS = {
 };
 // Noor AI 2.5 — Gemini API orqali to'g'ridan-to'g'ri (haqiqiy, ishonchli vision).
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = 'gemini-1.5-flash'; // .env ni e'tiborga olmasdan to'g'ridan-to'g'ri 1.5-flash'ni ishlatamiz
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
 if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
 if (!BYTEZ_KEY) console.warn('⚠️  BYTEZ_KEY .env faylida yo\'q — Noor-Image / Noor-Video / Noor-Audio ishlamaydi.');
-if (!OMNIROUTE_KEY) console.warn('⚠️  OMNIROUTE_KEY .env faylida yo\'q — Noor AI 3.0-6.0 ishlamaydi.');
-if (!OMNIROUTE_URL || OMNIROUTE_URL.includes('SIZNING-OMNIROUTE')) console.warn('⚠️  OMNIROUTE_URL sozlanmagan — .env faylda uni Render\'ga qo\'ygan OmniRoute manzilingizga almashtiring, aks holda Noor AI 3.0-6.0 ishlamaydi.');
+// OMNIROUTE_KEY/URL hozircha ishlatilmayapti (Noor AI 3.0-6.0 endi OpenRouter orqali ishlaydi) —
+// kelajakda kerak bo'lib qolsa deb o'zgaruvchilar va callOmniRoute funksiyasi olib tashlanmadi.
 if (!GEMINI_API_KEY) console.warn('⚠️  GEMINI_API_KEY .env faylida yo\'q — Noor AI 2.5 ishlamaydi.');
 
 // Noor-Image / Noor-Video / Noor-Audio — Bytez (bytez.com) orqali ishlaydi.
@@ -174,34 +174,29 @@ app.get('/api/generate/models', async (req, res) => {
   res.json(out);
 });
 
-// Bytez ishlamayotgani uchun, rasm va video yaratish yangilandi:
-app.post('/api/generate/image', async (req, res) => {
-  const { prompt } = req.body || {};
+async function handleGenerate(req, res, kind, mime, resultKey) {
+  if (!BYTEZ_KEY) return res.status(500).json({ error: 'Serverda BYTEZ_KEY sozlanmagan.' });
+  const { prompt, modelId } = req.body || {};
   if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
   try {
-    const encodedPrompt = encodeURIComponent(String(prompt).trim());
-    // 1-bepul AI: Pollinations AI (API kalit talab qilmaydi)
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
-    res.json({ image: imageUrl, model: 'pollinations-ai' });
+    const tiers = await getBytezTiers(BYTEZ_TASKS[kind]);
+    const tier = tiers.find(t => `noor-${kind}-${t.version}` === modelId) || tiers[0];
+    if (!tier) return res.status(502).json({ error: `Bytez katalogida "${BYTEZ_TASKS[kind]}" uchun model topilmadi.` });
+    const result = await callBytezWithFallback(tier.candidates, String(prompt).trim());
+    if (!result.ok) {
+      console.error(`Bytez ${kind} xatosi (barcha zaxira modellar sinaldi):`, result.error);
+      return res.status(502).json({ error: `Yaratib bo'lmadi: ${result.error}` });
+    }
+    res.json({ [resultKey]: toDataUrl(result.output, mime), model: result.usedModel });
   } catch (e) {
+    console.error(e);
     res.status(500).json({ error: 'Server xatosi: ' + (e.message || e) });
   }
-});
+}
 
-app.post('/api/generate/video', async (req, res) => {
-  const { prompt } = req.body || {};
-  if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'Prompt kiriting.' });
-  try {
-    // 2 ta bepul video AI topish so'ralgan edi. Video uchun ochiq API lar barqaror bo'lmagani 
-    // sababli foydalanuvchiga eng zo'r 2 ta GitHub AI yechimlarini tavsiya qilamiz:
-    const msg = `Hozirda ochiq bepul text-to-video API'lar cheklangan. Biroq, sizning saytingiz mukammal ishlashi uchun GitHub'dagi eng kuchli 2 ta bepul ochiq kodli Video AI manbalarini topdik:\n\n1. **Agnes Video Generator** (lcy362/agnes-video-generator)\n2. **ViMax** (HKUDS/ViMax)\n\nIltimos, ushbu manbalarni serveringizga ulash orqali to'liq videoni ishga tushiring. Hozircha siz Image AI dan muvaffaqiyatli bepul foydalanishingiz mumkin!`;
-    res.status(502).json({ error: msg });
-  } catch (e) {
-    res.status(500).json({ error: 'Server xatosi: ' + (e.message || e) });
-  }
-});
-
-app.post('/api/generate/audio', (req, res) => res.status(502).json({ error: "Ovoz modeli yangilanmoqda..." }));
+app.post('/api/generate/image', (req, res) => handleGenerate(req, res, 'image', 'image/png', 'image'));
+app.post('/api/generate/video', (req, res) => handleGenerate(req, res, 'video', 'video/mp4', 'video'));
+app.post('/api/generate/audio', (req, res) => handleGenerate(req, res, 'audio', 'audio/wav', 'audio'));
 
 // === Noor AI IMG — rasm yaratish (Cloudflare Worker orqali), pastiga shaffof "Noor AI"
 // suvbelgisi (watermark) qo'yiladi, natija saqlanadi va ulashish uchun link beriladi. ===
@@ -221,49 +216,108 @@ async function watermarkImage(buffer) {
   return img.composite([{ input: Buffer.from(svg), gravity: 'south' }]).jpeg({ quality: 92 }).toBuffer();
 }
 
+async function fetchImageFromWorker(finalPrompt) {
+  console.log(`[Noor AI IMG 1.0] curl -X POST ${IMAGE_API_URL} -H "Authorization: Bearer ${IMAGE_API_KEY}" -H "Content-Type: application/json" -d "{\\"prompt\\": \\"${finalPrompt.replace(/"/g, '\\"')}\\"}" --output image.jpg`);
+  const resp = await fetch(IMAGE_API_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${IMAGE_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: finalPrompt })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`Noor AI IMG 1.0 xizmati xatosi (${resp.status}): ${errText.slice(0, 200)}`);
+  }
+  return Buffer.from(await resp.arrayBuffer());
+}
+
+async function fetchImageFromPollinations(finalPrompt) {
+  const url = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}`;
+  console.log(`[Noor AI IMG 1.5] GET ${url}`);
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error(`Noor AI IMG 1.5 (Pollinations) xizmati xatosi: ${resp.status}`);
+  }
+  return Buffer.from(await resp.arrayBuffer());
+}
+
 app.post('/api/chat/generate-image', async (req, res) => {
-  const { prompt, size } = req.body || {};
+  const { prompt, size, ai } = req.body || {};
   const cleanPrompt = String(prompt || '').trim();
   if (!cleanPrompt) return res.status(400).json({ error: "Nima rasm yaratish kerakligini yozing." });
 
   const sizeHint = IMG_SIZE_HINTS[size] || '';
   const finalPrompt = sizeHint ? `${cleanPrompt}, ${sizeHint}` : cleanPrompt;
-
-  // DIQQAT: bu buyruq FAQAT server konsolida (Render loglarida) ko'rinadi — saytda,
-  // foydalanuvchiga hech qachon ko'rsatilmaydi.
-  console.log(`[Noor AI IMG] curl -X POST ${IMAGE_API_URL} -H "Authorization: Bearer ${IMAGE_API_KEY}" -H "Content-Type: application/json" -d "{\\"prompt\\": \\"${finalPrompt.replace(/"/g, '\\"')}\\"}" --output image.jpg`);
+  const useEngine = ai === 'noorimg15' ? 'pollinations' : 'worker';
 
   try {
-    const resp = await fetch(IMAGE_API_URL, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${IMAGE_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: finalPrompt })
-    });
-    if (!resp.ok) {
-      const errText = await resp.text().catch(() => '');
-      console.error('⚠️  Noor AI IMG xizmati xatosi:', resp.status, errText);
-      return res.status(502).json({ error: "Rasm yaratib bo'lmadi. Birozdan so'ng qayta urinib ko'ring." });
-    }
-    const arrBuf = await resp.arrayBuffer();
-    let outBuf = Buffer.from(arrBuf);
+    const outBufRaw = useEngine === 'pollinations'
+      ? await fetchImageFromPollinations(finalPrompt)
+      : await fetchImageFromWorker(finalPrompt);
+    let outBuf = outBufRaw;
     try {
-      outBuf = await watermarkImage(outBuf);
+      outBuf = await watermarkImage(outBufRaw);
     } catch (e) {
       console.warn("⚠️  Watermark qo'yishda xato (rasm watermarksiz saqlanadi):", e.message || e);
     }
     const id = crypto.randomBytes(8).toString('hex');
     const filename = `${id}.jpg`;
     fs.writeFileSync(path.join(GENERATED_DIR, filename), outBuf);
-    db.generatedImages[id] = { prompt: cleanPrompt, size: size || '', filename, createdAt: new Date().toISOString() };
+    db.generatedImages[id] = { prompt: cleanPrompt, size: size || '', engine: useEngine, filename, createdAt: new Date().toISOString() };
     saveDB();
     res.json({ id, imageUrl: `/generated/${filename}`, shareUrl: `/share/${id}` });
   } catch (e) {
-    console.error('⚠️  Noor AI IMG so\'rov xatosi:', e.message || e);
-    res.status(502).json({ error: "Rasm yaratish xizmatiga ulanib bo'lmadi." });
+    console.error('⚠️  Rasm yaratish xatosi:', e.message || e);
+    res.status(502).json({ error: e.message || "Rasm yaratish xizmatiga ulanib bo'lmadi." });
   }
 });
 
 // Ulashish sahifasi — link bosilganda shu yerda ko'rinadi (saytning o'zida, tashqarida emas)
+// === Noor Audio — matnni ovozga aylantirish (Fish Audio S2.1 Pro Free, OpenRouter orqali) ===
+// Raqamsiz — "Noor Audio" (versiyasiz nom, aynan so'ralganidek).
+const FISH_TTS_MODEL = process.env.FISH_TTS_MODEL || 'fish-audio/s2.1-pro';
+// Fish Audio S2.1 Pro bir nechta nomlangan ovozni qo'llab-quvvatlaydi — foydalanuvchi
+// tanlashi uchun bir nechtasi shu yerda ro'yxatlangan (.env orqali kengaytirish mumkin).
+const NOOR_AUDIO_VOICES = {
+  standard: undefined, // provayderning standart ovozi
+  male: 'male-1',
+  female: 'female-1'
+};
+
+async function generateNoorAudioBuffer(text, voiceKey) {
+  const voice = NOOR_AUDIO_VOICES[voiceKey];
+  const body = { model: FISH_TTS_MODEL, input: text, response_format: 'mp3' };
+  if (voice) body.voice = voice;
+  console.log(`[Noor Audio] POST https://openrouter.ai/api/v1/audio/speech model=${FISH_TTS_MODEL} voice=${voice || '(standart)'} matn="${text.slice(0, 60).replace(/\n/g, ' ')}..."`);
+  const resp = await fetch('https://openrouter.ai/api/v1/audio/speech', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${OPENROUTER_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`Noor Audio xizmati xatosi (${resp.status}): ${errText.slice(0, 200)}`);
+  }
+  return Buffer.from(await resp.arrayBuffer());
+}
+
+app.post('/api/chat/generate-audio', async (req, res) => {
+  const { text, voice } = req.body || {};
+  const cleanText = String(text || '').trim().slice(0, 2000);
+  if (!cleanText) return res.status(400).json({ error: "Nima deb gapirtirish kerakligini yozing." });
+  if (!OPENROUTER_KEY) return res.status(500).json({ error: 'Serverda OPENROUTER_KEY sozlanmagan — Noor Audio ishlashi uchun kerak.' });
+
+  try {
+    const buf = await generateNoorAudioBuffer(cleanText, voice);
+    const id = crypto.randomBytes(8).toString('hex');
+    const filename = `${id}.mp3`;
+    fs.writeFileSync(path.join(GENERATED_DIR, filename), buf);
+    res.json({ audioUrl: `/generated/${filename}` });
+  } catch (e) {
+    console.error('⚠️  Noor Audio xatosi:', e.message || e);
+    res.status(502).json({ error: e.message || "Ovoz yaratib bo'lmadi." });
+  }
+});
+
 app.get('/share/:id', (req, res) => {
   const rec = db.generatedImages[req.params.id];
   if (!rec) return res.status(404).send('<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8"><title>Topilmadi</title></head><body style="background:#0a0b10;color:#f2f2f7;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">Bu rasm topilmadi yoki o\'chirilgan.</body></html>');
@@ -667,29 +721,47 @@ function proSystemPrompt(versionLabel) {
   };
 }
 
-// OmniRoute'dagi bepul modellar — kuchsizdan kuchligacha tartiblangan. Har biri o'z
-// Noor AI versiyasiga bog'lanadi (3.0, 3.5, 4.0 ... nechta model bo'lsa, shuncha versiya).
-// MUHIM: bu model nomlari faqat OmniRoute panelingizda ULANGAN provayderlar (masalan
-// GitHub Models "gh/", Gemini CLI "gc/", Codex "cx/") uchun ishlaydi. Agar OmniRoute'da
-// hech qanday provayder ulanmagan bo'lsa, ro'yxat qanday bo'lishidan qat'i nazar HECH BIRI
-// ishlamaydi — avval OmniRoute panelida kamida bitta provayder ulanganini tekshiring.
-const OMNIROUTE_FREE_POOL = [
-  'gc/gemini-1.5-flash',
-  'gh/gpt-4o-mini',
-  'gh/Meta-Llama-3.1-70B-Instruct',
-  'gh/Cohere-command-r',
-  'gh/Phi-3-mini-4k-instruct',
-  'gh/Mistral-nemo',
-  'gh/AI21-Jamba-1.5-Mini'
-];
+// Noor AI 3.0 dan 6.0 gacha — endi OmniRoute emas, OpenRouter'ning JONLI (real-time)
+// bepul model ro'yxatidan foydalanadi. OpenRouter'da bepul modellar tez-tez o'zgarib
+// (qo'shilib/o'chib) turgani uchun, ro'yxatni har safar qattiq yozib qo'yish o'rniga,
+// serverning o'zi https://openrouter.ai/api/v1/models'dan JONLI ro'yxatni so'rab oladi
+// (30 daqiqada bir marta keshlaydi) va eng katta context-oynali (taxminan eng kuchli)
+// 7 tasini kuchsizdan kuchligacha tartiblab, Noor AI 3.0/3.5/.../6.0'ga bog'laydi.
+let openRouterFreeModelsCache = { list: [], fetchedAt: 0 };
+async function getOpenRouterFreeTextModels() {
+  const now = Date.now();
+  if (openRouterFreeModelsCache.list.length && (now - openRouterFreeModelsCache.fetchedAt) < 30 * 60 * 1000) {
+    return openRouterFreeModelsCache.list;
+  }
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/models');
+    const data = await resp.json();
+    const free = (data.data || []).filter((m) => {
+      const p = m.pricing || {};
+      return parseFloat(p.prompt || '1') === 0
+        && parseFloat(p.completion || '1') === 0
+        && m.id !== 'openrouter/free'
+        && !/embed|whisper|tts|moderation|guard/i.test(m.id);
+    });
+    free.sort((a, b) => (b.context_length || 0) - (a.context_length || 0));
+    const ids = free.map((m) => m.id);
+    if (ids.length) openRouterFreeModelsCache = { list: ids, fetchedAt: now };
+    return openRouterFreeModelsCache.list;
+  } catch (e) {
+    console.error("⚠️  OpenRouter'ning jonli bepul model ro'yxatini olishda xato:", e.message);
+    return openRouterFreeModelsCache.list; // eskirgan ro'yxat bo'lsa ham shuni qaytaramiz
+  }
+}
 
 // PRO_TIERS — Noor AI 2.5 dan boshlab har bir Pro versiyaning "dvigateli"ni belgilaydi.
-// 2.5 — Gemini API orqali to'g'ridan-to'g'ri. 3.0 dan yuqorisi — OmniRoute pool'idagi
-// modellar, har biriga alohida versiya (+0.5 qadam bilan), pool qayerda tugasa shu yerda to'xtaydi.
+// 2.5 — Gemini API orqali to'g'ridan-to'g'ri. 3.0 dan 6.0 gacha — OpenRouter'ning jonli
+// bepul model ro'yxatidagi "slot" (0 = ro'yxatdagi eng kuchsiz, 6 = eng kuchli), haqiqiy
+// model nomi HAR SO'ROVDA ro'yxatdan qayta olinadi — shuning uchun OpenRouter'da qaysi
+// modellar bepul bo'lishidan qat'i nazar, tizim o'zi moslashadi.
+const PRO_TIER_SLOTS = ['3.0', '3.5', '4.0', '4.5', '5.0', '5.5', '6.0'];
 const PRO_TIERS = [{ version: '2.5', mode: 'noor25', engine: 'gemini' }];
-OMNIROUTE_FREE_POOL.forEach((modelId, i) => {
-  const version = (3 + i * 0.5).toFixed(1);
-  PRO_TIERS.push({ version, mode: 'noor' + version.replace('.', ''), engine: 'omniroute', model: modelId });
+PRO_TIER_SLOTS.forEach((version, i) => {
+  PRO_TIERS.push({ version, mode: 'noor' + version.replace('.', ''), engine: 'openrouter-pro', slot: i });
 });
 const PRO_TIER_BY_MODE = {};
 PRO_TIERS.forEach((t) => { PRO_TIER_BY_MODE[t.mode] = t; });
@@ -703,8 +775,8 @@ const VISION_CAPABLE_MODES = PRO_TIERS.map((t) => t.mode);
 const NOOR_MODEL_CHAIN = [
   'openrouter/free',
   'meta-llama/llama-3.3-70b-instruct:free',
-  'qwen/qwen-2.5-coder-32b-instruct:free',
-  'google/gemma-2-9b-it:free'
+  'qwen/qwen3-coder:free',
+  'openai/gpt-oss-20b:free'
 ];
 
 // Noor AI 1.0 (Coder) — OpenCode Zen'ning kodlash uchun ixtisoslashgan bepul modellari (vision yo'q)
@@ -717,10 +789,10 @@ const OPENCODE_MODEL_CHAIN = [
   'north-mini-code-free'
 ];
 // OpenCode kaliti yo'q yoki barchasi ishlamasa, OpenRouter'dagi kodlash modellariga o'tamiz
-const CODER_OPENROUTER_FALLBACK = ['qwen/qwen-2.5-coder-32b-instruct:free', 'openrouter/free'];
+const CODER_OPENROUTER_FALLBACK = ['qwen/qwen3-coder:free', 'openrouter/free'];
 
 // Noor AI 2.0 (Coder) — kod + rasm/skrinshotni tushunadigan (vision) zanjir
-const CODER2_MODEL_CHAIN = ['openrouter/free', 'qwen/qwen-2.5-coder-32b-instruct:free'];
+const CODER2_MODEL_CHAIN = ['openrouter/free', 'qwen/qwen3-coder:free'];
 
 function messagesContainImage(messages) {
   return (messages || []).some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image_url'));
@@ -763,7 +835,15 @@ async function callOmniRoute(model, messages, apiKey) {
     },
     body: JSON.stringify({ model, messages })
   });
-  const data = await response.json();
+  const rawText = await response.text();
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch (e) {
+    // JSON emas — odatda bu OMNIROUTE_URL noto'g'ri yoki OmniRoute o'sha manzilda
+    // umuman ishlamayotganini bildiradi (masalan HTML "topilmadi" sahifasi qaytgan).
+    throw new Error(`OMNIROUTE_URL ("${OMNIROUTE_URL}") JSON o'rniga boshqa narsa qaytardi (status ${response.status}). Bu odatda manzil noto'g'ri yoki OmniRoute o'sha yerda ishlamayotganini bildiradi. Javobning boshi: ${rawText.slice(0, 150).replace(/\s+/g, ' ')}`);
+  }
   return { ok: response.ok, status: response.status, data };
 }
 
@@ -850,25 +930,30 @@ async function runNoorChat(mode, messages, isAdminCaller) {
       return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi: ${lastError || "noma'lum xatolik"}` } };
     }
 
-    if (tier.engine === 'omniroute') {
-      if (!OMNIROUTE_KEY || !OMNIROUTE_URL || OMNIROUTE_URL.includes('SIZNING-OMNIROUTE')) {
-        return { status: 500, data: { error: `Serverda OMNIROUTE_KEY yoki OMNIROUTE_URL sozlanmagan — ${modeLabel} ishlashi uchun .env faylga to'g'ri qiymatlarni kiriting.` } };
+    if (tier.engine === 'openrouter-pro') {
+      if (!OPENROUTER_KEY) {
+        return { status: 500, data: { error: `Serverda OPENROUTER_KEY sozlanmagan — ${modeLabel} ishlashi uchun .env faylga kiriting.` } };
       }
-      
-      const idx = OMNIROUTE_FREE_POOL.indexOf(tier.model);
-      const chain = [...new Set([tier.model, OMNIROUTE_FREE_POOL[idx + 1], 'auto/best', 'auto/best-free'].filter(Boolean))];
+      const freeModels = await getOpenRouterFreeTextModels();
+      if (!freeModels.length) {
+        return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi: OpenRouter'ning jonli bepul model ro'yxatini olib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.` } };
+      }
+      // O'z slot'idagi model, ishlamasa navbatdagi kuchliroq slot'ga, oxirida "openrouter/free"ga o'tadi.
+      const primary = freeModels[Math.min(tier.slot, freeModels.length - 1)];
+      const secondary = freeModels[Math.min(tier.slot + 1, freeModels.length - 1)];
+      const chain = [...new Set([primary, secondary, 'openrouter/free'].filter(Boolean))];
       for (const model of chain) {
         try {
-          const { ok, data } = await callOmniRoute(model, outgoingMessages, OMNIROUTE_KEY);
+          const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
           if (ok) return { status: 200, data };
           lastError = data.error?.message || data.error;
-          console.error(`⚠️  ${modeLabel}: "${model}" (OmniRoute) javob bermadi:`, lastError);
+          console.error(`⚠️  ${modeLabel}: "${model}" (OpenRouter) javob bermadi:`, lastError);
         } catch (e) {
           lastError = e.message;
           console.error(`⚠️  ${modeLabel}: "${model}" ulanish xatosi:`, lastError);
         }
       }
-      return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (barcha modellar sinaldi: ${lastError || "noma'lum xatolik"}). Eng ehtimoliy sabab: OmniRoute panelida "${tier.model}" provayderi ulanmagan. OmniRoute dashboard'ni tekshiring.` } };
+      return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (barcha modellar sinaldi: ${lastError || "noma'lum xatolik"}).` } };
     }
   }
 

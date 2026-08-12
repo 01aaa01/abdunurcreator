@@ -248,7 +248,7 @@
               <label data-i18n="createImg.ai">AI</label>
               <select id="create-img-ai-select">
                 <option value="noorimg">Noor AI IMG 1.0</option>
-                <option value="noorimg15" disabled>Noor AI IMG 1.5 (tez orada)</option>
+                <option value="noorimg15">Noor AI IMG 1.5</option>
               </select>
             </div>
             <div class="create-img-row">
@@ -260,6 +260,17 @@
               </select>
             </div>
             <button type="button" class="create-img-close" id="create-img-close-btn" title="Yopish">&times;</button>
+          </div>
+          <div class="create-audio-panel hidden" id="create-audio-panel">
+            <div class="create-img-row">
+              <label data-i18n="noorAudio.voice">Ovoz</label>
+              <select id="audio-voice-select">
+                <option value="standard" data-i18n="noorAudio.voiceStandard">Standart</option>
+                <option value="male" data-i18n="noorAudio.voiceMale">Erkak</option>
+                <option value="female" data-i18n="noorAudio.voiceFemale">Ayol</option>
+              </select>
+            </div>
+            <button type="button" class="create-img-close" id="create-audio-close-btn" title="Yopish">&times;</button>
           </div>
         </div>
         <input type="file" id="chat-attach-input" accept="image/*" class="hidden">
@@ -288,8 +299,10 @@
             <button type="button" class="model-picker-item" data-value="noorimg" data-label="Noor AI IMG 1.0"><span class="mp-label">Noor AI IMG 1.0</span><span class="mp-right"></span></button>
             <button type="button" class="model-picker-item" data-value="noorimg15" data-label="Noor AI IMG 1.5"><span class="mp-label">Noor AI IMG 1.5</span><span class="mp-right"></span></button>
             <div class="model-picker-group-label" data-i18n-label="chat.groupVideo">Video yaratish</div>
-            <button type="button" class="model-picker-item" data-value="noorvideo10" data-label="Noor AI Video 1.0"><span class="mp-label">Noor AI Video 1.0</span><span class="mp-right"></span></button>
-            <button type="button" class="model-picker-item" data-value="noorvideo15" data-label="Noor AI Video 1.5"><span class="mp-label">Noor AI Video 1.5</span><span class="mp-right"></span></button>
+            <button type="button" class="model-picker-item is-disabled" data-value="noorvideo10" data-label="Noor AI Video 1.0"><span class="mp-label">Noor AI Video 1.0</span><span class="mp-right"><span class="model-picker-tag">TEZ ORADA</span></span></button>
+            <button type="button" class="model-picker-item is-disabled" data-value="noorvideo15" data-label="Noor AI Video 1.5"><span class="mp-label">Noor AI Video 1.5</span><span class="mp-right"><span class="model-picker-tag">TEZ ORADA</span></span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupAudio">Ovoz yaratish</div>
+            <button type="button" class="model-picker-item" data-value="nooraudio" data-label="Noor Audio"><span class="mp-label">Noor Audio</span><span class="mp-right"></span></button>
             <div id="model-picker-media-group"></div>
           </div>
           <select id="chat-model-select" class="hidden" onchange="setChatMode(this.value)">
@@ -454,5 +467,20 @@ function setMsgColor(c){
 </script>
 <script src="i18n.js"></script>
 <script src="app.js"></script>
+  <div class="noor-panda hidden" id="noor-panda">
+    <div class="noor-panda-inner">
+      <svg viewBox="0 0 100 100" width="64" height="64">
+        <ellipse cx="26" cy="20" rx="13" ry="13" fill="#1a1a22"/>
+        <ellipse cx="74" cy="20" rx="13" ry="13" fill="#1a1a22"/>
+        <circle cx="50" cy="52" r="38" fill="#ffffff"/>
+        <ellipse cx="32" cy="46" rx="12" ry="14" fill="#1a1a22"/>
+        <ellipse cx="68" cy="46" rx="12" ry="14" fill="#1a1a22"/>
+        <circle cx="32" cy="46" r="4" fill="#fff"/>
+        <circle cx="68" cy="46" r="4" fill="#fff"/>
+        <ellipse cx="50" cy="62" rx="7" ry="5" fill="#1a1a22"/>
+        <path id="noor-panda-mouth" class="noor-panda-mouth" d="M38 72 Q50 78 62 72" stroke="#1a1a22" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
 </body>
 </html>
