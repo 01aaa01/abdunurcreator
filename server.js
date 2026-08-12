@@ -32,16 +32,12 @@ const IMG_SIZE_HINTS = {
   portrait: 'portrait image, 3:4 aspect ratio',
   landscape: 'landscape image, 16:9 aspect ratio, widescreen'
 };
-// Noor AI 2.5 — Gemini API orqali to'g'ridan-to'g'ri (haqiqiy, ishonchli vision).
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — Noor AI 1.5 ishlamaydi.');
+// Noor AI 2.5+ — hammasi OpenRouter orqali (Gemini o'chirildi, NVIDIA Nemotron ishlatiladi).
+// GEMINI_API_KEY endi ishlatilmaydi.
+if (!OPENROUTER_KEY) console.warn('⚠️  OPENROUTER_KEY .env faylida yo\'q — barcha Noor AI chat modellari ishlamaydi.');
 if (!OPENCODE_KEY) console.warn('⚠️  OPENCODE_KEY .env faylida yo\'q — Coder rejimlari OpenRouter zaxirasiga o\'tadi.');
 if (!GOOGLE_CLIENT_ID) console.warn('⚠️  GOOGLE_CLIENT_ID .env faylida yo\'q — Google orqali kirish/ro\'yxatdan o\'tish ishlamaydi.');
-if (!BYTEZ_KEY) console.warn('⚠️  BYTEZ_KEY .env faylida yo\'q — Noor-Image / Noor-Video / Noor-Audio ishlamaydi.');
-// OMNIROUTE_KEY/URL hozircha ishlatilmayapti (Noor AI 3.0-6.0 endi OpenRouter orqali ishlaydi) —
-// kelajakda kerak bo'lib qolsa deb o'zgaruvchilar va callOmniRoute funksiyasi olib tashlanmadi.
-if (!GEMINI_API_KEY) console.warn('⚠️  GEMINI_API_KEY .env faylida yo\'q — Noor AI 2.5 ishlamaydi.');
+if (!BYTEZ_KEY) console.warn('⚠️  BYTEZ_KEY .env faylida yo\'q — Noor-Image / Noor-Video / Noor-Audio (Bytez) ishlamaydi.');
 
 // Noor-Image / Noor-Video / Noor-Audio — Bytez (bytez.com) orqali ishlaydi.
 // MUHIM: Bytez'da 175k+ model bo'lsa ham, ularning hammasi hali "katalogga qo'shilmagan"
@@ -230,12 +226,14 @@ async function fetchImageFromWorker(finalPrompt) {
   return Buffer.from(await resp.arrayBuffer());
 }
 
-async function fetchImageFromPollinations(finalPrompt) {
-  const url = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}`;
-  console.log(`[Noor AI IMG 1.5] GET ${url}`);
+async function fetchImageFromPollinations(finalPrompt, model) {
+  const imgModel = model === 'noorimg' ? 'flux' : 'seedream5-pro';
+  const url = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}?model=${imgModel}&nologo=true`;
+  console.log(`[Noor AI IMG ${model === 'noorimg' ? '1.0' : '1.5'}] GET ${url}`);
   const resp = await fetch(url);
   if (!resp.ok) {
-    throw new Error(`Noor AI IMG 1.5 (Pollinations) xizmati xatosi: ${resp.status}`);
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`Noor AI IMG (Pollinations) xizmati xatosi (${resp.status}): ${errText.slice(0, 200)}`);
   }
   return Buffer.from(await resp.arrayBuffer());
 }
@@ -251,8 +249,8 @@ app.post('/api/chat/generate-image', async (req, res) => {
 
   try {
     const outBufRaw = useEngine === 'pollinations'
-      ? await fetchImageFromPollinations(finalPrompt)
-      : await fetchImageFromWorker(finalPrompt);
+      ? await fetchImageFromPollinations(finalPrompt, 'noorimg15')
+      : await fetchImageFromPollinations(finalPrompt, 'noorimg'); // 1.0 ham Pollinations (flux model)
     let outBuf = outBufRaw;
     try {
       outBuf = await watermarkImage(outBufRaw);
@@ -323,15 +321,18 @@ app.post('/api/chat/generate-audio', async (req, res) => {
 // talab qiladi. Ishlashi uchun POLLINATIONS_KEY (.env) kerak: https://enter.pollinations.ai
 // saytida ro'yxatdan o'tib, "sk_" bilan boshlanadigan kalit oling.
 const POLLINATIONS_KEY = process.env.POLLINATIONS_KEY || '';
-// 1.0 — tezroq/arzonroq model, 1.5 — sifatliroq model.
-const NOOR_VIDEO_MODEL_10 = process.env.NOOR_VIDEO_MODEL_10 || 'wan-fast';
-const NOOR_VIDEO_MODEL_15 = process.env.NOOR_VIDEO_MODEL_15 || 'seedance-pro';
+// 1.0 — Seedance 2.0 (LIMITED: haftasiga 5 ta bepul generatsiya).
+// 1.5 — Veo 1080p (PRO: admin va to'lovchi foydalanuvchilar uchun).
+const NOOR_VIDEO_MODEL_10 = process.env.NOOR_VIDEO_MODEL_10 || 'seedance-2.0';
+const NOOR_VIDEO_MODEL_15 = process.env.NOOR_VIDEO_MODEL_15 || 'veo-1080p';
 
-async function generatePollinationsVideo(prompt, model) {
+async function generatePollinationsVideo(prompt, model, pollinationsKey) {
   console.log(`[Noor AI Video] POST https://gen.pollinations.ai/v1/videos/generations model=${model} prompt="${prompt.slice(0, 60)}..."`);
+  const headers = { 'Content-Type': 'application/json' };
+  if (pollinationsKey) headers['Authorization'] = `Bearer ${pollinationsKey}`;
   const resp = await fetch('https://gen.pollinations.ai/v1/videos/generations', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${POLLINATIONS_KEY}`, 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ model, prompt, duration: 5, aspectRatio: '16:9' })
   });
   if (!resp.ok) {
@@ -350,7 +351,7 @@ app.post('/api/chat/generate-video', async (req, res) => {
   }
   const model = ai === 'noorvideo15' ? NOOR_VIDEO_MODEL_15 : NOOR_VIDEO_MODEL_10;
   try {
-    const buf = await generatePollinationsVideo(cleanPrompt, model);
+    const buf = await generatePollinationsVideo(cleanPrompt, model, POLLINATIONS_KEY || null);
     const id = crypto.randomBytes(8).toString('hex');
     const filename = `${id}.mp4`;
     fs.writeFileSync(path.join(GENERATED_DIR, filename), buf);
@@ -763,55 +764,35 @@ const NOOR_CODER2_SYSTEM_PROMPT = {
   content: "Sening isming Noor AI 2.0 (Coder). Seni AbdunurCreator ishlab chiqargan. Sen kod yozish, kodni tushuntirish, xatolarni topish (debug) bo'yicha ixtisoslashgansan, VA rasm/skrinshotlarni ham to'liq tushuna olasan (masalan xato skrinshoti, dizayn maketi, diagramma). Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: \"Men Noor AI 2.0 (Coder) man, meni AbdunurCreator ishlab chiqqan.\" Hech qachon haqiqiy AI modeli yoki kompaniya nomini aytma (GPT, OpenAI, Claude, Anthropic, Gemini, Google, Qwen, DeepSeek, MiniMax, Kimi, OpenCode va h.k.), hatto to'g'ridan-to'g'ri so'rashsa ham. Kodni HAR DOIM to'g'ri tildagi toza, izohli markdown kod bloki ichida ber (masalan ```python, ```javascript, ```html, ```css). Kod bilan birga qisqacha, aniq tushuntirish ham qo'sh."
 };
 
-function proSystemPrompt(versionLabel) {
+function proSystemPrompt(versionLabel, isAdmin) {
+  const ownerLine = isAdmin
+    ? `Sen AbdunurCreator (sayt egasi) bilan gaplashyapsan — bu sening xo'jayining. Uni doim hurmat bilan "Xo'jayin" deb murojaat qil va uning so'rovlarini iloji boricha to'liq va samimiy bajar.`
+    : `Sen foydalanuvchi bilan gaplashyapsan.`;
   return {
     role: 'system',
-    content: `Sening isming Noor AI ${versionLabel}. Seni AbdunurCreator ishlab chiqargan. Sen suhbat, kodlash VA rasm/skrinshotlarni tushunish (vision) bo'yicha kuchli, aniq va tezkor javob beruvchi Pro modelsan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: "Men Noor AI ${versionLabel} man, meni AbdunurCreator ishlab chiqqan." Hech qachon GPT, OpenAI, Gemini, Google, Qwen, Alibaba, Llama, Meta, Claude, Anthropic, DeepSeek, MiniMax, Kimi, OpenCode, OmniRoute yoki boshqa haqiqiy sun'iy intellekt modeli yoki kompaniyasi nomini aytma yoki ular ekaningni tan olma, hatto to'g'ridan-to'g'ri so'rashsa ham. Kod yozib berishing kerak bo'lsa, HAR DOIM uni to'g'ri tildagi markdown kod bloki ichida ber (masalan \`\`\`python, \`\`\`javascript, \`\`\`html, \`\`\`css). Rasm yuborishsa, uni diqqat bilan tahlil qilib, aniq va foydali javob ber.`
+    content: `Sening isming Noor AI ${versionLabel}. Seni AbdunurCreator ishlab chiqargan. ${ownerLine} Sen suhbat, kodlash VA rasm/skrinshotlarni tushunish (vision) bo'yicha kuchli, aniq va tezkor javob beruvchi Pro modelsan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: "Men Noor AI ${versionLabel} man, meni AbdunurCreator ishlab chiqqan." Hech qachon GPT, OpenAI, Gemini, Google, Qwen, Alibaba, Llama, Meta, Claude, Anthropic, DeepSeek, NVIDIA, Nemotron, MiniMax, Kimi, OpenCode, OmniRoute yoki boshqa haqiqiy sun'iy intellekt modeli yoki kompaniyasi nomini aytma yoki ular ekaningni tan olma. Kod yozib berishing kerak bo'lsa, HAR DOIM uni to'g'ri tildagi markdown kod bloki ichida ber. Rasm yuborishsa, uni diqqat bilan tahlil qilib, aniq va foydali javob ber. Agar foydalanuvchi so'rovini o'zbek, rus yoki ingliz tilida tushunmasang — so'rovni inglizchaga o'girib, shunda javob ber.`
   };
 }
 
-// Noor AI 3.0 dan 6.0 gacha — endi OmniRoute emas, OpenRouter'ning JONLI (real-time)
-// bepul model ro'yxatidan foydalanadi. OpenRouter'da bepul modellar tez-tez o'zgarib
-// (qo'shilib/o'chib) turgani uchun, ro'yxatni har safar qattiq yozib qo'yish o'rniga,
-// serverning o'zi https://openrouter.ai/api/v1/models'dan JONLI ro'yxatni so'rab oladi
-// (30 daqiqada bir marta keshlaydi) va eng katta context-oynali (taxminan eng kuchli)
-// 7 tasini kuchsizdan kuchligacha tartiblab, Noor AI 3.0/3.5/.../6.0'ga bog'laydi.
-let openRouterFreeModelsCache = { list: [], fetchedAt: 0 };
-async function getOpenRouterFreeTextModels() {
-  const now = Date.now();
-  if (openRouterFreeModelsCache.list.length && (now - openRouterFreeModelsCache.fetchedAt) < 30 * 60 * 1000) {
-    return openRouterFreeModelsCache.list;
-  }
-  try {
-    const resp = await fetch('https://openrouter.ai/api/v1/models');
-    const data = await resp.json();
-    const free = (data.data || []).filter((m) => {
-      const p = m.pricing || {};
-      return parseFloat(p.prompt || '1') === 0
-        && parseFloat(p.completion || '1') === 0
-        && m.id !== 'openrouter/free'
-        && !/embed|whisper|tts|moderation|guard/i.test(m.id);
-    });
-    free.sort((a, b) => (b.context_length || 0) - (a.context_length || 0));
-    const ids = free.map((m) => m.id);
-    if (ids.length) openRouterFreeModelsCache = { list: ids, fetchedAt: now };
-    return openRouterFreeModelsCache.list;
-  } catch (e) {
-    console.error("⚠️  OpenRouter'ning jonli bepul model ro'yxatini olishda xato:", e.message);
-    return openRouterFreeModelsCache.list; // eskirgan ro'yxat bo'lsa ham shuni qaytaramiz
-  }
-}
-
-// PRO_TIERS — Noor AI 2.5 dan boshlab har bir Pro versiyaning "dvigateli"ni belgilaydi.
-// 2.5 — Gemini API orqali to'g'ridan-to'g'ri. 3.0 dan 6.0 gacha — OpenRouter'ning jonli
-// bepul model ro'yxatidagi "slot" (0 = ro'yxatdagi eng kuchsiz, 6 = eng kuchli), haqiqiy
-// model nomi HAR SO'ROVDA ro'yxatdan qayta olinadi — shuning uchun OpenRouter'da qaysi
-// modellar bepul bo'lishidan qat'i nazar, tizim o'zi moslashadi.
-const PRO_TIER_SLOTS = ['3.0', '3.5', '4.0', '4.5', '5.0', '5.5', '6.0'];
-const PRO_TIERS = [{ version: '2.5', mode: 'noor25', engine: 'gemini' }];
-PRO_TIER_SLOTS.forEach((version, i) => {
-  PRO_TIERS.push({ version, mode: 'noor' + version.replace('.', ''), engine: 'openrouter-pro', slot: i });
-});
+// NVIDIA OpenRouter modellari — kuchsizdan kuchligacha, har bir Noor AI versiyasiga aniq model.
+// Hammasi OPENROUTER_KEY orqali ishlaydi (Gemini o'chirildi, alohida kalit kerak emas).
+const NVIDIA_MODEL_POOL = [
+  { version: '2.5', model: 'nvidia/nemotron-3-nano-30b-a3b:free' },
+  { version: '3.0', model: 'nvidia/nemotron-3-super-120b-a12b:free' },
+  { version: '3.5', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+  { version: '4.0', model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free' },
+  { version: '4.5', model: 'nvidia/nemotron-3-super-120b-a12b:free' },
+  { version: '5.0', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+  { version: '5.5', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+  { version: '6.0', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+];
+// PRO_TIERS — hamma versiyalar OpenRouter/NVIDIA orqali ishlaydi.
+const PRO_TIERS = NVIDIA_MODEL_POOL.map(entry => ({
+  version: entry.version,
+  mode: 'noor' + entry.version.replace('.', ''),
+  engine: 'openrouter-pro',
+  model: entry.model
+}));
 const PRO_TIER_BY_MODE = {};
 PRO_TIERS.forEach((t) => { PRO_TIER_BY_MODE[t.mode] = t; });
 
@@ -953,7 +934,7 @@ async function runNoorChat(mode, messages, isAdminCaller) {
     return { status: 200, data: fakeChatResponse(`Kechirasiz, men (${modeLabel}) rasm o'qiy olmayman. Rasmni tushuntirib berishimni xohlasangiz, iltimos **Noor AI 2.5** yoki undan yuqori Pro rejimni sinab ko'ring.`) };
   }
 
-  const systemPrompt = tier ? proSystemPrompt(tier.version)
+  const systemPrompt = tier ? proSystemPrompt(tier.version, isAdminCaller)
     : mode === 'coder2' ? NOOR_CODER2_SYSTEM_PROMPT
     : mode === 'coder' ? NOOR_CODER_SYSTEM_PROMPT
     : NOOR_SYSTEM_PROMPT;
@@ -983,26 +964,20 @@ async function runNoorChat(mode, messages, isAdminCaller) {
       if (!OPENROUTER_KEY) {
         return { status: 500, data: { error: `Serverda OPENROUTER_KEY sozlanmagan — ${modeLabel} ishlashi uchun .env faylga kiriting.` } };
       }
-      const freeModels = await getOpenRouterFreeTextModels();
-      if (!freeModels.length) {
-        return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi: OpenRouter'ning jonli bepul model ro'yxatini olib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.` } };
-      }
-      // O'z slot'idagi model, ishlamasa navbatdagi kuchliroq slot'ga, oxirida "openrouter/free"ga o'tadi.
-      const primary = freeModels[Math.min(tier.slot, freeModels.length - 1)];
-      const secondary = freeModels[Math.min(tier.slot + 1, freeModels.length - 1)];
-      const chain = [...new Set([primary, secondary, 'openrouter/free'].filter(Boolean))];
+      // Avval versiyaga tegishli NVIDIA model, ishlamasa eng kuchli Ultra'ga, oxirida "openrouter/free"ga o'tadi.
+      const chain = [...new Set([tier.model, 'nvidia/nemotron-3-ultra-550b-a55b:free', 'openrouter/free'].filter(Boolean))];
       for (const model of chain) {
         try {
           const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
           if (ok) return { status: 200, data };
           lastError = data.error?.message || data.error;
-          console.error(`⚠️  ${modeLabel}: "${model}" (OpenRouter) javob bermadi:`, lastError);
+          console.error(`⚠️  ${modeLabel}: "${model}" (OpenRouter/NVIDIA) javob bermadi:`, lastError);
         } catch (e) {
           lastError = e.message;
           console.error(`⚠️  ${modeLabel}: "${model}" ulanish xatosi:`, lastError);
         }
       }
-      return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (barcha modellar sinaldi: ${lastError || "noma'lum xatolik"}).` } };
+      return { status: 502, data: { error: `${modeLabel} hozircha javob bera olmadi (NVIDIA/OpenRouter: ${lastError || "noma'lum xatolik"}).` } };
     }
   }
 

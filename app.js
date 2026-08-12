@@ -1500,6 +1500,9 @@ function syncModelPickerUI(mode) {
     const active = it.dataset.value === mode;
     it.classList.toggle('active', active);
     if (active) matched = it;
+    // PRO tag: admin bo'lsa "PRO" ko'rinadi, boshqalarga "🔒"
+    const tag = it.querySelector('.model-picker-tag-pro');
+    if (tag) tag.textContent = isAdmin ? 'PRO' : '🔒';
   });
   if (matched) label.textContent = matched.dataset.label || matched.textContent.trim();
 }
