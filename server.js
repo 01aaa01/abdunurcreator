@@ -227,9 +227,11 @@ async function fetchImageFromWorker(finalPrompt) {
 }
 
 async function fetchImageFromPollinations(finalPrompt, model) {
-  const imgModel = model === 'noorimg' ? 'flux' : 'seedream5-pro';
-  const url = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}?model=${imgModel}&nologo=true`;
-  console.log(`[Noor AI IMG ${model === 'noorimg' ? '1.0' : '1.5'}] GET ${url}`);
+  const imgModel = model === 'noorimg' ? 'flux' : 'seedream5';
+  const params = new URLSearchParams({ model: imgModel, nologo: 'true' });
+  if (POLLINATIONS_KEY) params.set('key', POLLINATIONS_KEY);
+  const url = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}?${params}`;
+  console.log(`[Noor AI IMG ${model === 'noorimg' ? '1.0' : '1.5'}] GET ${url.replace(POLLINATIONS_KEY || '__', '***')}`);
   const resp = await fetch(url);
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
@@ -272,24 +274,21 @@ app.post('/api/chat/generate-image', async (req, res) => {
 // Ulashish sahifasi — link bosilganda shu yerda ko'rinadi (saytning o'zida, tashqarida emas)
 // === Noor Audio — matnni ovozga aylantirish (Fish Audio S2.1 Pro Free, OpenRouter orqali) ===
 // Raqamsiz — "Noor Audio" (versiyasiz nom, aynan so'ralganidek).
-const FISH_TTS_MODEL = process.env.FISH_TTS_MODEL || 'fish-audio/s2.1-pro';
-// Fish Audio S2.1 Pro bir nechta nomlangan ovozni qo'llab-quvvatlaydi — foydalanuvchi
-// tanlashi uchun bir nechtasi shu yerda ro'yxatlangan (.env orqali kengaytirish mumkin).
+// Pollinations TTS ovozlari — docs'dan olingan haqiqiy nomlar
 const NOOR_AUDIO_VOICES = {
-  standard: undefined, // provayderning standart ovozi
-  male: 'male-1',
-  female: 'female-1'
+  standard: 'nova',
+  male:     'onyx',
+  female:   'nova'
 };
 
 async function generateNoorAudioBuffer(text, voiceKey) {
-  const voice = NOOR_AUDIO_VOICES[voiceKey];
-  const body = { model: FISH_TTS_MODEL, input: text, response_format: 'mp3' };
-  if (voice) body.voice = voice;
-  console.log(`[Noor Audio] POST https://openrouter.ai/api/v1/audio/speech model=${FISH_TTS_MODEL} voice=${voice || '(standart)'} matn="${text.slice(0, 60).replace(/\n/g, ' ')}..."`);
-  const resp = await fetch('https://openrouter.ai/api/v1/audio/speech', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${OPENROUTER_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+  const voice = NOOR_AUDIO_VOICES[voiceKey] || 'nova';
+  const body = { input: text, voice, response_format: 'mp3' };
+  const headers = { 'Content-Type': 'application/json' };
+  if (POLLINATIONS_KEY) headers['Authorization'] = `Bearer ${POLLINATIONS_KEY}`;
+  console.log(`[Noor Audio] POST https://gen.pollinations.ai/v1/audio/speech voice=${voice}`);
+  const resp = await fetch('https://gen.pollinations.ai/v1/audio/speech', {
+    method: 'POST', headers, body: JSON.stringify(body)
   });
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
@@ -300,9 +299,8 @@ async function generateNoorAudioBuffer(text, voiceKey) {
 
 app.post('/api/chat/generate-audio', async (req, res) => {
   const { text, voice } = req.body || {};
-  const cleanText = String(text || '').trim().slice(0, 2000);
+  const cleanText = String(text || '').trim().slice(0, 4000);
   if (!cleanText) return res.status(400).json({ error: "Nima deb gapirtirish kerakligini yozing." });
-  if (!OPENROUTER_KEY) return res.status(500).json({ error: 'Serverda OPENROUTER_KEY sozlanmagan — Noor Audio ishlashi uchun kerak.' });
 
   try {
     const buf = await generateNoorAudioBuffer(cleanText, voice);
@@ -327,17 +325,20 @@ const NOOR_VIDEO_MODEL_10 = process.env.NOOR_VIDEO_MODEL_10 || 'seedance-2.0';
 const NOOR_VIDEO_MODEL_15 = process.env.NOOR_VIDEO_MODEL_15 || 'veo-1080p';
 
 async function generatePollinationsVideo(prompt, model, pollinationsKey) {
-  console.log(`[Noor AI Video] POST https://gen.pollinations.ai/v1/videos/generations model=${model} prompt="${prompt.slice(0, 60)}..."`);
-  const headers = { 'Content-Type': 'application/json' };
-  if (pollinationsKey) headers['Authorization'] = `Bearer ${pollinationsKey}`;
-  const resp = await fetch('https://gen.pollinations.ai/v1/videos/generations', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ model, prompt, duration: 5, aspectRatio: '16:9' })
-  });
+  // To'g'ri endpoint: GET /video/{prompt} — docs'dan olindi
+  const params = new URLSearchParams({ model, duration: '5', aspectRatio: '16:9', audio: 'true' });
+  if (pollinationsKey) params.set('key', pollinationsKey);
+  const url = `https://gen.pollinations.ai/video/${encodeURIComponent(prompt)}?${params}`;
+  console.log(`[Noor AI Video] GET .../video/... model=${model} prompt="${prompt.slice(0, 60)}..."`);
+  const resp = await fetch(url, { headers: pollinationsKey ? { 'Authorization': `Bearer ${pollinationsKey}` } : {} });
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
     throw new Error(`Noor AI Video xizmati xatosi (${resp.status}): ${errText.slice(0, 200)}`);
+  }
+  const ct = resp.headers.get('content-type') || '';
+  if (!ct.includes('video')) {
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`Noor AI Video video o'rniga boshqa narsa qaytardi (${ct}): ${errText.slice(0, 200)}`);
   }
   return Buffer.from(await resp.arrayBuffer());
 }
@@ -801,28 +802,26 @@ PRO_TIERS.forEach((t) => { PRO_TIER_BY_MODE[t.mode] = t; });
 // foydalanadi, shuning uchun rasm yuborilsa muloyimlik bilan rad etiladi.
 const VISION_CAPABLE_MODES = PRO_TIERS.map((t) => t.mode);
 
-// Noor AI 1.5 (umumiy) — OpenRouter'ning bepul router'i + zaxira modellar
+// Noor AI 1.5 (umumiy suhbat) — OpenRouter bepul modellar (tekshirilgan, haqiqiy nomlar)
 const NOOR_MODEL_CHAIN = [
-  'openrouter/free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
   'meta-llama/llama-3.3-70b-instruct:free',
-  'qwen/qwen3-coder:free',
-  'openai/gpt-oss-20b:free'
+  'qwen/qwen3-14b:free',
+  'openrouter/free'
 ];
 
-// Noor AI 1.0 (Coder) — OpenCode Zen'ning kodlash uchun ixtisoslashgan bepul modellari (vision yo'q)
+// Noor AI 1.0 (Coder) — kodlashga ixtisoslashgan bepul modellar
 const OPENCODE_MODEL_CHAIN = [
-  'big-pickle',
-  'deepseek-v4-flash-free',
-  'mimo-v2.5-free',
-  'hy3-free',
-  'nemotron-3-ultra-free',
-  'north-mini-code-free'
+  'qwen/qwen3-coder:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'openrouter/free'
 ];
-// OpenCode kaliti yo'q yoki barchasi ishlamasa, OpenRouter'dagi kodlash modellariga o'tamiz
 const CODER_OPENROUTER_FALLBACK = ['qwen/qwen3-coder:free', 'openrouter/free'];
 
 // Noor AI 2.0 (Coder) — kod + rasm/skrinshotni tushunadigan (vision) zanjir
-const CODER2_MODEL_CHAIN = ['openrouter/free', 'qwen/qwen3-coder:free'];
+const CODER2_MODEL_CHAIN = ['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'qwen/qwen3-coder:free', 'openrouter/free'];
 
 function messagesContainImage(messages) {
   return (messages || []).some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image_url'));
