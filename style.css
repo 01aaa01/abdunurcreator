@@ -607,3 +607,9 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 .chat-msg.typing-active::after{content:'▋';display:inline-block;margin-left:4px;color:var(--c);font-weight:bold;animation:cursorBlink 0.6s infinite alternate;}
 @keyframes cursorBlink{0%{opacity:1;filter:drop-shadow(0 0 5px var(--c));}100%{opacity:0.2;}}
 .chat-msg-speak-btn.speaking{color:var(--c);border-color:rgba(0,212,255,.4);}
+
+.download-win-btn{width:100%;padding:10px 16px;border-radius:12px;background:linear-gradient(135deg,rgba(0,212,255,.15),rgba(108,92,231,.25));border:1px solid rgba(0,212,255,.35);color:#fff;font-family:var(--dp);font-weight:600;font-size:.85rem;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s;margin-top:8px;}
+.download-win-btn:hover{transform:translateY(-2px);background:linear-gradient(135deg,rgba(0,212,255,.3),rgba(108,92,231,.4));box-shadow:0 6px 20px rgba(0,212,255,.3);}
+
+.download-win-main-btn{padding:14px 28px;border-radius:100px;background:linear-gradient(135deg,#00d4ff,#6c5ce7);color:#fff;font-family:var(--dp);font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:10px;cursor:pointer;border:none;box-shadow:0 8px 25px rgba(0,212,255,.35);transition:transform .25s,box-shadow .25s;}
+.download-win-main-btn:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 12px 32px rgba(0,212,255,.55);}

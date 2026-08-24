@@ -1546,6 +1546,18 @@ async function sendChatMsg() {
   inputEl.value = '';
   clearPendingChatImage();
 
+  // Add Typing Indicator (3 ta nuqtacha)
+  const typingIndicator = document.createElement('div');
+  typingIndicator.className = 'typing-indicator';
+  typingIndicator.id = 'chat-typing-indicator';
+  typingIndicator.innerHTML = `
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+  `;
+  container.appendChild(typingIndicator);
+  container.scrollTop = container.scrollHeight;
+
   // Disable input & send button
   inputEl.disabled = true;
   sendBtn.disabled = true;
@@ -1557,6 +1569,10 @@ async function sendChatMsg() {
       body: JSON.stringify({ messages: chatHistory, mode: currentChatMode, password: isAdmin ? adminPass : '' })
     });
     const d = await r.json();
+
+    // Remove Typing Indicator
+    const indicator = document.getElementById('chat-typing-indicator');
+    if (indicator) indicator.remove();
 
     if (r.ok) {
       const aiReply = d.choices[0].message.content;
@@ -1749,6 +1765,37 @@ if (chatMsgContainer) {
   chatMsgContainer.addEventListener('drop', (e) => {
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
     if (file) handleChatImageFile(file);
+  });
+}
+
+// === WINDOWS DESKTOP APP (PWA & Service Worker) BOSHGARUVI ===
+let deferredPwaPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPwaPrompt = e;
+  const btns = document.querySelectorAll('.download-win-btn, .download-win-main-btn');
+  btns.forEach(btn => btn.classList.add('ready-to-install'));
+});
+
+async function installWindowsApp() {
+  if (deferredPwaPrompt) {
+    deferredPwaPrompt.prompt();
+    const choice = await deferredPwaPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      noorToast("AbdunurCreator Windows kompyuteringizga muvaffaqiyatli o'rnatildi! 🎉");
+    }
+    deferredPwaPrompt = null;
+  } else {
+    noorToast("Windows kompyuterga o'rnatish uchun brauzer tepasidagi 'O'rnatish' (Install App) belgisini bosing.");
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => console.log('ServiceWorker registered:', reg.scope))
+      .catch((err) => console.warn('ServiceWorker error:', err));
   });
 }
 
