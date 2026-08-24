@@ -1332,9 +1332,9 @@ function appendTypewriterBubble(fullText, sender, skipListenBtn = false, onCompl
 
   let currentIndex = 0;
   const totalLength = fullText.length;
-  // Matn hajmiga qarab tezlik va qadam o'lchami
-  const chunkSize = totalLength > 1200 ? 8 : (totalLength > 400 ? 5 : 2);
-  const intervalTime = 12;
+  // Matn hajmiga qarab o'ta tez yozish (tez va chaqqon)
+  const chunkSize = totalLength > 1500 ? 24 : (totalLength > 500 ? 14 : 6);
+  const intervalTime = 6;
 
   const timer = setInterval(() => {
     currentIndex += chunkSize;
@@ -1546,18 +1546,6 @@ async function sendChatMsg() {
   inputEl.value = '';
   clearPendingChatImage();
 
-  // Add Typing Indicator
-  const typingIndicator = document.createElement('div');
-  typingIndicator.className = 'typing-indicator';
-  typingIndicator.id = 'chat-typing-indicator';
-  typingIndicator.innerHTML = `
-    <div class="typing-dot"></div>
-    <div class="typing-dot"></div>
-    <div class="typing-dot"></div>
-  `;
-  container.appendChild(typingIndicator);
-  container.scrollTop = container.scrollHeight;
-
   // Disable input & send button
   inputEl.disabled = true;
   sendBtn.disabled = true;
@@ -1569,10 +1557,6 @@ async function sendChatMsg() {
       body: JSON.stringify({ messages: chatHistory, mode: currentChatMode, password: isAdmin ? adminPass : '' })
     });
     const d = await r.json();
-
-    // Remove Typing Indicator
-    const indicator = document.getElementById('chat-typing-indicator');
-    if (indicator) indicator.remove();
 
     if (r.ok) {
       const aiReply = d.choices[0].message.content;
