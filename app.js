@@ -840,34 +840,142 @@ document.getElementById('create-img-close-btn')?.addEventListener('click', exitG
 document.getElementById('create-audio-close-btn')?.addEventListener('click', exitGenPanelsToGeneral);
 document.getElementById('create-video-close-btn')?.addEventListener('click', exitGenPanelsToGeneral);
 
-// === Panda avatar boshqaruvi (Noor Audio ijro etilayotganda ko'rinadi va "gapiradi") ===
+// === Panda avatar boshqaruvi (Noor Audio ijro etilayotganda pastdan uchib keladi va "gapiradi") ===
 let noorAudioPlayer = null;
-function showNoorPanda() { document.getElementById('noor-panda')?.classList.remove('hidden'); }
-function hideNoorPanda() { document.getElementById('noor-panda')?.classList.add('hidden'); document.getElementById('noor-panda')?.classList.remove('talking'); }
-function setNoorPandaTalking(isTalking) { document.getElementById('noor-panda')?.classList.toggle('talking', isTalking); }
+let pandaHideTimer = null;
+
+function showNoorPanda() {
+  clearTimeout(pandaHideTimer);
+  const panda = document.getElementById('noor-panda');
+  if (!panda) return;
+  panda.classList.remove('hidden', 'fly-out');
+  panda.classList.add('fly-in');
+}
+
+function hideNoorPanda() {
+  const panda = document.getElementById('noor-panda');
+  if (!panda) return;
+  panda.classList.remove('talking', 'fly-in');
+  panda.classList.add('fly-out');
+  clearTimeout(pandaHideTimer);
+  pandaHideTimer = setTimeout(() => {
+    panda.classList.add('hidden');
+    panda.classList.remove('fly-out');
+  }, 500);
+}
+
+function setNoorPandaTalking(isTalking) {
+  document.getElementById('noor-panda')?.classList.toggle('talking', isTalking);
+}
 
 function playNoorAudio(audioUrl, onEnd) {
-  if (noorAudioPlayer) { noorAudioPlayer.pause(); noorAudioPlayer = null; }
+  if (noorAudioPlayer) {
+    noorAudioPlayer.pause();
+    noorAudioPlayer = null;
+  }
   const audio = new Audio(BASE_URL + audioUrl);
   noorAudioPlayer = audio;
   showNoorPanda();
   setNoorPandaTalking(true);
-  audio.addEventListener('ended', () => { setNoorPandaTalking(false); hideNoorPanda(); if (onEnd) onEnd(); });
-  audio.addEventListener('error', () => { setNoorPandaTalking(false); hideNoorPanda(); });
-  audio.play().catch(() => { setNoorPandaTalking(false); hideNoorPanda(); });
+  audio.addEventListener('ended', () => {
+    setNoorPandaTalking(false);
+    hideNoorPanda();
+    if (onEnd) onEnd();
+  });
+  audio.addEventListener('error', () => {
+    setNoorPandaTalking(false);
+    hideNoorPanda();
+  });
+  audio.play().catch(() => {
+    setNoorPandaTalking(false);
+    hideNoorPanda();
+  });
   return audio;
+}
+
+// === MIKROFON (Speech Recognition — Ovozni Matnga aylantirish) ===
+let recognition = null;
+let isRecordingVoice = false;
+let isVoiceSession = false; // foydalanuvchi mikrofonda gapirgan bo'lsa AI ham avtomatik gapiradi
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return null;
+  const rec = new SpeechRecognition();
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.lang = 'uz-UZ'; // Standart O'zbek tili
+  return rec;
+}
+
+function toggleVoiceRecording() {
+  const micBtn = document.getElementById('chat-mic-btn');
+  const inputEl = document.getElementById('chat-user-input');
+  
+  if (isRecordingVoice) {
+    if (recognition) recognition.stop();
+    return;
+  }
+
+  recognition = initSpeechRecognition();
+  if (!recognition) {
+    noorToast("Brauzeringiz ovoz yozishni (Web Speech API) qo'llab-quvvatlamaydi. Chrome/Edge ishlatib ko'ring.");
+    return;
+  }
+
+  recognition.onstart = () => {
+    isRecordingVoice = true;
+    micBtn?.classList.add('recording');
+    inputEl.placeholder = "Gapiring, eshitayapman...";
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    if (transcript) {
+      inputEl.value = transcript;
+      isVoiceSession = true; // AI javobi ham javoban avtomatik gapirib beradi
+      sendChatMsg();
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.warn("Speech recognition error:", event.error);
+    noorToast("Ovozni aniqlashda xato: " + event.error);
+    stopRecordingUI();
+  };
+
+  recognition.onend = () => {
+    stopRecordingUI();
+  };
+
+  try {
+    recognition.start();
+  } catch (e) {
+    stopRecordingUI();
+  }
+}
+
+function stopRecordingUI() {
+  isRecordingVoice = false;
+  const micBtn = document.getElementById('chat-mic-btn');
+  const inputEl = document.getElementById('chat-user-input');
+  micBtn?.classList.remove('recording');
+  const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+  inputEl.placeholder = t('chat.inputPh', 'AI ga savol bering yoki rasm tashlang...');
 }
 
 // Har qanday AI chat javobini "tinglash" — matnni Noor Audio orqali ovozga aylantiradi.
 async function speakText(text, btnEl) {
   const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
   if (!text) return;
+  // HTML teglari va markdown simvollarini tozalaymiz (toza talaffuz uchun)
+  const cleanSpeechText = text.replace(/```[\s\S]*?```/g, ' [kod bloki] ').replace(/[#*`_~]/g, '').slice(0, 1500);
   if (btnEl) { btnEl.disabled = true; btnEl.classList.add('speaking'); }
   try {
     const r = await fetch(BASE_URL + '/api/chat/generate-audio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text.slice(0, 2000), voice: 'standard' })
+      body: JSON.stringify({ text: cleanSpeechText, voice: 'standard' })
     });
     const d = await r.json();
     if (r.ok) {
@@ -1426,6 +1534,10 @@ async function sendChatMsg() {
       displayAiReply(aiReply);
       chatHistory.push({ role: 'assistant', content: aiReply });
       persistActiveSession(text || 'Rasm bilan suhbat');
+      if (isVoiceSession) {
+        speakText(aiReply);
+        isVoiceSession = false;
+      }
     } else {
       appendChatBubble('Xatolik: ' + (d.error || 'Ulanib bo\'lmadi.'), 'system');
     }
