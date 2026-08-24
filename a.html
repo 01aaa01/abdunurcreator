@@ -283,14 +283,93 @@
             <button type="button" class="create-img-close" id="create-img-close-btn" title="Yopish">&times;</button>
           </div>
           <div class="create-video-panel hidden" id="create-video-panel">
-            <div class="create-img-row">
-              <label data-i18n="noorVideo.ai">AI</label>
-              <select id="create-video-ai-select">
-                <option value="noorvideo10">Noor AI Video 1.0</option>
-                <option value="noorvideo15">Noor AI Video 1.5</option>
-              </select>
+            <div class="video-studio-header">
+              <div class="video-studio-title">
+                <span class="video-icon-badge">🎬</span>
+                <span>Noor AI Video 1.0 Studio</span>
+              </div>
+              <div class="video-studio-actions">
+                <button type="button" class="btn-video-history-toggle" id="btn-video-history-toggle" title="Video Tarixi">📜 Tarix</button>
+                <button type="button" class="create-img-close" id="create-video-close-btn" title="Yopish">&times;</button>
+              </div>
             </div>
-            <button type="button" class="create-img-close" id="create-video-close-btn" title="Yopish">&times;</button>
+
+            <!-- Video Studio Controls -->
+            <div class="video-studio-grid">
+              <div class="create-img-row">
+                <label data-i18n="noorVideo.ai">AI Model</label>
+                <select id="create-video-ai-select">
+                  <option value="noorvideo10">Noor AI Video 1.0 (Seedance 2.0)</option>
+                  <option value="noorvideo15">Noor AI Video 1.5 (Veo 1080p PRO)</option>
+                </select>
+              </div>
+
+              <!-- Duration selector -->
+              <div class="create-img-row">
+                <label>Davomiyligi</label>
+                <div class="video-pill-group" id="video-duration-pills">
+                  <button type="button" class="video-pill active" data-value="5">5 soniya</button>
+                  <button type="button" class="video-pill" data-value="10">10 soniya</button>
+                  <button type="button" class="video-pill" data-value="15">15 soniya</button>
+                </div>
+              </div>
+
+              <!-- Aspect Ratio selector -->
+              <div class="create-img-row">
+                <label>Format (Aspect Ratio)</label>
+                <div class="video-pill-group" id="video-ratio-pills">
+                  <button type="button" class="video-pill active" data-value="16:9">📺 16:9 (Desktop)</button>
+                  <button type="button" class="video-pill" data-value="9:16">📱 9:16 (Shorts/Reels)</button>
+                  <button type="button" class="video-pill" data-value="1:1">🔲 1:1 (Kvadrat)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Collapsible Advanced Settings -->
+            <details class="video-advanced-details">
+              <summary class="video-advanced-summary">⚙️ Kengaytirilgan Sozlamalar (Style, FPS, Camera Motion)</summary>
+              <div class="video-advanced-body">
+                <div class="create-img-row">
+                  <label>Uslub (Style)</label>
+                  <select id="video-style-select">
+                    <option value="cinematic">Cinematic Realism (Kinematografik)</option>
+                    <option value="cyberpunk">Cyberpunk Neon (Kiberpank)</option>
+                    <option value="anime">Anime / Stylized Animation</option>
+                    <option value="3d">Photorealistic 3D Render</option>
+                    <option value="minimalist">Minimalist Motion Graphics</option>
+                  </select>
+                </div>
+                <div class="create-img-row">
+                  <label>Kamera Harakati</label>
+                  <select id="video-camera-select">
+                    <option value="pan">Pan & Smooth Zoom (Silliq yaqinlashuv)</option>
+                    <option value="spin">Orbital Spin (Aylanma 360)</option>
+                    <option value="forward">Forward Tracking (Oldinga harakat)</option>
+                    <option value="static">Static Floating (Sokin suzuvchi)</option>
+                  </select>
+                </div>
+                <div class="create-img-row">
+                  <label>Kadr Tezligi (FPS)</label>
+                  <select id="video-fps-select">
+                    <option value="30">30 FPS (Standart Silliq)</option>
+                    <option value="60">60 FPS (Ultra Ultra-Silliq)</option>
+                    <option value="24">24 FPS (Kino Sifat)</option>
+                  </select>
+                </div>
+                <div class="create-img-row">
+                  <label>Inkor etuvchi matn (Negative Prompt)</label>
+                  <input type="text" id="video-negative-prompt" placeholder="blur, low quality, noise, artifacts..." autocomplete="off">
+                </div>
+              </div>
+            </details>
+
+            <!-- Video Generation History Modal/Drawer -->
+            <div class="video-history-panel hidden" id="video-history-panel">
+              <div class="video-history-title">📜 Yaratilgan Videolar Tarixi</div>
+              <div class="video-history-list" id="video-history-list">
+                <div class="video-history-empty">Hali hech qanday video yaratilmagan.</div>
+              </div>
+            </div>
           </div>
           <div class="create-audio-panel hidden" id="create-audio-panel">
             <div class="create-img-row">

@@ -1061,67 +1061,158 @@ async function sendNoorVideoGenRequest(prompt) {
   appendChatBubble(prompt, 'user');
   inputEl.value = '';
 
-  const typingIndicator = document.createElement('div');
-  typingIndicator.className = 'typing-indicator';
-  typingIndicator.id = 'chat-typing-indicator';
-  typingIndicator.innerHTML = `<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div><span style="margin-left:8px;font-size:.72rem;color:var(--td);">${t('noorVideo.wait', "Video yaratilmoqda, biroz kuting...")}</span>`;
-  container.appendChild(typingIndicator);
-  container.scrollTop = container.scrollHeight;
-  inputEl.disabled = true;
-
+  // Collect Studio settings
   const aiSel = document.getElementById('create-video-ai-select');
   const ai = aiSel ? aiSel.value : 'noorvideo10';
+  const durActive = document.querySelector('#video-duration-pills .video-pill.active');
+  const ratioActive = document.querySelector('#video-ratio-pills .video-pill.active');
+  const duration = durActive ? durActive.dataset.value : '5';
+  const aspectRatio = ratioActive ? ratioActive.dataset.value : '16:9';
+  const fps = (document.getElementById('video-fps-select') || {}).value || '30';
+  const style = (document.getElementById('video-style-select') || {}).value || 'cinematic';
+  const cameraMovement = (document.getElementById('video-camera-select') || {}).value || 'pan';
+  const negativePrompt = (document.getElementById('video-negative-prompt') || {}).value || '';
+
+  inputEl.disabled = true;
+
+  // Create a progress bubble in chat
+  const progressBubble = document.createElement('div');
+  progressBubble.className = 'chat-msg ai';
+  progressBubble.id = 'video-progress-bubble';
+  progressBubble.innerHTML = `
+    <div class="video-progress-card">
+      <div class="video-progress-text">
+        <span>🎬</span>
+        <span id="video-status-text">Preparing scene parameters...</span>
+      </div>
+      <div class="video-progress-bar-bg">
+        <div class="video-progress-bar-fill" id="video-progress-fill" style="width:10%"></div>
+      </div>
+    </div>`;
+  container.appendChild(progressBubble);
+  container.scrollTop = container.scrollHeight;
+
+  const STAGES = {
+    preparing: '🎯 Preparing video parameters & scene structure...',
+    planning:  '🧠 AI is planning camera movement & visual motion script...',
+    rendering: '🖼️ Generating visual frames & rendering composition...',
+    encoding:  '🎞️ Encoding high quality video stream...',
+    ready:     '✅ Video ready!'
+  };
+
+  let jobId = null;
+  let pollInterval = null;
+
+  function updateProgress(job) {
+    const fillEl = document.getElementById('video-progress-fill');
+    const textEl = document.getElementById('video-status-text');
+    if (fillEl) fillEl.style.width = Math.max(job.progress || 0, 5) + '%';
+    if (textEl) textEl.textContent = STAGES[job.stage] || job.statusText || 'Processing...';
+  }
+
+  function stopPolling() {
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  }
+
+  function onVideoReady(job) {
+    stopPolling();
+    const bubble = document.getElementById('video-progress-bubble');
+    if (bubble) bubble.remove();
+    appendGeneratedVideoBubble(job.videoUrl, job.shareUrl, prompt, duration, aspectRatio);
+    persistActiveSession(prompt);
+    loadVideoHistory();
+    inputEl.disabled = false;
+    inputEl.focus();
+  }
+
+  function onVideoError(errMsg) {
+    stopPolling();
+    const bubble = document.getElementById('video-progress-bubble');
+    if (bubble) bubble.remove();
+    appendChatBubble(`❌ Video yaratishda xatolik: ${errMsg || "Noma'lum xato"}. Qayta urining.`, 'system');
+    inputEl.disabled = false;
+    inputEl.focus();
+  }
 
   try {
     const r = await fetch(BASE_URL + '/api/chat/generate-video', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, ai })
+      body: JSON.stringify({ prompt, ai, duration, aspectRatio, fps, style, cameraMovement, negativePrompt })
     });
     const d = await r.json();
-    document.getElementById('chat-typing-indicator')?.remove();
-    if (r.ok) {
-      appendGeneratedVideoBubble(d.videoUrl, d.shareUrl, prompt);
-      persistActiveSession(prompt);
-    } else {
-      appendChatBubble('Xatolik: ' + (d.error || "Video yaratib bo'lmadi."), 'system');
-    }
+
+    if (!r.ok) { onVideoError(d.error || "Video yaratib bo'lmadi."); return; }
+
+    // If server returned completed immediately
+    if (d.status === 'completed') { onVideoReady(d.job || d); return; }
+
+    jobId = d.id;
+
+    // Start status polling
+    pollInterval = setInterval(async () => {
+      try {
+        const sr = await fetch(BASE_URL + '/api/chat/video-status/' + jobId);
+        const sj = await sr.json();
+        updateProgress(sj);
+        if (sj.status === 'completed') { onVideoReady(sj); }
+        else if (sj.status === 'failed') { onVideoError(sj.error || sj.statusText); }
+      } catch (pe) {
+        console.warn('[Noor Video] Status poll error:', pe);
+      }
+    }, 1200);
+
+    // Safety timeout — 5 minutes
+    setTimeout(() => {
+      if (pollInterval) {
+        stopPolling();
+        onVideoError("Video yaratish juda ko'p vaqt oldi. Qayta urinib ko'ring.");
+      }
+    }, 5 * 60 * 1000);
+
   } catch (e) {
-    document.getElementById('chat-typing-indicator')?.remove();
+    document.getElementById('video-progress-bubble')?.remove();
     appendChatBubble('Server bilan ulanishda xatolik yuz berdi.', 'system');
-  } finally {
     inputEl.disabled = false;
     inputEl.focus();
   }
 }
 
-function appendGeneratedVideoBubble(videoUrl, shareUrl, prompt) {
+function appendGeneratedVideoBubble(videoUrl, shareUrl, prompt, duration, aspectRatio) {
   const container = document.getElementById('chat-msg-container');
   const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
   const bubble = document.createElement('div');
-  bubble.className = 'chat-msg ai noor-img-bubble';
-  const fullShareUrl = window.location.origin + shareUrl;
+  bubble.className = 'chat-msg ai';
+  const fullShareUrl = window.location.origin + (shareUrl || '');
+  const metaText = [duration ? `${duration}s` : '', aspectRatio || ''].filter(Boolean).join(' · ');
   bubble.innerHTML = `
-    <video src="${videoUrl}" class="chat-generated-media" controls loop playsinline></video>
-    <div class="noor-img-actions">
-      <a class="noor-img-btn" href="${videoUrl}" download>⬇ ${t('createImg.download', 'Yuklab olish')}</a>
-      <button type="button" class="noor-img-btn noor-img-share-btn">🔗 ${t('createImg.share', 'Ulashish')}</button>
-    </div>
-    <div class="noor-img-share-box hidden">
-      <input type="text" readonly value="${fullShareUrl}">
-      <button type="button" class="noor-img-copy-btn">${t('createImg.copy', 'Nusxalash')}</button>
+    <div class="noor-video-card">
+      <video src="${videoUrl}" class="noor-video-player-el" controls autoplay loop playsinline></video>
+      <div class="noor-video-card-meta">
+        <div class="noor-video-prompt-text">🎬 ${escapeHtml((prompt || '').slice(0, 80))}${metaText ? ` <span style="opacity:.55;font-size:.7rem;">(${metaText})</span>` : ''}</div>
+        <a class="noor-video-download-btn" href="${videoUrl}" download>⬇ ${t('createImg.download', 'Yuklab olish')}</a>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="noor-img-btn noor-img-share-btn" style="font-size:.72rem;">🔗 ${t('createImg.share', 'Ulashish')}</button>
+      </div>
+      <div class="noor-img-share-box hidden">
+        <input type="text" readonly value="${fullShareUrl}">
+        <button type="button" class="noor-img-copy-btn">${t('createImg.copy', 'Nusxalash')}</button>
+      </div>
     </div>`;
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
 
   const shareBtn = bubble.querySelector('.noor-img-share-btn');
   const shareBox = bubble.querySelector('.noor-img-share-box');
-  shareBtn.addEventListener('click', () => {
+  if (shareBtn) shareBtn.addEventListener('click', () => {
     shareBox.classList.toggle('hidden');
     container.scrollTop = container.scrollHeight;
   });
-  bubble.querySelector('.noor-img-copy-btn').addEventListener('click', () => {
-    const inp = bubble.querySelector('.noor-img-share-box input');
+  const copyBtn = bubble.querySelector('.noor-img-copy-btn');
+  if (copyBtn) copyBtn.addEventListener('click', () => {
+    const inp = shareBox.querySelector('input');
+    if (!inp) return;
     inp.select();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(inp.value)
@@ -1132,6 +1223,56 @@ function appendGeneratedVideoBubble(videoUrl, shareUrl, prompt) {
       noorToast(t('createImg.copied', 'Havola nusxalandi!'));
     }
   });
+}
+
+// === VIDEO DURATION & ASPECT RATIO PILL SELECTORS ===
+(function initVideoPills() {
+  ['video-duration-pills', 'video-ratio-pills'].forEach(groupId => {
+    const group = document.getElementById(groupId);
+    if (!group) return;
+    group.addEventListener('click', e => {
+      const pill = e.target.closest('.video-pill');
+      if (!pill) return;
+      group.querySelectorAll('.video-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+    });
+  });
+})();
+
+// === VIDEO HISTORY PANEL ===
+document.getElementById('btn-video-history-toggle')?.addEventListener('click', () => {
+  const panel = document.getElementById('video-history-panel');
+  if (!panel) return;
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) loadVideoHistory();
+});
+
+async function loadVideoHistory() {
+  const listEl = document.getElementById('video-history-list');
+  if (!listEl) return;
+  try {
+    const r = await fetch(BASE_URL + '/api/chat/video-history');
+    if (!r.ok) return;
+    const d = await r.json();
+    const history = d.history || [];
+    if (!history.length) {
+      listEl.innerHTML = '<div class="video-history-empty" style="font-size:.72rem;color:var(--td);padding:8px 0;">Hali hech qanday video yaratilmagan.</div>';
+      return;
+    }
+    listEl.innerHTML = history.map(item => {
+      const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '';
+      const shortPrompt = (item.prompt || '').slice(0, 50);
+      return `<div class="video-history-item" style="color:var(--t);">
+        <div style="flex:1;overflow:hidden;">
+          <div style="font-size:.73rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(shortPrompt)}</div>
+          <div style="font-size:.68rem;color:var(--td);">${date} · ${item.duration || '5'}s · ${item.aspectRatio || '16:9'}</div>
+        </div>
+        <a href="${item.videoUrl}" download style="background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);color:var(--c);padding:4px 10px;border-radius:8px;font-size:.68rem;text-decoration:none;white-space:nowrap;">⬇ Yuklab</a>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = '<div style="font-size:.72rem;color:var(--td);">Tarix yuklanmadi.</div>';
+  }
 }
 
 async function sendNoorImgGenRequest(prompt) {
