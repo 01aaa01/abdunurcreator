@@ -1258,7 +1258,9 @@ function setChatMode(mode) {
   const note = document.getElementById('chat-note');
   const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
   const kind = mediaKindOf(mode);
-  if (mode === 'coder') {
+  if (mode === 'usebrowser') {
+    note.textContent = "🌐 Noor Browser Agent (Computer Use) — laptopingizdagi brauzer topshiriqlarini va veb-harakatlarni avtomatlashtirib beradi.";
+  } else if (mode === 'coder') {
     note.textContent = t('chat.noteCoder', "Noor AI 1.0 (Coder) — faqat kodlash uchun ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi).");
   } else if (mode === 'coder2') {
     note.textContent = t('chat.noteCoder2', "Noor AI 2.0 (Coder) — bepul, kodlashga ixtisoslashgan (matn bilan, rasmni o'qiy olmaydi — rasm uchun Noor AI 2.5/3.0'ni tanlang).");
