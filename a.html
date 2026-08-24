@@ -478,18 +478,72 @@ function setMsgColor(c){
 <script src="i18n.js"></script>
 <script src="app.js"></script>
   <div class="noor-panda hidden" id="noor-panda">
-    <div class="noor-panda-inner">
-      <svg viewBox="0 0 100 100" width="64" height="64">
-        <ellipse cx="26" cy="20" rx="13" ry="13" fill="#1a1a22"/>
-        <ellipse cx="74" cy="20" rx="13" ry="13" fill="#1a1a22"/>
-        <circle cx="50" cy="52" r="38" fill="#ffffff"/>
-        <ellipse cx="32" cy="46" rx="12" ry="14" fill="#1a1a22"/>
-        <ellipse cx="68" cy="46" rx="12" ry="14" fill="#1a1a22"/>
-        <circle cx="32" cy="46" r="4" fill="#fff"/>
-        <circle cx="68" cy="46" r="4" fill="#fff"/>
-        <ellipse cx="50" cy="62" rx="7" ry="5" fill="#1a1a22"/>
-        <path id="noor-panda-mouth" class="noor-panda-mouth" d="M38 72 Q50 78 62 72" stroke="#1a1a22" stroke-width="3" fill="none" stroke-linecap="round"/>
-      </svg>
+    <div class="noor-panda-glow"></div>
+    <div class="noor-panda-card">
+      <div class="noor-panda-head-wrap">
+        <svg viewBox="0 0 120 120" width="80" height="80" class="noor-panda-svg">
+          <defs>
+            <radialGradient id="pandaHeadGrad" cx="35%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="70%" stop-color="#f0f3f8"/>
+              <stop offset="100%" stop-color="#d6dce5"/>
+            </radialGradient>
+            <radialGradient id="pandaEarGrad" cx="30%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#2a2e3d"/>
+              <stop offset="100%" stop-color="#11131a"/>
+            </radialGradient>
+            <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#00d4ff"/>
+              <stop offset="100%" stop-color="#ff6ec7"/>
+            </linearGradient>
+          </defs>
+          
+          <!-- Outer Aura / Ears -->
+          <ellipse cx="28" cy="24" rx="15" ry="15" fill="url(#pandaEarGrad)"/>
+          <ellipse cx="92" cy="24" rx="15" ry="15" fill="url(#pandaEarGrad)"/>
+          <ellipse cx="28" cy="24" rx="9" ry="9" fill="#ff6ec7" opacity="0.3"/>
+          <ellipse cx="92" cy="24" rx="9" ry="9" fill="#ff6ec7" opacity="0.3"/>
+
+          <!-- Panda Head -->
+          <circle cx="60" cy="62" r="44" fill="url(#pandaHeadGrad)" filter="drop-shadow(0 4px 10px rgba(0,0,0,0.3))"/>
+          
+          <!-- Eye Patches -->
+          <ellipse cx="40" cy="54" rx="13" ry="16" fill="url(#pandaEarGrad)" transform="rotate(-10 40 54)"/>
+          <ellipse cx="80" cy="54" rx="13" ry="16" fill="url(#pandaEarGrad)" transform="rotate(10 80 54)"/>
+
+          <!-- Eyes (Blinking & Expression) -->
+          <g class="noor-panda-eyes">
+            <circle cx="41" cy="54" r="5" fill="#ffffff"/>
+            <circle cx="79" cy="54" r="5" fill="#ffffff"/>
+            <circle cx="42" cy="53" r="2.5" fill="#0a0d16"/>
+            <circle cx="80" cy="53" r="2.5" fill="#0a0d16"/>
+            <circle cx="43.5" cy="51.5" r="1" fill="#ffffff"/>
+            <circle cx="81.5" cy="51.5" r="1" fill="#ffffff"/>
+          </g>
+
+          <!-- Cute Cheeks -->
+          <circle cx="30" cy="68" r="7" fill="#ff6ec7" opacity="0.45"/>
+          <circle cx="90" cy="68" r="7" fill="#ff6ec7" opacity="0.45"/>
+
+          <!-- Nose -->
+          <path d="M54 67 C 54 64, 66 64, 66 67 C 66 71, 54 71, 54 67 Z" fill="#11131a"/>
+          <ellipse cx="58" cy="66" rx="2" ry="1" fill="#ffffff" opacity="0.6"/>
+
+          <!-- Dynamic Talking Mouth -->
+          <path id="noor-panda-mouth" class="noor-panda-mouth" d="M 48 76 Q 60 82 72 76" stroke="#11131a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="noor-panda-info">
+        <div class="noor-panda-name">
+          <span class="panda-dot"></span>
+          <span>Noor Audio</span>
+        </div>
+        <!-- Audio Visualizer Wave Animation -->
+        <div class="noor-panda-wave">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
     </div>
   </div>
 </body>

@@ -285,27 +285,49 @@ app.post('/api/chat/generate-image', async (req, res) => {
 });
 
 // Ulashish sahifasi — link bosilganda shu yerda ko'rinadi (saytning o'zida, tashqarida emas)
-// === Noor Audio — matnni ovozga aylantirish (Fish Audio S2.1 Pro Free, OpenRouter orqali) ===
-// Raqamsiz — "Noor Audio" (versiyasiz nom, aynan so'ralganidek).
-// Pollinations TTS ovozlari — docs'dan olingan haqiqiy nomlar
+// === Noor Audio — matnni ovozga aylantirish (OpenRouter Audio Speech API) ===
+// Pollinations TTS olib tashlandi, OpenRouter key orqali bepul audio modellardan foydalanadi.
 const NOOR_AUDIO_VOICES = {
   standard: 'nova',
   male:     'onyx',
-  female:   'nova'
+  female:   'shimmer'
 };
 
 async function generateNoorAudioBuffer(text, voiceKey) {
+  if (!OPENROUTER_KEY) {
+    throw new Error("Serverda OPENROUTER_KEY sozlanmagan (.env faylini tekshiring).");
+  }
   const voice = NOOR_AUDIO_VOICES[voiceKey] || 'nova';
-  const body = { input: text, voice, response_format: 'mp3' };
-  const headers = { 'Content-Type': 'application/json' };
-  if (POLLINATIONS_KEY) headers['Authorization'] = `Bearer ${POLLINATIONS_KEY}`;
-  console.log(`[Noor Audio] POST https://gen.pollinations.ai/v1/audio/speech voice=${voice}`);
-  const resp = await fetch('https://gen.pollinations.ai/v1/audio/speech', {
-    method: 'POST', headers, body: JSON.stringify(body)
+  const body = {
+    model: 'openai/gpt-4o-mini-tts-2025-12-15',
+    input: text,
+    voice: voice,
+    response_format: 'mp3'
+  };
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${OPENROUTER_KEY}`
+  };
+  console.log(`[Noor Audio] OpenRouter TTS: model=openai/gpt-4o-mini-tts-2025-12-15 voice=${voice}`);
+  let resp = await fetch('https://openrouter.ai/api/v1/audio/speech', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body)
   });
+  
+  if (!resp.ok) {
+    // Agar birinchi modelda xato bo'lsa, zaxira model orqali sinab ko'ramiz
+    const fallbackBody = { ...body, model: 'openai/tts-1' };
+    resp = await fetch('https://openrouter.ai/api/v1/audio/speech', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(fallbackBody)
+    });
+  }
+
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
-    throw new Error(`Noor Audio xizmati xatosi (${resp.status}): ${errText.slice(0, 200)}`);
+    throw new Error(`Noor Audio OpenRouter xizmati xatosi (${resp.status}): ${errText.slice(0, 200)}`);
   }
   return Buffer.from(await resp.arrayBuffer());
 }
