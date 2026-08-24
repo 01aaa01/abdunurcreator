@@ -15,8 +15,10 @@ body{font-family:var(--bd);background:var(--bg);color:var(--t);overflow-x:hidden
 .panel{width:100%;max-width:460px;padding:40px 36px;text-align:center;animation:rise .6s cubic-bezier(.2,.8,.2,1);}
 .panel-lg{max-width:700px;}
 @keyframes rise{from{opacity:0;transform:translateY(24px) scale(0.98);}to{opacity:1;transform:none;}}
-.logo{font-family:var(--dp);font-weight:700;font-size:1.1rem;display:inline-flex;align-items:center;gap:10px;margin-bottom:28px;color:var(--td);justify-content:center;}
-.logo .dot{width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--c),var(--p));}
+.logo{font-family:var(--dp);font-weight:800;font-size:1.75rem;display:inline-flex;align-items:center;gap:12px;margin-bottom:24px;justify-content:center;background:linear-gradient(135deg,#ffffff 20%,var(--c) 65%,var(--p) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:0.5px;filter:drop-shadow(0 4px 14px rgba(0,212,255,0.3));}
+.logo-img{width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(0,212,255,0.6));animation:logoImgPulse 3s ease-in-out infinite alternate;}
+@keyframes logoImgPulse{0%{transform:scale(1);filter:drop-shadow(0 0 8px rgba(0,212,255,0.5));}100%{transform:scale(1.08);filter:drop-shadow(0 0 16px rgba(255,110,199,0.8));}}
+.chat-header-logo{margin-bottom:0;font-size:1.45rem;}
 h1.title{font-family:var(--dp);font-weight:600;font-size:1.55rem;margin-bottom:10px;}
 p.sub{color:var(--td);font-size:0.9rem;margin-bottom:24px;line-height:1.5;}
 .google-inline-hint{text-align:center;margin:14px 0 0;font-size:.8rem;}
