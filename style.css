@@ -603,4 +603,7 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 
 .chat-msg-speak-btn{margin-top:8px;background:rgba(255,255,255,.05);border:1px solid var(--gb);color:var(--td);font-family:var(--bd);font-size:.72rem;padding:5px 12px;border-radius:100px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .15s,color .15s;}
 .chat-msg-speak-btn:hover{background:rgba(0,212,255,.1);color:var(--c);border-color:rgba(0,212,255,.3);}
+
+.chat-msg.typing-active::after{content:'▋';display:inline-block;margin-left:4px;color:var(--c);font-weight:bold;animation:cursorBlink 0.6s infinite alternate;}
+@keyframes cursorBlink{0%{opacity:1;filter:drop-shadow(0 0 5px var(--c));}100%{opacity:0.2;}}
 .chat-msg-speak-btn.speaking{color:var(--c);border-color:rgba(0,212,255,.4);}

@@ -1316,11 +1316,55 @@ function displayAiReply(text, skipListenBtn = false) {
       lastIndex = fenceRegex.lastIndex;
     }
     plain += text.slice(lastIndex);
-    appendChatBubble(plain.trim() || "Kodni o'ng paneldan ko'ring →", 'ai-plain', skipListenBtn);
-    if (blocks.length) renderCodePanel(blocks);
+    appendTypewriterBubble(plain.trim() || "Kodni o'ng paneldan ko'ring →", 'ai-plain', skipListenBtn, () => {
+      if (blocks.length) renderCodePanel(blocks);
+    });
   } else {
-    appendChatBubble(text, 'ai', skipListenBtn);
+    appendTypewriterBubble(text, 'ai', skipListenBtn);
   }
+}
+
+function appendTypewriterBubble(fullText, sender, skipListenBtn = false, onComplete = null) {
+  const container = document.getElementById('chat-msg-container');
+  const bubble = document.createElement('div');
+  bubble.className = `chat-msg ${sender === 'ai-plain' ? 'ai' : sender} typing-active`;
+  container.appendChild(bubble);
+
+  let currentIndex = 0;
+  const totalLength = fullText.length;
+  // Matn hajmiga qarab tezlik va qadam o'lchami
+  const chunkSize = totalLength > 1200 ? 8 : (totalLength > 400 ? 5 : 2);
+  const intervalTime = 12;
+
+  const timer = setInterval(() => {
+    currentIndex += chunkSize;
+    if (currentIndex >= totalLength) {
+      currentIndex = totalLength;
+      clearInterval(timer);
+      
+      const currentText = fullText.slice(0, currentIndex);
+      bubble.innerHTML = (sender === 'ai') ? renderAiMessageHTML(currentText) : escapeHtml(currentText).replace(/\n/g, '<br>');
+      bubble.classList.remove('typing-active');
+
+      if ((sender === 'ai' || sender === 'ai-plain') && !skipListenBtn) {
+        const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
+        const speakBtn = document.createElement('button');
+        speakBtn.type = 'button';
+        speakBtn.className = 'chat-msg-speak-btn';
+        speakBtn.innerHTML = `🔊 ${t('noorAudio.listen', 'Tinglash')}`;
+        speakBtn.addEventListener('click', () => speakText(fullText, speakBtn));
+        bubble.appendChild(speakBtn);
+      }
+      container.scrollTop = container.scrollHeight;
+      if (onComplete) onComplete();
+    } else {
+      const currentText = fullText.slice(0, currentIndex);
+      bubble.innerHTML = (sender === 'ai') ? renderAiMessageHTML(currentText) : escapeHtml(currentText).replace(/\n/g, '<br>');
+      container.scrollTop = container.scrollHeight;
+    }
+  }, intervalTime);
+
+  return bubble;
 }
 
 function appendChatBubble(text, sender, skipListenBtn = false) {
