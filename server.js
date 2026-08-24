@@ -285,60 +285,79 @@ app.post('/api/chat/generate-image', async (req, res) => {
 });
 
 // Ulashish sahifasi — link bosilganda shu yerda ko'rinadi (saytning o'zida, tashqarida emas)
-// === Noor Audio — matnni ovozga aylantirish (OpenRouter Audio Speech API) ===
-// Pollinations TTS olib tashlandi, OpenRouter key orqali bepul audio modellardan foydalanadi.
+// === Noor Audio — matnni ovozga aylantirish (Fish Audio S2.1 Pro Free va Deepgram Flux TTS Free) ===
 const NOOR_AUDIO_VOICES = {
   standard: 'nova',
   male:     'onyx',
   female:   'shimmer'
 };
 
-async function generateNoorAudioBuffer(text, voiceKey) {
+async function generateNoorAudioBuffer(text, voiceKey, modelKey) {
   if (!OPENROUTER_KEY) {
     throw new Error("Serverda OPENROUTER_KEY sozlanmagan (.env faylini tekshiring).");
   }
   const voice = NOOR_AUDIO_VOICES[voiceKey] || 'nova';
-  const body = {
-    model: 'openai/gpt-4o-mini-tts-2025-12-15',
-    input: text,
-    voice: voice,
-    response_format: 'mp3'
-  };
+  
+  // Noor Audio 1.0 (Fish Audio) / Noor Audio 2.0 (Deepgram)
+  let primaryModel = 'fish-audio/fish-speech-1.5:free';
+  if (modelKey === 'nooraudio2' || modelKey === 'deepgram') {
+    primaryModel = 'deepgram/flux-tts:free';
+  } else if (modelKey && modelKey.includes('/')) {
+    primaryModel = modelKey;
+  }
+
+  // Model zanjirlari — ketma-ketlikda sinab ko'riladi
+  const candidates = [
+    primaryModel,
+    'fish-audio/fish-speech-1.5:free',
+    'deepgram/flux-tts:free',
+    'openai/gpt-4o-mini-tts-2025-12-15',
+    'openai/tts-1'
+  ];
+
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${OPENROUTER_KEY}`
   };
-  console.log(`[Noor Audio] OpenRouter TTS: model=openai/gpt-4o-mini-tts-2025-12-15 voice=${voice}`);
-  let resp = await fetch('https://openrouter.ai/api/v1/audio/speech', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body)
-  });
-  
-  if (!resp.ok) {
-    // Agar birinchi modelda xato bo'lsa, zaxira model orqali sinab ko'ramiz
-    const fallbackBody = { ...body, model: 'openai/tts-1' };
-    resp = await fetch('https://openrouter.ai/api/v1/audio/speech', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(fallbackBody)
-    });
+
+  let lastError = '';
+  for (const modelId of candidates) {
+    try {
+      const body = {
+        model: modelId,
+        input: text,
+        voice: voice,
+        response_format: 'mp3'
+      };
+      console.log(`[Noor Audio] OpenRouter TTS: model=${modelId} voice=${voice}`);
+      const resp = await fetch('https://openrouter.ai/api/v1/audio/speech', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+      
+      if (resp.ok) {
+        return Buffer.from(await resp.arrayBuffer());
+      } else {
+        lastError = await resp.text().catch(() => '');
+        console.warn(`[Noor Audio] ${modelId} muvaffaqiyatsiz (${resp.status}): ${lastError.slice(0, 100)}`);
+      }
+    } catch (err) {
+      lastError = err.message;
+      console.warn(`[Noor Audio] ${modelId} xatosi:`, err.message);
+    }
   }
 
-  if (!resp.ok) {
-    const errText = await resp.text().catch(() => '');
-    throw new Error(`Noor Audio OpenRouter xizmati xatosi (${resp.status}): ${errText.slice(0, 200)}`);
-  }
-  return Buffer.from(await resp.arrayBuffer());
+  throw new Error(`Noor Audio OpenRouter xizmati xatosi: ${lastError.slice(0, 200)}`);
 }
 
 app.post('/api/chat/generate-audio', async (req, res) => {
-  const { text, voice } = req.body || {};
+  const { text, voice, model } = req.body || {};
   const cleanText = String(text || '').trim().slice(0, 4000);
   if (!cleanText) return res.status(400).json({ error: "Nima deb gapirtirish kerakligini yozing." });
 
   try {
-    const buf = await generateNoorAudioBuffer(cleanText, voice);
+    const buf = await generateNoorAudioBuffer(cleanText, voice, model);
     const id = crypto.randomBytes(8).toString('hex');
     const filename = `${id}.mp3`;
     fs.writeFileSync(path.join(GENERATED_DIR, filename), buf);

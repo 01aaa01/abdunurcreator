@@ -965,17 +965,18 @@ function stopRecordingUI() {
 }
 
 // Har qanday AI chat javobini "tinglash" — matnni Noor Audio orqali ovozga aylantiradi.
-async function speakText(text, btnEl) {
+async function speakText(text, btnEl, modelOverride) {
   const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
   if (!text) return;
   // HTML teglari va markdown simvollarini tozalaymiz (toza talaffuz uchun)
   const cleanSpeechText = text.replace(/```[\s\S]*?```/g, ' [kod bloki] ').replace(/[#*`_~]/g, '').slice(0, 1500);
   if (btnEl) { btnEl.disabled = true; btnEl.classList.add('speaking'); }
   try {
+    const audioModel = modelOverride || (currentChatMode.startsWith('nooraudio') ? currentChatMode : 'nooraudio1');
     const r = await fetch(BASE_URL + '/api/chat/generate-audio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: cleanSpeechText, voice: 'standard' })
+      body: JSON.stringify({ text: cleanSpeechText, voice: 'standard', model: audioModel })
     });
     const d = await r.json();
     if (r.ok) {
@@ -1014,7 +1015,7 @@ async function sendNoorAudioGenRequest(text) {
     const r = await fetch(BASE_URL + '/api/chat/generate-audio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice })
+      body: JSON.stringify({ text, voice, model: currentChatMode })
     });
     const d = await r.json();
     document.getElementById('chat-typing-indicator')?.remove();
@@ -1304,7 +1305,7 @@ function renderCodePanel(blocks) {
   panel.classList.remove('hidden');
 }
 
-function displayAiReply(text) {
+function displayAiReply(text, skipListenBtn = false) {
   if (currentChatMode === 'coder2') {
     const fenceRegex = /```(\w*)\n?([\s\S]*?)```/g;
     let match, plain = '', lastIndex = 0;
@@ -1315,19 +1316,19 @@ function displayAiReply(text) {
       lastIndex = fenceRegex.lastIndex;
     }
     plain += text.slice(lastIndex);
-    appendChatBubble(plain.trim() || "Kodni o'ng paneldan ko'ring →", 'ai-plain');
+    appendChatBubble(plain.trim() || "Kodni o'ng paneldan ko'ring →", 'ai-plain', skipListenBtn);
     if (blocks.length) renderCodePanel(blocks);
   } else {
-    appendChatBubble(text, 'ai');
+    appendChatBubble(text, 'ai', skipListenBtn);
   }
 }
 
-function appendChatBubble(text, sender) {
+function appendChatBubble(text, sender, skipListenBtn = false) {
   const container = document.getElementById('chat-msg-container');
   const bubble = document.createElement('div');
   bubble.className = `chat-msg ${sender === 'ai-plain' ? 'ai' : sender}`;
   bubble.innerHTML = (sender === 'ai') ? renderAiMessageHTML(text) : escapeHtml(text).replace(/\n/g, '<br>');
-  if (sender === 'ai' || sender === 'ai-plain') {
+  if ((sender === 'ai' || sender === 'ai-plain') && !skipListenBtn) {
     const t = (window.NOOR_I18N && window.NOOR_I18N.t) ? window.NOOR_I18N.t : (k, fallback) => fallback;
     const speakBtn = document.createElement('button');
     speakBtn.type = 'button';
@@ -1457,7 +1458,7 @@ async function sendChatMsg() {
     return;
   }
 
-  if (currentChatMode === 'nooraudio') {
+  if (currentChatMode.startsWith('nooraudio')) {
     await sendNoorAudioGenRequest(text);
     return;
   }
@@ -1531,10 +1532,11 @@ async function sendChatMsg() {
 
     if (r.ok) {
       const aiReply = d.choices[0].message.content;
-      displayAiReply(aiReply);
+      const autoSpeak = isVoiceSession;
+      displayAiReply(aiReply, autoSpeak); // Microfon ishlatilsa "Tinglash" tugmasi bo'lmaydi
       chatHistory.push({ role: 'assistant', content: aiReply });
       persistActiveSession(text || 'Rasm bilan suhbat');
-      if (isVoiceSession) {
+      if (autoSpeak) {
         speakText(aiReply);
         isVoiceSession = false;
       }
