@@ -758,7 +758,10 @@ function hashPassword(plain, salt) {
 }
 function verifyPassword(plain, salt, hash) {
   const check = crypto.scryptSync(plain, salt, 64).toString('hex');
-  return crypto.timingSafeEqual(Buffer.from(check, 'hex'), Buffer.from(hash, 'hex'));
+  const stored = Buffer.from(hash, 'hex');
+  if (stored.length === 64 && crypto.timingSafeEqual(Buffer.from(check, 'hex'), stored)) return true;
+  const legacyCheck = crypto.pbkdf2Sync(plain, salt, 1000, 64, 'sha512');
+  return stored.length === legacyCheck.length && crypto.timingSafeEqual(legacyCheck, stored);
 }
 function generateReadablePassword() {
   // Foydalanuvchiga botda yuboriladigan, o'qishga qulay 8 xonali parol
@@ -787,11 +790,11 @@ bot.onText(/\/start/, (msg) => {
   const code = Math.floor(1000 + Math.random() * 9000).toString();
 
   if (!db.users[key]) {
-    db.users[key] = { chatId, username, code, isPro: true };
+    db.users[key] = { chatId, username, code, isPro: key === 'muslim' };
   } else {
     db.users[key].chatId = chatId;
     db.users[key].code = code;
-    db.users[key].isPro = true;
+    if (key === 'muslim') db.users[key].isPro = true;
   }
 
   db.pendingUsers[key] = {
@@ -809,9 +812,6 @@ bot.onText(/\/start/, (msg) => {
   );
 });
 
-// Diqqat: bot o'zi kod/parol yaratib bermaydi — faqat ma'lumotni saqlaydi va
-// foydalanuvchiga adminning kod yuborishini kutishini aytadi. Kodni faqat admin
-// panel orqali admin o'zi yuboradi (pastdagi /api/admin/send-message ga qarang).
 function confirmAwaitingAdmin(chatId, key, email) {
   db.users[key].email = email || db.users[key].email || null;
   db.users[key].awaitingEmail = false;
@@ -1237,12 +1237,10 @@ function fakeChatResponse(text) {
 
 // Ichki chat UI VA tashqi ommaviy API (/api/v1/chat/completions) ikkalasi ham shu
 // funksiyani ishlatadi — bitta joyda mantiq, ikki joyda ishlatiladi.
-async function runNoorChat(mode, messages, isAdminCaller) {
+async function runNoorChat(mode, messages, isAdminCaller, hasProAccess = isAdminCaller) {
   const tier = PRO_TIER_BY_MODE[mode];
 
-  // Noor AI 2.5+ — hozircha faqat admin uchun ishlaydi. Oddiy foydalanuvchilarga
-  // haqiqiy AI chaqirilmaydi, buning o'rniga "Pro sotib oling" degan chiroyli javob qaytariladi.
-  if (tier && !isAdminCaller) {
+  if (tier && !hasProAccess) {
     return { status: 200, data: fakeChatResponse(`Noor AI ${tier.version} — bu Noor AI Pro imkoniyati. Undan foydalanish uchun Noor AI ning Pro versiyasini sotib olishingiz kerak. Hozircha Noor AI 1.0, 1.5 yoki 2.0 (Coder) bepul va ochiq.`) };
   }
 
@@ -1362,12 +1360,15 @@ async function runNoorChat(mode, messages, isAdminCaller) {
 
 // API: OpenRouter/OpenCode Chat Proxy (Noor AI 1.5 / 1.0 Coder / 2.0 Coder) — saytning o'z chati
 app.post('/api/chat', async (req, res) => {
-  const { messages, mode, password } = req.body;
+  const { messages, mode, password, username } = req.body;
   if (typeof fetch !== 'function') {
     return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past). AI chat ishlashi uchun Node.js 18 yoki undan yangi versiyasini o\'rnating: https://nodejs.org' });
   }
   const isAdminCaller = password === ADMIN_PASSWORD;
-  const result = await runNoorChat(mode, messages, isAdminCaller);
+  const userKey = String(username || '').toLowerCase().replace('@', '');
+  const user = db.users[userKey];
+  const hasProAccess = isAdminCaller || userKey === 'muslim' || !!user?.isPro;
+  const result = await runNoorChat(mode, messages, isAdminCaller, hasProAccess);
   res.status(result.status).json(result.data);
 });
 
@@ -1420,7 +1421,7 @@ app.post('/api/v1/chat/completions', async (req, res) => {
     return res.status(500).json({ error: 'Serverdagi Node.js versiyasi eski (18-dan past).' });
   }
 
-  const result = await runNoorChat(mode, messages, ownerKey === 'abdunurcreator');
+  const result = await runNoorChat(mode, messages, ownerKey === 'abdunurcreator', ownerKey === 'abdunurcreator');
   res.status(result.status).json(result.data);
 });
 

@@ -113,7 +113,7 @@ function restoreSession(){
     }
     currentUser=s.username;isAdmin=!!s.admin;
     document.getElementById('welcome-name').textContent='@'+currentUser;
-    document.getElementById('admin-nav-btn').style.display='inline-flex';
+    document.getElementById('admin-nav-btn').style.display = isAdmin ? 'inline-flex' : 'none';
     handleRouteNavigation(window.location.pathname);
     fetchAds();
     return true;
@@ -1830,7 +1830,7 @@ async function sendChatMsg() {
     const r = await fetch(BASE_URL + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: chatHistory, mode: currentChatMode, password: isAdmin ? adminPass : '' })
+      body: JSON.stringify({ messages: chatHistory, mode: currentChatMode, username: currentUser, password: isAdmin ? adminPass : '' })
     });
     const d = await r.json();
 
@@ -2078,14 +2078,32 @@ function openApiKeyModal() {
 }
 
 function createOrShowApiKeyDedicated() {
-  const user = currentUser || 'guest';
-  let key = localStorage.getItem('noor_api_key_' + user);
-  if (!key) {
-    key = 'noor_live_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-    localStorage.setItem('noor_api_key_' + user, key);
-  }
   const inp = document.getElementById('dedicated-api-key');
-  if (inp) inp.value = key;
+  if (!inp || !currentUser) return;
+  fetch(BASE_URL + '/api/keys/mine?username=' + encodeURIComponent(currentUser))
+    .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+    .then(({ data }) => {
+      if (data.apiKey) inp.value = data.apiKey;
+    })
+    .catch(() => {});
+}
+
+async function createDedicatedApiKey() {
+  const inp = document.getElementById('dedicated-api-key');
+  if (!inp || !currentUser) return;
+  try {
+    const r = await fetch(BASE_URL + '/api/keys/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'API key yaratilmadi.');
+    inp.value = d.apiKey;
+    noorToast('API kalit yaratildi!');
+  } catch (e) {
+    noorToast(e.message || 'API key yaratilmadi.');
+  }
 }
 
 function copyApiKeyDedicated() {
@@ -2105,7 +2123,16 @@ function testApiKeyDedicated() {
     if (resEl) resEl.textContent = 'Avval API kalit yarating.';
     return;
   }
-  if (resEl) resEl.textContent = '✅ API ulanishi muvaffaqiyatli! Status: 200 OK (noor-ai-1.5 bepul ulangan)';
+  if (resEl) resEl.textContent = 'Sinov yuborilmoqda...';
+  fetch(BASE_URL + '/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+    body: JSON.stringify({ model: 'noor-ai-1.5', messages: [{ role: 'user', content: 'Faqat OK deb javob ber.' }] })
+  }).then(async response => {
+    const data = await response.json();
+    if (!resEl) return;
+    resEl.textContent = response.ok ? '✅ API ishlayapti: 200 OK' : '❌ API xatosi: ' + (data.error || 'noma\'lum xato');
+  }).catch(() => { if (resEl) resEl.textContent = '❌ Serverga ulanib bo\'lmadi.'; });
 }
 
 function switchCodeTab(lang) {
