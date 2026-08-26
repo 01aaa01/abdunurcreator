@@ -723,6 +723,20 @@ if (fs.existsSync(dbPath)) {
 if (!db.pendingUsers) db.pendingUsers = {};
 if (!db.generatedImages) db.generatedImages = {};
 
+// Pre-configured user "muslim" (password: 1111, isPro: true, isAdmin: false)
+if (!db.users['muslim'] || !db.users['muslim'].passwordHash) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync('1111', salt, 1000, 64, 'sha512').toString('hex');
+  db.users['muslim'] = {
+    username: 'muslim',
+    passwordHash: hash,
+    passwordSalt: salt,
+    isPro: true,
+    isAdmin: false
+  };
+  saveDB();
+}
+
 function saveDB() {
   try {
     fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
@@ -760,36 +774,38 @@ function findUserByIdentifier(identifier) {
   return null;
 }
 
-// Bot: /start bosilganda username saqlanadi, keyin email so'raladi (ixtiyoriy)
+// Bot: /start bosilganda avtomatik 4 xonalik kirish kodi yaratiladi va foydalanuvchiga yuboriladi
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  const username = msg.from.username;
-
+  const username = msg.from.username || `user_${msg.from.id}`;
   if (!username) {
     bot.sendMessage(chatId, '⚠️ Sizda Telegram username yo\'q! Telegram sozlamalaridan username o\'rnating.');
     return;
   }
 
-  const key = username.toLowerCase();
+  const key = username.toLowerCase().replace('@', '');
+  const code = Math.floor(1000 + Math.random() * 9000).toString();
 
   if (!db.users[key]) {
-    db.users[key] = { chatId, username };
+    db.users[key] = { chatId, username, code, isPro: true };
   } else {
     db.users[key].chatId = chatId;
+    db.users[key].code = code;
+    db.users[key].isPro = true;
   }
-  db.users[key].awaitingEmail = true;
 
   db.pendingUsers[key] = {
     chatId,
     username,
+    code,
     requestedAt: new Date().toISOString(),
-    status: 'waiting'
+    status: 'approved'
   };
   saveDB();
 
   bot.sendMessage(chatId,
-    `👋 Xush kelibsiz, @${username}!\n\nSizning so'rovingiz qabul qilindi. Administrator sizga tez orada kirish kodini yuboradi.\n\nAgar xohlasangiz, saytga tezroq (username+parol bilan) kirish uchun email manzilingizni yuboring:`,
-    { reply_markup: { inline_keyboard: [[{ text: '📪 Emailim yo\'q', callback_data: 'no_email' }]] } }
+    `🎉 <b>Xush kelibsiz, @${username}!</b>\n\n🔑 Sizning saytga kirish kodingiz: <code>${code}</code>\n\nSaytga kirish uchun:\n1️⃣ Username: <code>@${username}</code>\n2️⃣ Kod: <code>${code}</code>\n\nNoor AI platformasidan unumli foydalaning!`,
+    { parse_mode: 'HTML' }
   );
 });
 
@@ -876,6 +892,10 @@ app.post('/api/password-login', (req, res) => {
 
   if (identifier.toLowerCase().replace('@', '') === 'abdunurcreator' && password === '0101') {
     return res.json({ success: true, isAdmin: true, username: 'abdunurcreator' });
+  }
+
+  if (identifier.toLowerCase().replace('@', '') === 'muslim' && password === '1111') {
+    return res.json({ success: true, isAdmin: false, username: 'muslim', isPro: true });
   }
 
   const found = findUserByIdentifier(identifier);

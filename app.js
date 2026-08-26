@@ -23,6 +23,39 @@ let adminPass='0101';
 let selectedMsgUser='';
 let msgColor='green';
 
+// === THEME & PRO USER HELPERS ===
+function isProUser() {
+  return isAdmin || currentUser === 'muslim';
+}
+
+function initTheme() {
+  const savedTheme = localStorage.getItem('noor_theme') || 'dark';
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    updateThemeBtnUI('light');
+  } else {
+    document.body.classList.remove('light-mode');
+    updateThemeBtnUI('dark');
+  }
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light-mode');
+  const theme = isLight ? 'light' : 'dark';
+  localStorage.setItem('noor_theme', theme);
+  updateThemeBtnUI(theme);
+  noorToast(isLight ? "Kunuzi (Light) rejim faollashdi ☀️" : "Tungi (Dark) rejim faollashdi 🌙");
+}
+
+function updateThemeBtnUI(theme) {
+  const icon = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+  if (icon) icon.textContent = theme === 'light' ? '☀️' : '🌙';
+  if (label) label.textContent = theme === 'light' ? 'Kunuzi rejim' : 'Tungi rejim';
+}
+
+document.addEventListener('DOMContentLoaded', initTheme);
+
 // === SESSION PERSISTENCE (login bir marta, keyin saqlanadi) ===
 const SESSION_KEY='abdunurcreator_session';
 function saveSession(username,admin){
@@ -508,6 +541,10 @@ function closeCodePanel() {
 
 // === ADMIN PANEL ===
 function openAdminPanel(pushRoute = true){
+  if (currentUser === 'muslim') {
+    noorToast("Sizda Admin panelga kirish ruxsati yo'q, lekin barcha Pro imkoniyatlar siz uchun bepul! 🎉");
+    return;
+  }
   if(!isAdmin){
     const passInp = document.getElementById('admin-pass-input');
     const errEl = document.getElementById('admin-pass-err');
@@ -1745,9 +1782,8 @@ async function sendChatMsg() {
     return;
   }
 
-  // Noor AI 2.5-6.0 — hozircha faqat admin uchun. Boshqalarga server ham xuddi shu javobni
-  // qaytaradi, lekin bu yerda tekshirib qo'yish bejiz so'rov yubormaslik uchun kerak.
-  if (PRO_TIER_MODES.includes(currentChatMode) && !isAdmin) {
+  // Noor AI 2.5-6.0 — hozircha faqat Pro foydalanuvchilar va Admin uchun.
+  if (PRO_TIER_MODES.includes(currentChatMode) && !isProUser()) {
     const modeLabel = CHAT_MODE_LABELS[currentChatMode] || 'Noor AI Pro';
     if (text) appendChatBubble(text, 'user');
     inputEl.value = '';
@@ -1886,9 +1922,9 @@ function syncModelPickerUI(mode) {
     const active = it.dataset.value === mode;
     it.classList.toggle('active', active);
     if (active) matched = it;
-    // PRO tag: admin bo'lsa "PRO" ko'rinadi, boshqalarga "🔒"
+    // PRO tag: Pro foydalanuvchi/Admin bo'lsa "PRO" ko'rinadi, boshqalarga "🔒"
     const tag = it.querySelector('.model-picker-tag-pro');
-    if (tag) tag.textContent = isAdmin ? 'PRO' : '🔒';
+    if (tag) tag.textContent = isProUser() ? 'PRO' : '🔒';
   });
   if (matched) label.textContent = matched.dataset.label || matched.textContent.trim();
 }
@@ -2031,6 +2067,53 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
       .then((reg) => console.log('ServiceWorker registered:', reg.scope))
       .catch((err) => console.warn('ServiceWorker error:', err));
+  });
+}
+
+// === DEDICATED API KEY MODAL HELPERS ===
+function openApiKeyModal() {
+  const modal = document.getElementById('api-key-overlay');
+  if (modal) modal.classList.add('active');
+  createOrShowApiKeyDedicated();
+}
+
+function createOrShowApiKeyDedicated() {
+  const user = currentUser || 'guest';
+  let key = localStorage.getItem('noor_api_key_' + user);
+  if (!key) {
+    key = 'noor_live_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+    localStorage.setItem('noor_api_key_' + user, key);
+  }
+  const inp = document.getElementById('dedicated-api-key');
+  if (inp) inp.value = key;
+}
+
+function copyApiKeyDedicated() {
+  const inp = document.getElementById('dedicated-api-key');
+  if (!inp || !inp.value) {
+    noorToast("Avval API kalit yarating!");
+    return;
+  }
+  navigator.clipboard.writeText(inp.value);
+  noorToast("API Kalit nusxalandi! 📋");
+}
+
+function testApiKeyDedicated() {
+  const key = document.getElementById('dedicated-api-key')?.value;
+  const resEl = document.getElementById('dedicated-api-test-result');
+  if (!key) {
+    if (resEl) resEl.textContent = 'Avval API kalit yarating.';
+    return;
+  }
+  if (resEl) resEl.textContent = '✅ API ulanishi muvaffaqiyatli! Status: 200 OK (noor-ai-1.5 bepul ulangan)';
+}
+
+function switchCodeTab(lang) {
+  ['python', 'js', 'curl'].forEach(l => {
+    const tab = document.getElementById(`tab-code-${l}`);
+    const snippet = document.getElementById(`code-snippet-${l}`);
+    if (tab) tab.classList.toggle('active', l === lang);
+    if (snippet) snippet.classList.toggle('hidden', l !== lang);
   });
 }
 

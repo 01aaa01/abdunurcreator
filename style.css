@@ -651,3 +651,61 @@ footer{text-align:center;margin-top:80px;padding-top:28px;border-top:1px solid v
 .video-history-title{font-family:var(--dp);font-size:.76rem;color:var(--t);font-weight:600;}
 .video-history-item{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);padding:6px 10px;border-radius:8px;font-size:.72rem;}
 .video-history-item:hover{background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.3);}
+
+/* ==========================================
+   LIGHT MODE THEME OVERRIDES
+   ========================================== */
+body.light-mode {
+  --bg: #f1f5f9;
+  --bg2: #e2e8f0;
+  --glass: rgba(255, 255, 255, 0.88);
+  --gb: rgba(0, 0, 0, 0.12);
+  --t: #0f172a;
+  --td: #475569;
+  color: #0f172a;
+}
+body.light-mode .liquid-bg {
+  background: radial-gradient(circle at 20% 20%, #e2e8f0, #f1f5f9 60%);
+  opacity: 0.55;
+}
+body.light-mode .glass {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: #0f172a;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+body.light-mode input, body.light-mode textarea, body.light-mode select {
+  background: rgba(240, 244, 250, 0.9);
+  color: #0f172a;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+body.light-mode .logo {
+  background: linear-gradient(135deg, #0f172a 20%, #0284c7 65%, #c026d3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+body.light-mode .chat-app {
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+}
+body.light-mode .chat-sidebar {
+  background: rgba(241, 245, 249, 0.95);
+  border-right-color: rgba(0, 0, 0, 0.1);
+}
+body.light-mode .chat-main-header {
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+body.light-mode .chat-input-bar {
+  background: rgba(255, 255, 255, 0.9);
+  border-top-color: rgba(0, 0, 0, 0.1);
+}
+body.light-mode .chat-msg.user .chat-msg-bubble {
+  background: #0284c7;
+  color: #ffffff;
+}
+body.light-mode .chat-msg.ai .chat-msg-bubble {
+  background: #e2e8f0;
+  color: #0f172a;
+}

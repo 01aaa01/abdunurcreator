@@ -124,6 +124,13 @@
       <button type="button" class="lang-btn" data-lang="ru">RU</button>
       <button type="button" class="lang-btn" data-lang="en">EN</button>
     </div>
+    <button class="nav-btn glass" id="theme-toggle-btn" onclick="toggleTheme()">
+      <span id="theme-icon">🌙</span> <span id="theme-label">Tungi rejim</span>
+    </button>
+    <button class="nav-btn glass" onclick="openApiKeyModal()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span>API Key</span>
+    </button>
     <button class="nav-btn glass" id="admin-nav-btn" onclick="openAdminPanel()" style="display:inline-flex">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span data-i18n="nav.admin">Admin</span>
@@ -477,17 +484,98 @@
     <div class="err" id="profile-err"></div>
     <div class="ok" id="profile-ok"></div>
 
-    <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--gb);">
-      <label style="display:block;margin-bottom:8px;color:var(--td);font-size:.85rem;" data-i18n="profile.apiKeyLabel">Noor AI API kaliti (dasturchilar uchun, bepul)</label>
-      <div style="display:flex;gap:8px;">
-        <input type="text" id="profile-api-key" readonly placeholder="•••• hali yaratilmagan" style="flex:1;font-family:var(--mn);font-size:.78rem;">
-        <button class="btn ghost sm" style="width:auto;flex-shrink:0;" onclick="copyApiKey()" data-i18n="profile.copy">Nusxa</button>
+  </div>
+</div>
+
+<!-- ======= API KEY MODAL ======= -->
+<div class="overlay" id="api-key-overlay">
+  <div class="glass ad-modal panel" style="padding:28px 24px;max-width:650px;text-align:left;">
+    <button class="close-modal" onclick="document.getElementById('api-key-overlay').classList.remove('active')">&times;</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+      <div style="font-size:2rem;background:rgba(0,212,255,0.12);padding:10px 14px;border-radius:14px;border:1px solid var(--gb);">🔑</div>
+      <div>
+        <h2 style="font-family:var(--dp);margin:0;font-size:1.4rem;">Noor AI Developer API</h2>
+        <p style="margin:2px 0 0;font-size:.82rem;color:var(--td);">Dasturingizdan Noor AI modellariga ulanish uchun API kalit va qo'llanma</p>
       </div>
-      <button class="btn ghost sm" style="width:auto;margin-top:8px;" onclick="createOrShowApiKey()" data-i18n="profile.apiKeyBtn">API kalit yaratish</button>
-      <button class="btn ghost sm" style="width:auto;margin-top:8px;margin-left:8px;" onclick="testApiKey()" data-i18n="profile.apiKeyTest">Sinab ko'rish</button>
-      <p class="hint" id="profile-api-test-result" style="margin-top:8px;"></p>
-      <p class="hint" style="margin-top:8px;" data-i18n="profile.apiKeyHint">Ushbu kalit bilan noor-ai-1.0, noor-ai-1.5, noor-ai-2.0 modellariga o'zingizning kodingizdan bepul murojaat qilishingiz mumkin. Hujjat: /api/v1/chat/completions</p>
     </div>
+
+    <!-- API Key Display Box -->
+    <div style="background:rgba(0,0,0,0.35);padding:16px;border-radius:14px;border:1px solid var(--gb);margin-bottom:18px;">
+      <label style="display:block;margin-bottom:6px;color:var(--td);font-size:.85rem;font-weight:600;">Sizning API Kalitingiz:</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="dedicated-api-key" readonly placeholder="•••• hali yaratilmagan" style="flex:1;font-family:var(--mn);font-size:.85rem;">
+        <button class="btn ghost sm" style="width:auto;flex-shrink:0;" onclick="copyApiKeyDedicated()">📋 Nusxa</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="btn sm" style="width:auto;" onclick="createOrShowApiKeyDedicated()">⚡ API Kalit Yaratish</button>
+        <button class="btn ghost sm" style="width:auto;" onclick="testApiKeyDedicated()">🧪 Test qilish</button>
+      </div>
+      <p class="hint" id="dedicated-api-test-result" style="margin-top:8px;"></p>
+    </div>
+
+    <!-- Notice on Free vs Pro Models -->
+    <div style="background:rgba(0, 212, 255, 0.08);border:1px solid rgba(0, 212, 255, 0.25);padding:14px 18px;border-radius:12px;margin-bottom:20px;font-size:.85rem;line-height:1.6;">
+      💡 <b>Tariflar va Qoidalar:</b><br>
+      • <b>Oddiy modellar (noor-ai-1.0, noor-ai-1.5):</b> API kalitingiz bilan 100% BEPUL ishlatishingiz mumkin.<br>
+      • <b>PRO modellar (noor-ai-2.0, noor-ai-3.0-pro):</b> PRO obuna yoki hisob balansi talab qiladi.
+    </div>
+
+    <!-- Step-by-step Code Instructions -->
+    <h3 style="font-family:var(--dp);font-size:1.05rem;margin-bottom:10px;">🚀 Dasturlarga o'rnatish va foydalanish qo'llanmasi</h3>
+    
+    <div class="tabs" style="margin-bottom:12px;">
+      <button class="tab active" id="tab-code-python" onclick="switchCodeTab('python')">Python</button>
+      <button class="tab" id="tab-code-js" onclick="switchCodeTab('js')">JavaScript / Node.js</button>
+      <button class="tab" id="tab-code-curl" onclick="switchCodeTab('curl')">cURL</button>
+    </div>
+
+    <!-- Python Code -->
+    <div id="code-snippet-python">
+      <p style="font-size:.8rem;color:var(--td);margin-bottom:6px;">1-qadam: Kutubxonani o'rnating: <code>pip install requests</code></p>
+      <pre style="background:#0f172a;padding:14px;border-radius:10px;font-family:var(--mn);font-size:.78rem;overflow-x:auto;color:#e2e8f0;border:1px solid var(--gb);line-height:1.5;">import requests
+
+url = "http://localhost:3000/api/v1/chat/completions"
+headers = {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+payload = {
+    "model": "noor-ai-1.5",
+    "messages": [{"role": "user", "content": "Salom Noor AI!"}]
+}
+
+response = requests.post(url, headers=headers, json=payload)
+print(response.json())</pre>
+    </div>
+
+    <!-- JavaScript Code -->
+    <div id="code-snippet-js" class="hidden">
+      <p style="font-size:.8rem;color:var(--td);margin-bottom:6px;">1-qadam: Node.js yoki brauzerdan so'rov yuborish:</p>
+      <pre style="background:#0f172a;padding:14px;border-radius:10px;font-family:var(--mn);font-size:.78rem;overflow-x:auto;color:#e2e8f0;border:1px solid var(--gb);line-height:1.5;">const response = await fetch("http://localhost:3000/api/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    model: "noor-ai-1.5",
+    messages: [{ role: "user", content: "Salom Noor AI!" }]
+  })
+});
+
+const data = await response.json();
+console.log(data);</pre>
+    </div>
+
+    <!-- cURL Code -->
+    <div id="code-snippet-curl" class="hidden">
+      <p style="font-size:.8rem;color:var(--td);margin-bottom:6px;">Terminal orqali sinash:</p>
+      <pre style="background:#0f172a;padding:14px;border-radius:10px;font-family:var(--mn);font-size:.78rem;overflow-x:auto;color:#e2e8f0;border:1px solid var(--gb);line-height:1.5;">curl -X POST http://localhost:3000/api/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"noor-ai-1.5","messages":[{"role":"user","content":"Salom Noor AI!"}]}'</pre>
+    </div>
+
   </div>
 </div>
 
