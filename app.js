@@ -2069,15 +2069,22 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 async function installWindowsApp() {
-  // Download standard installer script setup file
-  const link = document.createElement('a');
-  link.href = '/download/installer';
-  link.download = 'NoorAI-Setup.bat';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  noorToast("NoorAI-Setup.bat yuklanmoqda! Yuklangandan so'ng faylni ochib kompyuteringizdagi C: yoki D: diskiga o'rnating. 🚀");
+  try {
+    const response = await fetch('/download/installer');
+    if (!response.ok) throw new Error('Installer yuklanmadi.');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'NoorAI-Setup.bat';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    noorToast("NoorAI-Setup.bat yuklandi. Downloads papkasidan ishga tushiring.");
+  } catch (e) {
+    noorToast(e.message || 'Installer yuklanmadi.');
+  }
 
   if (deferredPwaPrompt) {
     try {

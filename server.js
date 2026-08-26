@@ -727,6 +727,7 @@ app.get('/share/:id', (req, res) => {
 // Download installer endpoint
 app.get('/download/installer', (req, res) => {
   const filePath = path.join(__dirname, 'NoorAI-Setup.bat');
+  res.type('application/octet-stream');
   res.download(filePath, 'NoorAI-Setup.bat');
 });
 
