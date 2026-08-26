@@ -130,6 +130,7 @@ function showStage(id, pushRoute = true){
   const keepsMainWrapperVisible = id === 'stage-chat' || id === 'stage-admin-dash';
   mainContent.classList.toggle('show', keepsMainWrapperVisible || id === 'main-content');
   mainContent.classList.toggle('stage-overlay-active', keepsMainWrapperVisible);
+  document.body.classList.toggle('chat-overlay-active', keepsMainWrapperVisible);
   const el=document.getElementById(id);
   if(el)el.classList.remove('hidden');
 
