@@ -387,9 +387,17 @@ async function generatePollinationsVideo(prompt, model, duration = '5', aspectRa
   const url = `https://gen.pollinations.ai/video/${encodeURIComponent(prompt)}?${params}`;
   console.log(`[Noor AI Video Engine] Requesting external video stream: duration=${duration}s ratio=${aspectRatio} model=${model}`);
   
-  const resp = await fetch(url, {
-    headers: pollinationsKey ? { 'Authorization': `Bearer ${pollinationsKey}` } : {}
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+  let resp;
+  try {
+    resp = await fetch(url, {
+      headers: pollinationsKey ? { 'Authorization': `Bearer ${pollinationsKey}` } : {},
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
@@ -481,14 +489,20 @@ async function generateNativeAiVideo(prompt, durationSec = 5, aspectRatio = '16:
     svgFrames.push(Buffer.from(svg));
   }
 
-  // Convert SVG keyframes to high resolution MP4/WebM animated asset via Sharp
+  // Encode the rendered frames as a valid animated fallback asset.
   const sharp = require('sharp');
-  const pngBuffers = await Promise.all(svgFrames.map(buf => sharp(buf).png().toBuffer()));
-  
-  // Use sharp to assemble animated WebP/GIF/Buffer, and write as valid media asset
-  return await sharp(pngBuffers[0], { animated: true })
-    .gif({ loop: 0, delay: Math.round(1000 / fps) })
-    .toBuffer();
+  const GIFEncoder = require('gif-encoder-2');
+  const encoder = new GIFEncoder(width, height, 'octree', true, sampleFrameCount);
+  encoder.setRepeat(0);
+  encoder.setDelay(Math.max(50, Math.round((durationSec * 1000) / sampleFrameCount)));
+  encoder.setQuality(10);
+  encoder.start();
+  for (const frame of svgFrames) {
+    const { data } = await sharp(frame).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    encoder.addFrame({ getImageData: () => ({ data }) });
+  }
+  encoder.finish();
+  return encoder.out.getData();
 }
 
 // POST /api/chat/generate-video — Video Generation Request Route
@@ -568,6 +582,8 @@ app.post('/api/chat/generate-video', async (req, res) => {
       if (!videoBuffer) {
         // Use Native AI Video Renderer Fallback Engine
         usedEngine = 'noor-native-video-engine';
+        job.filename = `${id}.gif`;
+        job.videoUrl = `/generated/${job.filename}`;
         videoBuffer = await generateNativeAiVideo(cleanPrompt, parseInt(duration, 10), aspectRatio, { fps, style, cameraMovement });
       }
 
@@ -576,7 +592,7 @@ app.post('/api/chat/generate-video', async (req, res) => {
       job.progress = 85;
       job.statusText = 'Encoding high quality MP4 video stream...';
 
-      fs.writeFileSync(path.join(GENERATED_DIR, filename), videoBuffer);
+      fs.writeFileSync(path.join(GENERATED_DIR, job.filename), videoBuffer);
 
       // Save to database history
       db.generatedImages[id] = {
@@ -584,7 +600,7 @@ app.post('/api/chat/generate-video', async (req, res) => {
         prompt: cleanPrompt,
         engine: usedEngine,
         model,
-        filename,
+        filename: job.filename,
         duration: String(duration),
         aspectRatio: String(aspectRatio),
         fps: String(fps),

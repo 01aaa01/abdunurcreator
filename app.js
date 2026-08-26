@@ -1310,9 +1310,12 @@ function appendGeneratedVideoBubble(videoUrl, shareUrl, prompt, duration, aspect
   bubble.className = 'chat-msg ai';
   const fullShareUrl = window.location.origin + (shareUrl || '');
   const metaText = [duration ? `${duration}s` : '', aspectRatio || ''].filter(Boolean).join(' · ');
+  const mediaTag = /\.gif(?:$|\?)/i.test(videoUrl || '')
+    ? `<img src="${videoUrl}" class="noor-video-player-el" alt="Noor AI animated video">`
+    : `<video src="${videoUrl}" class="noor-video-player-el" controls autoplay loop playsinline></video>`;
   bubble.innerHTML = `
     <div class="noor-video-card">
-      <video src="${videoUrl}" class="noor-video-player-el" controls autoplay loop playsinline></video>
+      ${mediaTag}
       <div class="noor-video-card-meta">
         <div class="noor-video-prompt-text">🎬 ${escapeHtml((prompt || '').slice(0, 80))}${metaText ? ` <span style="opacity:.55;font-size:.7rem;">(${metaText})</span>` : ''}</div>
         <a class="noor-video-download-btn" href="${videoUrl}" download>⬇ ${t('createImg.download', 'Yuklab olish')}</a>
