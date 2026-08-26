@@ -435,9 +435,6 @@ async function generateNativeAiVideo(prompt, durationSec = 5, aspectRatio = '16:
     bg1 = '#060614'; bg2 = '#140628'; accent = '#00f0ff'; secondAccent = '#ff00a0';
   }
 
-  // Sanitize prompt text for SVG text overlay rendering
-  const safeTitle = prompt.replace(/[&<>"']/g, ' ').slice(0, 60);
-
   // Generate multi-frame APNG/MP4 compatible frame sequence or animated SVG asset using Sharp
   const svgFrames = [];
   const sampleFrameCount = 15; // smooth keyframe cycle
@@ -476,12 +473,6 @@ async function generateNativeAiVideo(prompt, durationSec = 5, aspectRatio = '16:
       <circle cx="${width * 0.8 - posX}" cy="${height * 0.7 - posY}" r="12" fill="${secondAccent}" opacity="0.6" filter="url(#blurGlow)"/>
       <circle cx="${width * 0.5 + posY}" cy="${height * 0.2 + posX}" r="6" fill="#ffffff" opacity="0.9"/>
       
-      <!-- Scene Typography & Watermark -->
-      <g transform="translate(${width / 2}, ${height / 2}) rotate(${rotate})">
-        <text x="0" y="0" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-family="Space Grotesk, sans-serif" font-weight="800" font-size="${Math.min(width, height) * 0.045}px" filter="url(#blurGlow)">
-          ${safeTitle}
-        </text>
-      </g>
       <text x="${width - 30}" y="${height - 30}" text-anchor="end" fill="${accent}" font-family="Inter, sans-serif" font-size="16px" font-weight="600" opacity="0.8">
         ✦ NOOR AI VIDEO 1.0
       </text>
