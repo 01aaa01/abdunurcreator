@@ -1,16 +1,16 @@
 @echo off
-title AbdunurCreator - O'chirish
+title Noor AI - O'chirish
 color 0C
 echo.
 echo  ============================================
-echo    AbdunurCreator - O'chirish
+echo    Noor AI (by abdunurcreator) - O'chirish
 echo  ============================================
 echo.
 
 :: Autostart dan o'chirish
 set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-if exist "%STARTUP%\AbdunurCreator.vbs" (
-    del "%STARTUP%\AbdunurCreator.vbs"
+if exist "%STARTUP%\NoorAI.vbs" (
+    del "%STARTUP%\NoorAI.vbs"
     echo  [OK] Autostart o'chirildi.
 ) else (
     echo  [--] Autostart topilmadi.
@@ -18,8 +18,8 @@ if exist "%STARTUP%\AbdunurCreator.vbs" (
 
 :: Desktop shortcut o'chirish
 set "DESKTOP=%USERPROFILE%\Desktop"
-if exist "%DESKTOP%\AbdunurCreator.url" (
-    del "%DESKTOP%\AbdunurCreator.url"
+if exist "%DESKTOP%\NoorAI.lnk" (
+    del "%DESKTOP%\NoorAI.lnk"
     echo  [OK] Desktop shortcut o'chirildi.
 )
 
@@ -28,6 +28,6 @@ taskkill /f /im node.exe >nul 2>&1
 echo  [OK] Server to'xtatildi.
 
 echo.
-echo  AbdunurCreator o'chirildi.
+echo  Noor AI o'chirildi.
 echo.
 pause

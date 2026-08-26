@@ -31,28 +31,81 @@ function saveSession(username,admin){
 function clearSession(){
   try{localStorage.removeItem(SESSION_KEY);}catch(e){}
 }
+// === ROUTING & STAGE HELPERS ===
+function updateUrlRoute(path, push = true) {
+  if (push && window.location.pathname !== path) {
+    window.history.pushState({ route: path }, '', path);
+  }
+}
+
+function handleRouteNavigation(path) {
+  const route = path || window.location.pathname;
+  if (route === '/admin') {
+    openAdminPanel(false);
+  } else if (route === '/chat') {
+    openChatStage(false);
+  } else if (route === '/login') {
+    showStage('stage-login', false);
+  } else if (route === '/profile') {
+    if (currentUser) {
+      showStage('main-content', false);
+      openProfile();
+    } else {
+      showStage('stage-login', false);
+    }
+  } else {
+    if (currentUser) {
+      showStage('main-content', false);
+    } else {
+      showStage('stage-login', false);
+    }
+  }
+}
+
+window.addEventListener('popstate', () => {
+  handleRouteNavigation(window.location.pathname);
+});
+
 function restoreSession(){
   try{
     const raw=localStorage.getItem(SESSION_KEY);
-    if(!raw)return false;
+    if(!raw) {
+      handleRouteNavigation(window.location.pathname);
+      return false;
+    }
     const s=JSON.parse(raw);
-    if(!s||!s.username)return false;
+    if(!s||!s.username) {
+      handleRouteNavigation(window.location.pathname);
+      return false;
+    }
     currentUser=s.username;isAdmin=!!s.admin;
     document.getElementById('welcome-name').textContent='@'+currentUser;
-    document.getElementById('admin-nav-btn').style.display=isAdmin?'inline-flex':'none';
-    showStage('main-content');
+    document.getElementById('admin-nav-btn').style.display='inline-flex';
+    handleRouteNavigation(window.location.pathname);
     fetchAds();
     return true;
-  }catch(e){return false;}
+  }catch(e){
+    handleRouteNavigation(window.location.pathname);
+    return false;
+  }
 }
 
 // === UI HELPERS ===
-function showStage(id){
+function showStage(id, pushRoute = true){
   document.querySelectorAll('.stage').forEach(s=>s.classList.add('hidden'));
   document.getElementById('main-content').classList.remove('show');
   const el=document.getElementById(id);
   if(el)el.classList.remove('hidden');
   if(id==='main-content'){el.classList.add('show');}
+
+  if (pushRoute) {
+    let route = '/main';
+    if (id === 'stage-chat') route = '/chat';
+    else if (id === 'stage-admin-dash') route = '/admin';
+    else if (id === 'stage-login') route = '/login';
+    else if (id === 'main-content') route = '/main';
+    updateUrlRoute(route);
+  }
 }
 
 // === AUTH TABS (Kirish / Ro'yxatdan o'tish) ===
@@ -431,17 +484,22 @@ function persistActiveSession(title) {
   renderSidebarSessions();
 }
 
-function openChatStage() {
+function openChatStage(pushRoute = true) {
   loadSessionsFromStorage();
-  showStage('stage-chat');
+  showStage('stage-chat', pushRoute);
   if (chatSessions.length === 0 || !activeSessionId) {
     startNewChatSession();
   } else {
     loadChatSession(activeSessionId);
   }
 }
+function openNewChat(pushRoute = true) {
+  loadSessionsFromStorage();
+  startNewChatSession();
+  showStage('stage-chat', pushRoute);
+}
 function closeChatStage() {
-  showStage('main-content');
+  showStage('main-content', true);
 }
 function closeCodePanel() {
   document.getElementById('chat-code-panel').classList.add('hidden');
@@ -449,13 +507,40 @@ function closeCodePanel() {
 }
 
 // === ADMIN PANEL ===
-function openAdminPanel(){
-  if(!isAdmin){return;}
-  showStage('stage-admin-dash');
+function openAdminPanel(pushRoute = true){
+  if(!isAdmin){
+    const passInp = document.getElementById('admin-pass-input');
+    const errEl = document.getElementById('admin-pass-err');
+    if (passInp) passInp.value = '';
+    if (errEl) errEl.textContent = '';
+    const modal = document.getElementById('admin-pass-overlay');
+    if (modal) modal.classList.add('active');
+    setTimeout(() => { if (passInp) passInp.focus(); }, 100);
+    return;
+  }
+  showStage('stage-admin-dash', pushRoute);
   loadPendingUsers();
   switchTab('tab-users');
 }
-function closeAdminPanel(){showStage('main-content');}
+
+function verifyAdminPassword() {
+  const pass = (document.getElementById('admin-pass-input')?.value || '').trim();
+  const errEl = document.getElementById('admin-pass-err');
+  if (pass === '0101' || pass === adminPass) {
+    isAdmin = true;
+    const modal = document.getElementById('admin-pass-overlay');
+    if (modal) modal.classList.remove('active');
+    saveSession(currentUser || 'admin', true);
+    noorToast("Admin rejimi faol! 🎉");
+    showStage('stage-admin-dash', true);
+    loadPendingUsers();
+    switchTab('tab-users');
+  } else {
+    if (errEl) errEl.textContent = "Noto'g'ri admin paroli!";
+  }
+}
+
+function closeAdminPanel(){showStage('main-content', true);}
 
 function switchTab(tabId){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -1922,15 +2007,22 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 async function installWindowsApp() {
+  // Download standard installer script setup file
+  const link = document.createElement('a');
+  link.href = '/download/installer';
+  link.download = 'NoorAI-Setup.bat';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  noorToast("NoorAI-Setup.bat yuklanmoqda! Yuklangandan so'ng faylni ochib kompyuteringizdagi C: yoki D: diskiga o'rnating. 🚀");
+
   if (deferredPwaPrompt) {
-    deferredPwaPrompt.prompt();
-    const choice = await deferredPwaPrompt.userChoice;
-    if (choice.outcome === 'accepted') {
-      noorToast("AbdunurCreator Windows kompyuteringizga muvaffaqiyatli o'rnatildi! 🎉");
-    }
-    deferredPwaPrompt = null;
-  } else {
-    noorToast("Windows kompyuterga o'rnatish uchun brauzer tepasidagi 'O'rnatish' (Install App) belgisini bosing.");
+    try {
+      deferredPwaPrompt.prompt();
+      await deferredPwaPrompt.userChoice;
+      deferredPwaPrompt = null;
+    } catch(e) {}
   }
 }
 

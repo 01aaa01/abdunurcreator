@@ -1,7 +1,7 @@
 {
-  "name": "AbdunurCreator — AI Dunyo Desktop",
-  "short_name": "AbdunurCreator",
-  "description": "Noor AI, matn, kod, audio va rasm generatsiya qiluvchi professional Windows desktop ilovasi",
+  "name": "Noor AI — by abdunurcreator",
+  "short_name": "Noor AI",
+  "description": "Noor AI — matn, kod, audio, video va rasm generatsiya qiluvchi professional AI platformasi",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0d17",

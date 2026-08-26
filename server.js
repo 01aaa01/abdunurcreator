@@ -692,10 +692,20 @@ app.get('/share/:id', (req, res) => {
 </html>`);
 });
 
+// Download installer endpoint
+app.get('/download/installer', (req, res) => {
+  const filePath = path.join(__dirname, 'NoorAI-Setup.bat');
+  res.download(filePath, 'NoorAI-Setup.bat');
+});
+
+// SPA client-side route fallback for /chat, /admin, /login, /profile, /main, /new-chat
+app.get(['/chat', '/admin', '/login', '/profile', '/main', '/new-chat'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'a.html'));
+});
+
 // "/" manziliga kirganda avtomatik a.html'ga yo'naltirish
-// (chunki bosh sahifa fayli index.html emas, a.html deb nomlangan)
 app.get('/', (req, res) => {
-  res.redirect('/a.html');
+  res.sendFile(path.join(__dirname, 'a.html'));
 });
 
 // DB

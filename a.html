@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>AbdunurCreator — AI Dunyo</title>
+<title>Noor AI — by abdunurcreator</title>
 <link rel="icon" type="image/png" sizes="64x64" href="cat.png?v=2">
 <link rel="icon" type="image/x-icon" href="favicon.ico?v=2">
 <link rel="shortcut icon" href="favicon.ico?v=2">
@@ -33,7 +33,7 @@
     </div>
     <div class="logo">
       <img src="cat.png" alt="Logo" class="logo-img">
-      <span>ABDUNURCREATOR</span>
+      <span style="white-space:nowrap;">NOOR AI</span>
     </div>
 
     <div class="tabs" style="margin-bottom:20px;">
@@ -124,7 +124,7 @@
       <button type="button" class="lang-btn" data-lang="ru">RU</button>
       <button type="button" class="lang-btn" data-lang="en">EN</button>
     </div>
-    <button class="nav-btn glass" id="admin-nav-btn" onclick="openAdminPanel()" style="display:none">
+    <button class="nav-btn glass" id="admin-nav-btn" onclick="openAdminPanel()" style="display:inline-flex">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span data-i18n="nav.admin">Admin</span>
     </button>
@@ -140,7 +140,7 @@
 
   <div class="hero">
     <div class="eyebrow" data-i18n="hero.eyebrow">The Future is Now</div>
-    <h1>AbdunurCreator × AI</h1>
+    <h1>Noor AI</h1>
     <p data-i18n="hero.sub">Noor AI (1.0 dan 3.0 gacha) bilan suhbatlashing, rasm yarating va eng so'nggi AI vositalarini bir joyda kashf eting.</p>
     <div class="welcome-tag"><span data-i18n="hero.welcome">Xush kelibsiz,</span> <b id="welcome-name">@user</b></div>
   </div>
@@ -148,7 +148,7 @@
   <!-- AI CHATBOT — endi to'liq ekranli sahifada ochiladi -->
   <div class="sec-title" data-i18n="chat.sectionTitle">Noor AI bilan suhbat</div>
   <div style="text-align:center;margin-bottom:50px;">
-    <button class="btn new-chat-btn" onclick="openChatStage()" style="width:auto;padding:16px 36px;font-size:1rem;">
+    <button class="btn new-chat-btn" onclick="openNewChat()" style="width:auto;padding:16px 36px;font-size:1rem;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
       <span data-i18n="chat.newChat">Yangi suhbat</span>
     </button>
@@ -199,7 +199,7 @@
     </button>
   </div>
 
-  <footer data-i18n="footer.text">© 2026 ABDUNURCREATOR — AI orqali yaratilgan dunyo</footer>
+  <footer data-i18n="footer.text">© 2026 NOOR AI — AI orqali yaratilgan dunyo</footer>
 </div>
 
 <!-- ======= FULLSCREEN CHAT (Noor AI) ======= -->
@@ -225,7 +225,7 @@
       <div class="chat-main-header">
         <div class="logo chat-header-logo">
           <img src="cat.png" alt="Logo" class="logo-img">
-          <span class="chat-app-title">AbdunurCreator</span>
+          <span class="chat-app-title" style="white-space:nowrap;">Noor AI</span>
         </div>
       </div>
       <p class="chat-note" id="chat-note" data-i18n="chat.noteGeneral">Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.</p>
@@ -491,12 +491,27 @@
   </div>
 </div>
 
+<!-- ======= ADMIN PASSWORD MODAL ======= -->
+<div class="overlay" id="admin-pass-overlay">
+  <div class="glass ad-modal panel" style="padding:28px 20px;max-width:380px;text-align:center;">
+    <button class="close-modal" onclick="document.getElementById('admin-pass-overlay').classList.remove('active')">&times;</button>
+    <div style="font-size:2.5rem;margin-bottom:10px;">🔐</div>
+    <h2 style="font-family:var(--dp);margin-bottom:10px;">Admin Paneli</h2>
+    <p class="sub" style="font-size:.85rem;margin-bottom:20px;color:var(--td);">Admin panelga kirish uchun parolni kiriting (Standart: 0101):</p>
+    <div class="field">
+      <input type="password" id="admin-pass-input" placeholder="Parolni kiriting..." style="text-align:center;font-size:1.2rem;letter-spacing:4px;" onkeyup="if(event.key==='Enter')verifyAdminPassword()">
+    </div>
+    <button class="btn" onclick="verifyAdminPassword()" style="margin-top:10px;">Kirish</button>
+    <div class="err" id="admin-pass-err" style="margin-top:10px;"></div>
+  </div>
+</div>
+
 <!-- ======= ADMIN PANEL ======= -->
 <div class="stage hidden" id="stage-admin-dash">
   <div class="glass panel panel-lg" style="animation:rise .6s cubic-bezier(.2,.8,.2,1);">
     <div class="logo"><span class="dot"></span>ADMIN PANEL</div>
     <h1 class="title" style="display:flex;align-items:center;justify-content:center;gap:8px;">
-      AbdunurCreator
+      Noor AI
       <!-- Ko'k verified badge -->
       <svg class="verified-badge" viewBox="0 0 24 24" fill="#1D9BF0"><path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91-1.01-1-2.52-1.27-3.91-.81C14.67 2.88 13.43 2 12 2c-1.43 0-2.67.88-3.34 2.19-1.39-.46-2.9-.2-3.91.81-1 1.01-1.27 2.52-.81 3.91C2.88 9.33 2 10.57 2 12c0 1.43.88 2.67 2.19 3.34-.46 1.39-.2 2.9.81 3.91 1.01 1 2.52 1.27 3.91.81C9.33 21.12 10.57 22 12 22c1.43 0 2.67-.88 3.34-2.19 1.39.46 2.9.2 3.91-.81 1-1.01 1.27-2.52.81-3.91C21.12 14.67 22 13.43 22 12zm-6.16-2.14l-4.45 5.38-2.78-2.77a.75.75 0 0 0-1.06 1.06l3.36 3.36a.75.75 0 0 0 1.09-.04l5-6.06a.75.75 0 0 0-1.16-.93z"/></svg>
     </h1>
