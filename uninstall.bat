@@ -3,7 +3,7 @@ title Noor AI - O'chirish
 color 0C
 echo.
 echo  ============================================
-echo    Noor AI (by abdunurcreator) - O'chirish
+echo            Noor AI - O'chirish
 echo  ============================================
 echo.
 

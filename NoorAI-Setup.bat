@@ -6,7 +6,6 @@ cls
 
 echo =======================================================
 echo              NOOR AI - SETUP INSTALLER
-echo                 by abdunurcreator
 echo =======================================================
 echo.
 echo Noor AI dasturini kompyuteringizga o'rnatish uchun
@@ -36,7 +35,7 @@ echo sLinkFile = "%SHORTCUT_PATH%" >> "%SCRIPT_VBS%"
 echo Set oLink = oWS.CreateShortcut(sLinkFile) >> "%SCRIPT_VBS%"
 echo oLink.TargetPath = "%TARGET_DIR%\start.bat" >> "%SCRIPT_VBS%"
 echo oLink.WorkingDirectory = "%TARGET_DIR%" >> "%SCRIPT_VBS%"
-echo oLink.Description = "Noor AI (by abdunurcreator)" >> "%SCRIPT_VBS%"
+echo oLink.Description = "Noor AI" >> "%SCRIPT_VBS%"
 echo oLink.IconLocation = "shell32.dll, 14" >> "%SCRIPT_VBS%"
 echo oLink.Save >> "%SCRIPT_VBS%"
 
@@ -55,7 +54,6 @@ echo node server.js
 cls
 echo =======================================================
 echo        NOOR AI MUVAFFAQIYATLI O'RNATILDI! 🎉
-echo              by abdunurcreator
 echo =======================================================
 echo.
 echo O'rnatilgan joy: %TARGET_DIR%
