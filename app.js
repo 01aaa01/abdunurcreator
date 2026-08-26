@@ -126,10 +126,11 @@ function restoreSession(){
 // === UI HELPERS ===
 function showStage(id, pushRoute = true){
   document.querySelectorAll('.stage').forEach(s=>s.classList.add('hidden'));
-  document.getElementById('main-content').classList.remove('show');
+  const mainContent = document.getElementById('main-content');
+  const keepsMainWrapperVisible = id === 'stage-chat' || id === 'stage-admin-dash';
+  mainContent.classList.toggle('show', keepsMainWrapperVisible || id === 'main-content');
   const el=document.getElementById(id);
   if(el)el.classList.remove('hidden');
-  if(id==='main-content'){el.classList.add('show');}
 
   if (pushRoute) {
     let route = '/main';
