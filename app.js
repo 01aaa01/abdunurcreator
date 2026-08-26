@@ -1395,11 +1395,31 @@ async function loadVideoHistory() {
           <div style="font-size:.73rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(shortPrompt)}</div>
           <div style="font-size:.68rem;color:var(--td);">${date} · ${item.duration || '5'}s · ${item.aspectRatio || '16:9'}</div>
         </div>
-        <a href="${item.videoUrl}" download style="background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);color:var(--c);padding:4px 10px;border-radius:8px;font-size:.68rem;text-decoration:none;white-space:nowrap;">⬇ Yuklab</a>
+        <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;">
+          <a href="${item.videoUrl}" download style="background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);color:var(--c);padding:4px 10px;border-radius:8px;font-size:.68rem;text-decoration:none;white-space:nowrap;">⬇ Yuklab</a>
+          <button type="button" class="video-history-delete" data-video-id="${escapeHtml(item.id)}" title="Tarixdan o'chirish" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#ff8a80;padding:4px 8px;border-radius:8px;font-size:.68rem;cursor:pointer;white-space:nowrap;">O'chirish</button>
+        </div>
       </div>`;
     }).join('');
+    listEl.querySelectorAll('.video-history-delete').forEach(btn => {
+      btn.addEventListener('click', () => deleteVideoHistory(btn.dataset.videoId));
+    });
   } catch (e) {
     listEl.innerHTML = '<div style="font-size:.72rem;color:var(--td);">Tarix yuklanmadi.</div>';
+  }
+}
+
+async function deleteVideoHistory(id) {
+  const ok = await noorConfirm('Ushbu videoni tarixdan o\'chirishga ishonchingiz komilmi?', { danger: true, confirmText: "O'chirish" });
+  if (!ok) return;
+  try {
+    const r = await fetch(BASE_URL + '/api/chat/video-history/' + encodeURIComponent(id), { method: 'DELETE' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Video o\'chirilmadi.');
+    noorToast('Video tarixdan o\'chirildi.');
+    loadVideoHistory();
+  } catch (e) {
+    noorToast(e.message || 'Video o\'chirilmadi.');
   }
 }
 

@@ -668,6 +668,22 @@ app.get('/api/chat/video-history', (req, res) => {
   res.json({ history: list });
 });
 
+app.delete('/api/chat/video-history/:id', (req, res) => {
+  const id = req.params.id;
+  const record = db.generatedImages[id];
+  if (!record) return res.status(404).json({ error: 'Video topilmadi.' });
+
+  if (record.filename) {
+    try { fs.unlinkSync(path.join(GENERATED_DIR, record.filename)); } catch (e) {
+      if (e.code !== 'ENOENT') console.warn('Video faylini o\'chirishda xato:', e.message);
+    }
+  }
+  delete db.generatedImages[id];
+  saveDB();
+  videoJobs.delete(id);
+  res.json({ success: true });
+});
+
 app.get('/share/:id', (req, res) => {
   const rec = db.generatedImages[req.params.id];
   if (!rec) return res.status(404).send('<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8"><title>Topilmadi</title></head><body style="background:#0a0b10;color:#f2f2f7;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">Bu fayl topilmadi yoki o\'chirilgan.</body></html>');
