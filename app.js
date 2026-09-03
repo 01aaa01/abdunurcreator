@@ -17,7 +17,7 @@ aiNames.forEach(n=>{const el=document.createElement('div');el.className='floatin
 document.addEventListener('mousemove',e=>{const x=e.clientX/window.innerWidth-.5,y=e.clientY/window.innerHeight-.5;document.querySelectorAll('.floating-ai').forEach((el,i)=>{const s=(i%5+1)*18;el.style.transform=`translate(${x*s}px,${y*s}px)`;});});
 
 // === STATE ===
-let currentUser='';
+let currentUser='guest'; // AUTO-LOGIN: login oynasini o'tkazib yuborish
 let isAdmin=false;
 let adminPass='0101';
 let selectedMsgUser='';
@@ -103,22 +103,35 @@ function restoreSession(){
   try{
     const raw=localStorage.getItem(SESSION_KEY);
     if(!raw) {
-      handleRouteNavigation(window.location.pathname);
+      // AUTO-LOGIN: login o'rniga darhol chatga o'tkazamiz
+      currentUser = 'guest';
+      isAdmin = false;
+      document.body.classList.add('chat-active');
+      showStage('stage-chat', false);
       return false;
     }
     const s=JSON.parse(raw);
     if(!s||!s.username) {
-      handleRouteNavigation(window.location.pathname);
+      // AUTO-LOGIN
+      currentUser = 'guest';
+      isAdmin = false;
+      document.body.classList.add('chat-active');
+      showStage('stage-chat', false);
       return false;
     }
     currentUser=s.username;isAdmin=!!s.admin;
     document.getElementById('welcome-name').textContent='@'+currentUser;
     document.getElementById('admin-nav-btn').style.display = isAdmin ? 'inline-flex' : 'none';
-    handleRouteNavigation(window.location.pathname);
+    document.body.classList.add('chat-active');
+    showStage('stage-chat', false);
     fetchAds();
     return true;
   }catch(e){
-    handleRouteNavigation(window.location.pathname);
+    // AUTO-LOGIN
+    currentUser = 'guest';
+    isAdmin = false;
+    document.body.classList.add('chat-active');
+    showStage('stage-chat', false);
     return false;
   }
 }
