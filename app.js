@@ -10,11 +10,8 @@
 // to'g'ri kod kiritsalar ham "Server bilan aloqa yo'q" xatosini olishgan.
 const BASE_URL = (location.protocol === 'file:') ? 'http://localhost:3000' : '';
 
-// === PARALLAX BACKGROUND ===
-const aiNames=['ChatGPT','Midjourney','Kling','Sora','Veo 3','Copilot','DALL-E','Runway','Pika','Higgsfield','Gemini','Claude'];
-const bg=document.getElementById('ai-bg');
-aiNames.forEach(n=>{const el=document.createElement('div');el.className='floating-ai';el.textContent=n;el.style.left=Math.random()*90+'vw';el.style.top=Math.random()*90+'vh';el.style.fontSize=(Math.random()*2.5+1)+'rem';bg.appendChild(el);});
-document.addEventListener('mousemove',e=>{const x=e.clientX/window.innerWidth-.5,y=e.clientY/window.innerHeight-.5;document.querySelectorAll('.floating-ai').forEach((el,i)=>{const s=(i%5+1)*18;el.style.transform=`translate(${x*s}px,${y*s}px)`;});});
+// === PARALLAX BACKGROUND O'CHIRILGAN ===
+// (AI nomlari background'da ko'rinmasin)
 
 // === STATE ===
 let currentUser='guest'; // AUTO-LOGIN: login oynasini o'tkazib yuborish
