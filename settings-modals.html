@@ -1,0 +1,143 @@
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="settings-overlay">
+  <div class="glass ad-modal settings-modal">
+    <button class="close-modal" onclick="document.getElementById('settings-overlay').classList.remove('active')">&times;</button>
+    <div class="settings-header"><h2>⚙️ Sozlamalar</h2><p>Noor AI ni moslashtiring</p></div>
+    <div class="settings-body">
+      <nav class="settings-tabs">
+        <button class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')">Umumiy</button>
+        <button class="settings-tab" data-tab="model" onclick="switchSettingsTab('model')">Model</button>
+        <button class="settings-tab" data-tab="personality" onclick="switchSettingsTab('personality')">Shaxsiyat</button>
+        <button class="settings-tab" data-tab="voice" onclick="switchSettingsTab('voice')">Ovoz</button>
+        <button class="settings-tab" data-tab="memory" onclick="switchSettingsTab('memory')">Xotira</button>
+        <button class="settings-tab" data-tab="data" onclick="switchSettingsTab('data')">Ma'lumot</button>
+      <div class="settings-content">
+        <div class="settings-section active" data-section="general">
+          <h3>Umumiy</h3>
+          <div class="setting-row"><label>Til</label><select id="setting-language"><option value="uz">O'zbek</option><option value="ru">Русский</option><option value="en">English</option></select></div>
+          <div class="setting-row"><label>Ism</label><input type="text" id="setting-name" placeholder="Ismingiz"></div>
+          <div class="setting-row"><label>Enter = yuborish</label><label class="switch"><input type="checkbox" id="setting-enter-send" checked><span class="slider"></span></label></div>
+        </div>
+        <div class="settings-section" data-section="model">
+          <h3>Model</h3>
+          <div class="setting-row"><label>Asosiy model</label><select id="setting-default-model"><option>Noor AI 1.5</option><option>Noor AI 2.0</option><option>Noor AI 1.0</option></select></div>
+          <div class="setting-row"><label>Temperature</label><div class="slider-row"><input type="range" id="setting-temperature" min="0" max="2" step="0.1" value="1"><span id="setting-temperature-val">1.0</span></div></div>
+          <div class="setting-row"><label>Max tokens</label><div class="slider-row"><input type="range" id="setting-max-tokens" min="256" max="8192" step="256" value="2048"><span id="setting-max-tokens-val">2048</span></div></div>
+          <div class="setting-row"><label>Top P</label><div class="slider-row"><input type="range" id="setting-top-p" min="0" max="1" step="0.05" value="0.9"><span id="setting-top-p-val">0.9</span></div></div>
+        </div>
+        <div class="settings-section" data-section="personality">
+          <h3>Shaxsiyat</h3>
+          <div class="setting-row"><label>System prompt</label><textarea id="setting-system-prompt" rows="3"></textarea></div>
+          <div class="setting-row"><label>Custom instructions</label><textarea id="setting-custom-instr" rows="3"></textarea></div>
+          <div class="setting-row"><label>Usul</label><select id="setting-tone"><option>Professional</option><option>Do'stona</option><option>Qisqa</option><option>Batafsil</option></select></div>
+        </div>
+        <div class="settings-section" data-section="voice">
+          <h3>Ovoz</h3>
+          <div class="setting-row"><label>Enable</label><label class="switch"><input type="checkbox" id="setting-voice-enabled"><span class="slider"></span></label></div>
+          <div class="setting-row"><label>Ovoz</label><select id="setting-voice-type"><option>Standart</option><option>Erkak</option><option>Ayol</option></select></div>
+          <div class="setting-row"><label>Tezlik</label><div class="slider-row"><input type="range" id="setting-voice-speed" min="0.5" max="2" step="0.1" value="1"><span id="setting-voice-speed-val">1.0x</span></div></div>
+        </div>
+        <div class="settings-section" data-section="memory">
+          <h3>Xotira</h3>
+          <div class="setting-row"><label>Saqlash</label><label class="switch"><input type="checkbox" id="setting-memory" checked><span class="slider"></span></label></div>
+          <button class="btn ghost sm" onclick="clearMemory()">🗑️ Tozalash</button>
+        </div>
+        <div class="settings-section" data-section="data">
+          <h3>Ma'lumot</h3>
+          <button class="btn ghost" onclick="exportData()">📥 Export</button>
+          <button class="btn ghost" onclick="importData()">📤 Import</button>
+          <button class="btn ghost" onclick="clearAllChats()">🗑️ O'chirish</button>
+        </div>
+        <button class="settings-tab" data-tab="account" onclick="switchSettingsTab('account')">Hisob</button>
+        <button class="settings-tab" data-tab="privacy" onclick="switchSettingsTab('privacy')">Maxfiylik</button>
+        <button class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')">Ko'rinish</button>
+        <button class="settings-tab" data-tab="mcp" onclick="switchSettingsTab('mcp')">MCP</button>
+      </nav>
+
+        <div class="settings-section" data-section="account">
+          <h3>Hisob</h3>
+          <div class="setting-row"><label>Username</label><input type="text" id="setting-username" disabled></div>
+          <button class="btn" onclick="upgradeToPro()">⭐ Pro</button>
+        </div>
+        <div class="settings-section" data-section="privacy">
+          <h3>Maxfiylik</h3>
+          <div class="setting-row"><label>Tarix saqlash</label><label class="switch"><input type="checkbox" id="setting-save-history" checked><span class="slider"></span></label></div>
+          <div class="setting-row"><label>Analytics</label><label class="switch"><input type="checkbox" id="setting-analytics"><span class="slider"></span></label></div>
+        </div>
+        <div class="settings-section" data-section="appearance">
+          <h3>Ko'rinish</h3>
+          <div class="setting-row"><label>Tema</label>
+            <div class="theme-options">
+              <button class="theme-option" onclick="setTheme('light')">☀️ Light</button>
+              <button class="theme-option" onclick="setTheme('dark')">🌙 Dark</button>
+              <button class="theme-option" onclick="setTheme('auto')">⚙️ Auto</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section" data-section="mcp">
+          <h3>MCP Servers</h3>
+          <div class="mcp-servers-list" id="mcp-servers-list"></div>
+          <button class="btn ghost" onclick="addMCPServer()">+ MCP server</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn ghost" onclick="document.getElementById('settings-overlay').classList.remove('active')">Bekor</button>
+      <button class="btn" onclick="saveSettings()">Saqlash</button>
+        <div class="settings-section" data-section="mcp">
+          <h3>MCP Servers</h3>
+          <div class="mcp-servers-list" id="mcp-servers-list"></div>
+          <button class="btn ghost" onclick="addMCPServer()">+ MCP server</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn ghost" onclick="document.getElementById('settings-overlay').classList.remove('active')">Bekor</button>
+      <button class="btn" onclick="saveSettings()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- PLUGINS MODAL -->
+<div class="overlay" id="plugins-overlay">
+  <div class="glass ad-modal plugins-modal">
+    <button class="close-modal" onclick="document.getElementById('plugins-overlay').classList.remove('active')">&times;</button>
+    <div class="settings-header"><h2>🧩 Pluginlar</h2><p>Noor AI ga kuch qo'shing</p></div>
+    <div class="plugins-grid">
+      <div class="plugin-card">
+        <div class="plugin-icon">🌐</div>
+        <div class="plugin-info"><h4>Web Search</h4><p>Internetdan qidirish</p></div>
+        <label class="switch"><input type="checkbox" class="plugin-toggle"><span class="slider"></span></label>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-icon">⚙️</div>
+        <div class="plugin-info"><h4>Code Interpreter</h4><p>Python kod</p></div>
+        <label class="switch"><input type="checkbox" class="plugin-toggle"><span class="slider"></span></label>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-icon">🎨</div>
+        <div class="plugin-info"><h4>Image Generation</h4><p>Rasm yaratish</p></div>
+        <label class="switch"><input type="checkbox" class="plugin-toggle" checked><span class="slider"></span></label>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-icon">📄</div>
+        <div class="plugin-info"><h4>File Analysis</h4><p>PDF, Word tahlil</p></div>
+        <label class="switch"><input type="checkbox" class="plugin-toggle"><span class="slider"></span></label>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-icon">👁️</div>
+        <div class="plugin-info"><h4>Vision</h4><p>Rasm tushunish</p></div>
+        <label class="switch"><input type="checkbox" class="plugin-toggle" checked><span class="slider"></span></label>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-icon">🧠</div>
+        <div class="plugin-info"><h4>Memory</h4><p>Uzoq muddatli xotira</p></div>
+        <label class="switch"><input type="checkbox" class="plugin-toggle" checked><span class="slider"></span></label>
+      </div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+</div>

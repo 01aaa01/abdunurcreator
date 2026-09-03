@@ -2187,3 +2187,115 @@ function switchCodeTab(lang) {
   });
 }
 
+
+// ===== SETTINGS & PLUGINS =====
+function openSettingsModal() {
+  document.getElementById('settings-overlay').classList.add('active');
+  loadSettings();
+}
+function openPluginsModal() {
+  document.getElementById('plugins-overlay').classList.add('active');
+}
+function switchSettingsTab(tab) {
+  document.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+  document.querySelector('.settings-tab[data-tab="'+tab+'"]').classList.add('active');
+  document.querySelector('.settings-section[data-section="'+tab+'"]').classList.add('active');
+}
+function setTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme','dark');
+    localStorage.setItem('theme','dark');
+  } else if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme','light');
+    localStorage.setItem('theme','light');
+  } else {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark':'light');
+    localStorage.setItem('theme','auto');
+  }
+}
+function saveSettings() {
+  const s = {
+    language: document.getElementById('setting-language')?.value,
+    name: document.getElementById('setting-name')?.value,
+    model: document.getElementById('setting-default-model')?.value,
+    temperature: document.getElementById('setting-temperature')?.value,
+    maxTokens: document.getElementById('setting-max-tokens')?.value,
+    topP: document.getElementById('setting-top-p')?.value,
+    systemPrompt: document.getElementById('setting-system-prompt')?.value,
+    customInstr: document.getElementById('setting-custom-instr')?.value,
+    tone: document.getElementById('setting-tone')?.value,
+  };
+  localStorage.setItem('noor-settings', JSON.stringify(s));
+  document.getElementById('settings-overlay').classList.remove('active');
+  alert('Sozlamalar saqlandi!');
+}
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('noor-settings') || '{}');
+    if (s.language) document.getElementById('setting-language').value = s.language;
+    if (s.name) document.getElementById('setting-name').value = s.name;
+    if (s.model) document.getElementById('setting-default-model').value = s.model;
+    if (s.systemPrompt) document.getElementById('setting-system-prompt').value = s.systemPrompt;
+    if (s.customInstr) document.getElementById('setting-custom-instr').value = s.customInstr;
+  } catch(e) {}
+}
+function addMCPServer() {
+  const name = prompt('MCP server nomi:');
+  if (!name) return;
+  const cmd = prompt('Buyruq (masalan: npx):');
+  const args = prompt('Argumentlar (masalan: -y @modelcontextprotocol/server-fs):');
+  const servers = JSON.parse(localStorage.getItem('mcp-servers') || '[]');
+  servers.push({name, cmd, args, enabled: true});
+  localStorage.setItem('mcp-servers', JSON.stringify(servers));
+  renderMCPServers();
+}
+function renderMCPServers() {
+  const list = document.getElementById('mcp-servers-list');
+  if (!list) return;
+  const servers = JSON.parse(localStorage.getItem('mcp-servers') || '[]');
+  if (servers.length === 0) {
+    list.innerHTML = '<p style="color:var(--td);font-size:.85rem;">Hozircha MCP server yo\'q</p>';
+    return;
+  }
+  list.innerHTML = servers.map((s,i) =>
+    '<div class="mcp-server-item">' +
+      '<span>'+(s.name||'Server')+'</span>' +
+      '<button class="btn ghost sm" onclick="removeMCPServer('+i+')">O\'chirish</button>' +
+    '</div>'
+  ).join('');
+}
+function removeMCPServer(idx) {
+  const servers = JSON.parse(localStorage.getItem('mcp-servers') || '[]');
+  servers.splice(idx,1);
+  localStorage.setItem('mcp-servers', JSON.stringify(servers));
+  renderMCPServers();
+}
+function togglePlugin(name) {
+  const cb = document.querySelector('.plugin-toggle[data-plugin="'+name+'"]');
+  if (cb) cb.checked = !cb.checked;
+}
+function clearMemory() { localStorage.removeItem('chat-memory'); alert('Xotira tozalandi!'); }
+function exportData() {
+  const data = localStorage;
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'noor-backup.json';
+  a.click();
+}
+function importData() { alert('Import funksiyasi (keyinroq)'); }
+function clearAllChats() { if(confirm('Barcha suhbatlarni o\'chirilsinmi?')){ localStorage.clear(); location.reload(); } }
+function upgradeToPro() { alert('Pro tarif: 49,000 so\'m/oy. Tez orada!'); }
+
+// Sliders update
+document.addEventListener('input', function(e){
+  if (e.target.id === 'setting-temperature') document.getElementById('setting-temperature-val').textContent = e.target.value;
+  if (e.target.id === 'setting-max-tokens') document.getElementById('setting-max-tokens-val').textContent = e.target.value;
+  if (e.target.id === 'setting-top-p') document.getElementById('setting-top-p-val').textContent = e.target.value;
+  if (e.target.id === 'setting-voice-speed') document.getElementById('setting-voice-speed-val').textContent = e.target.value + 'x';
+  if (e.target.id === 'setting-font-size') document.getElementById('setting-font-size-val').textContent = e.target.value + 'px';
+});
+
+renderMCPServers();
