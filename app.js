@@ -2079,21 +2079,45 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 async function installWindowsApp() {
+  // Professional download modal ochamiz (ChatGPT/Claude uslubida)
+  showDownloadModal();
+
   try {
+    // Download progress kuzatish
     const response = await fetch('/download/installer');
     if (!response.ok) throw new Error('Installer yuklanmadi.');
-    const blob = await response.blob();
+
+    const contentLength = response.headers.get('content-length');
+    const total = contentLength ? parseInt(contentLength, 10) : 0;
+    const reader = response.body.getReader();
+    const chunks = [];
+    let received = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total) {
+        const percent = Math.round((received / total) * 100);
+        updateDownloadProgress(percent, received, total);
+      }
+    }
+
+    const blob = new Blob(chunks);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'NoorAI-Setup.bat';
+    link.download = 'NoorAI-Setup.exe';
     document.body.appendChild(link);
     link.click();
     link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    noorToast("NoorAI-Setup.bat yuklandi. Downloads papkasidan ishga tushiring.");
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+    finishDownload('NoorAI-Setup.exe muvaffaqiyatli yuklandi!');
+
   } catch (e) {
-    noorToast(e.message || 'Installer yuklanmadi.');
+    finishDownload(e.message || 'Installer yuklanmadi.', true);
   }
 
   if (deferredPwaPrompt) {
@@ -2103,6 +2127,69 @@ async function installWindowsApp() {
       deferredPwaPrompt = null;
     } catch(e) {}
   }
+}
+
+function showDownloadModal() {
+  let modal = document.getElementById('download-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'download-modal';
+    modal.className = 'overlay active';
+    modal.innerHTML = `
+      <div class="glass ad-modal download-modal">
+        <button class="close-modal" onclick="closeDownloadModal()">&times;</button>
+        <div class="download-icon">⬇️</div>
+        <h2 style="font-family:var(--dp);margin:0 0 8px;">Noor AI yuklanmoqda...</h2>
+        <p style="color:var(--td);margin:0 0 24px;font-size:.9rem;" id="download-status">Tayyorlanmoqda...</p>
+        <div class="download-progress">
+          <div class="download-progress-bar" id="download-bar"></div>
+        </div>
+        <div class="download-percent" id="download-percent">0%</div>
+        <div class="download-info" id="download-info" style="color:var(--td);font-size:.8rem;margin-top:12px;"></div>
+        <button class="btn ghost sm" style="margin-top:16px;" onclick="closeDownloadModal()">Yashirish</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } else {
+    modal.classList.add('active');
+    document.getElementById('download-status').textContent = 'Tayyorlanmoqda...';
+    document.getElementById('download-bar').style.width = '0%';
+    document.getElementById('download-percent').textContent = '0%';
+    document.getElementById('download-info').textContent = '';
+  }
+}
+
+function updateDownloadProgress(percent, received, total) {
+  const bar = document.getElementById('download-bar');
+  const pct = document.getElementById('download-percent');
+  const status = document.getElementById('download-status');
+  const info = document.getElementById('download-info');
+  if (bar) bar.style.width = percent + '%';
+  if (pct) pct.textContent = percent + '%';
+  if (status) status.textContent = 'Yuklanmoqda...';
+  if (info && total) {
+    const mbReceived = (received / 1024 / 1024).toFixed(2);
+    const mbTotal = (total / 1024 / 1024).toFixed(2);
+    info.textContent = mbReceived + ' MB / ' + mbTotal + ' MB';
+  }
+}
+
+function finishDownload(message, isError) {
+  const bar = document.getElementById('download-bar');
+  const status = document.getElementById('download-status');
+  const icon = document.querySelector('.download-icon');
+  if (bar) bar.style.width = '100%';
+  if (status) {
+    status.textContent = message;
+    status.style.color = isError ? '#d44c4c' : '#10a37f';
+  }
+  if (icon) icon.textContent = isError ? '⚠️' : '✅';
+  noorToast(message);
+}
+
+function closeDownloadModal() {
+  const modal = document.getElementById('download-modal');
+  if (modal) modal.classList.remove('active');
 }
 
 if ('serviceWorker' in navigator) {
