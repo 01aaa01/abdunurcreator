@@ -1050,3 +1050,123 @@ body.light-mode .chat-msg.ai .chat-msg-bubble {
 
 /* ===== EXTRA: ChatGPT-style icons for settings ===== */
 .settings-tab svg,.settings-tab .tab-icon{width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;}
+
+
+/* ===== CHAT INPUT BAR - TO'LIQ YANGI (PLUS, INPUT, MIC, MODEL, SEND) ===== */
+.chat-input-bar.claude-style{
+  display:flex!important;align-items:center!important;gap:6px!important;
+  background:#fff!important;border:1px solid #d3d0c5!important;
+  border-radius:24px!important;padding:8px 8px 8px 8px!important;
+  transition:all .2s!important;flex-wrap:nowrap!important;
+}
+.chat-input-bar.claude-style:focus-within{
+  border-color:#c96442!important;
+}
+[data-theme="dark"] .chat-input-bar.claude-style{
+  background:#1f1f1d!important;border-color:#3a3a37!important;
+}
+[data-theme="dark"] .chat-input-bar.claude-style:focus-within{
+  border-color:#c96442!important;
+}
+
+/* Plus tugmasi (chapda) */
+.attach-menu-wrap{position:relative!important;flex-shrink:0!important;display:flex!important;}
+.attach-plus-btn{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  width:36px!important;height:36px!important;
+  background:transparent!important;border:none!important;
+  color:#6b6b66!important;cursor:pointer!important;
+  border-radius:50%!important;flex-shrink:0!important;
+  margin:0!important;padding:0!important;
+}
+.attach-plus-btn:hover{background:#efece4!important;color:#2d2d2c!important;}
+.attach-plus-btn svg{display:block!important;width:20px!important;height:20px!important;}
+[data-theme="dark"] .attach-plus-btn{color:#b4b3ad!important;}
+[data-theme="dark"] .attach-plus-btn:hover{background:#3a3a37!important;color:#f0eee9!important;}
+
+/* Input matni */
+#chat-user-input{
+  flex:1 1 auto!important;min-width:0!important;
+  background:transparent!important;border:none!important;outline:none!important;
+  color:#2d2d2c!important;padding:10px 8px!important;font-size:15px!important;
+  font-family:inherit!important;
+}
+#chat-user-input::placeholder{color:#9a9a93!important;}
+[data-theme="dark"] #chat-user-input{color:#f0eee9!important;}
+[data-theme="dark"] #chat-user-input::placeholder{color:#7a7975!important;}
+
+/* Mic tugmasi */
+.chat-mic-btn{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  width:36px!important;height:36px!important;
+  background:transparent!important;border:none!important;
+  color:#6b6b66!important;cursor:pointer!important;
+  border-radius:50%!important;flex-shrink:0!important;
+  margin:0!important;padding:0!important;
+}
+.chat-mic-btn:hover{background:#efece4!important;color:#2d2d2c!important;}
+.chat-mic-btn svg{display:block!important;width:18px!important;height:18px!important;}
+[data-theme="dark"] .chat-mic-btn{color:#b4b3ad!important;}
+[data-theme="dark"] .chat-mic-btn:hover{background:#3a3a37!important;color:#f0eee9!important;}
+
+/* Model picker */
+.model-picker{position:relative!important;flex-shrink:0!important;}
+.model-picker-btn{
+  display:flex!important;align-items:center!important;gap:4px;
+  padding:6px 10px!important;background:transparent!important;
+  border:none!important;color:#6b6b66!important;font-size:13px!important;
+  cursor:pointer!important;border-radius:8px!important;
+  font-family:inherit!important;
+}
+.model-picker-btn:hover{background:#efece4!important;color:#2d2d2c!important;}
+[data-theme="dark"] .model-picker-btn{color:#b4b3ad!important;}
+[data-theme="dark"] .model-picker-btn:hover{background:#3a3a37!important;color:#f0eee9!important;}
+
+/* Send tugmasi (eng o'ngda) */
+.chat-send-arrow{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  width:36px!important;height:36px!important;
+  background:#c96442!important;border:none!important;
+  color:#fff!important;cursor:pointer!important;
+  border-radius:50%!important;flex-shrink:0!important;
+  margin:0!important;padding:0!important;
+  transition:all .15s!important;
+}
+.chat-send-arrow:hover{background:#b55638!important;transform:scale(1.05)!important;}
+.chat-send-arrow svg{display:block!important;width:16px!important;height:16px!important;}
+
+/* ===== AI JAVOB MATNI - CHATGPT STYLE (kulrang background) ===== */
+.chat-msg{
+  margin-bottom:16px!important;
+  display:block!important;
+  width:100%!important;
+  max-width:none!important;
+}
+.chat-msg.user{
+  background:#f3f1eb!important;
+  border-radius:14px!important;
+  padding:10px 16px!important;
+  margin-left:auto!important;margin-right:0!important;
+  max-width:75%!important;
+  color:#2d2d2c!important;
+}
+[data-theme="dark"] .chat-msg.user{background:#2d2d2b!important;color:#f0eee9!important;}
+.chat-msg.ai{
+  background:transparent!important;
+  padding:0!important;
+  margin-right:auto!important;margin-left:0!important;
+  max-width:100%!important;
+  color:#2d2d2c!important;
+}
+[data-theme="dark"] .chat-msg.ai{color:#f0eee9!important;}
+
+.chat-msg .msg-content,
+.chat-msg .chat-msg-text{
+  color:inherit!important;background:transparent!important;
+  font-size:15px!important;line-height:1.7!important;
+  padding:0!important;margin:0!important;
+  display:block!important;width:100%!important;
+}
+.chat-msg .msg-avatar{display:none!important;}
+
+#chat-attach-input,#chat-camera-input{display:none!important;}
