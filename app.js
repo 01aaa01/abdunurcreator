@@ -22,7 +22,7 @@ let msgColor='green';
 
 // === THEME & PRO USER HELPERS ===
 function isProUser() {
-  return isAdmin || currentUser === 'muslim';
+  return isAdmin || currentUser === 'muslim' || currentUser === 'abdunurcreator';
 }
 
 function initTheme() {
@@ -100,35 +100,26 @@ function restoreSession(){
   try{
     const raw=localStorage.getItem(SESSION_KEY);
     if(!raw) {
-      // AUTO-LOGIN: login o'rniga darhol chatga o'tkazamiz
-      currentUser = 'guest';
-      isAdmin = false;
-      document.body.classList.add('chat-active');
-      showStage('stage-chat', false);
+      // REQUIRE LOGIN
+      showStage('stage-login', false);
       return false;
     }
     const s=JSON.parse(raw);
     if(!s||!s.username) {
-      // AUTO-LOGIN
-      currentUser = 'guest';
-      isAdmin = false;
-      document.body.classList.add('chat-active');
-      showStage('stage-chat', false);
+      // REQUIRE LOGIN
+      showStage('stage-login', false);
       return false;
     }
     currentUser=s.username;isAdmin=!!s.admin;
-    document.getElementById('welcome-name').textContent='@'+currentUser;
+    document.getElementById('welcome-name').textContent=currentUser==='guest'?'Guest':('@'+currentUser);
     document.getElementById('admin-nav-btn').style.display = isAdmin ? 'inline-flex' : 'none';
     document.body.classList.add('chat-active');
     showStage('stage-chat', false);
     fetchAds();
     return true;
   }catch(e){
-    // AUTO-LOGIN
-    currentUser = 'guest';
-    isAdmin = false;
-    document.body.classList.add('chat-active');
-    showStage('stage-chat', false);
+    // REQUIRE LOGIN
+    showStage('stage-login', false);
     return false;
   }
 }
@@ -2343,6 +2334,102 @@ document.addEventListener('input', function(e){
 });
 
 renderMCPServers();
+// === DOWNLOAD CODE AS FILE ===
+function downloadCodeFile(code, language, filename) {
+  let content = code;
+  let ext = language.toLowerCase();
+  let mime = 'text/plain';
+  
+  if (ext === 'html') { ext = 'html'; mime = 'text/html'; }
+  else if (ext === 'javascript' || ext === 'js') { ext = 'js'; mime = 'application/javascript'; }
+  else if (ext === 'python' || ext === 'py') { ext = 'py'; mime = 'text/x-python'; }
+  else if (ext === 'css') { ext = 'css'; mime = 'text/css'; }
+  else if (ext === 'json') { ext = 'json'; mime = 'application/json'; }
+  else if (ext === 'sql') { ext = 'sql'; mime = 'text/sql'; }
+  else { ext = 'txt'; mime = 'text/plain'; }
+  
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || ('code.' + ext);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  noorToast('Downloaded: ' + a.download);
+}
 
+function showCodePanel(code, language) {
+  const panel = document.getElementById('chat-code-panel');
+  const body = document.getElementById('code-panel-body');
+  if (!panel || !body) return;
+  
+  // Create syntax highlighted code
+  const highlighted = highlightCode(code, language);
+  
+  // Detect filename from code
+  let filename = 'code.' + language.toLowerCase();
+  if (language.toLowerCase() === 'html') filename = 'index.html';
+  if (language.toLowerCase() === 'javascript') filename = 'app.js';
+  if (language.toLowerCase() === 'python') filename = 'main.py';
+  if (language.toLowerCase() === 'css') filename = 'style.css';
+  
+  body.innerHTML = `
+    <div class=code-actions>
+      <button class=code-action-btn onclick="copyCode('` + language + `')">Copy</button>
+      <button class=code-action-btn onclick="downloadCodeFile(\`` + code.replace(/`/g, '\`').replace(/\$/g, '\$') + `\`, '` + language + `', '` + filename + `')">Download</button>
+    </div>
+    <pre class=code-block><code class=language-` + language.toLowerCase() + `>` + highlighted + `</code></pre>
+  `;
+  
+  panel.classList.remove('hidden');
+}
 
+function highlightCode(code, language) {
+  // Simple syntax highlighting
+  let html = code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  
+  // Keywords
+  const keywords = {
+    'python': ['def', 'class', 'if', 'else', 'elif', 'for', 'while', 'return', 'import', 'from', 'print', 'True', 'False', 'None', 'and', 'or', 'not', 'in', 'is', 'try', 'except', 'with', 'as', 'lambda', 'yield', 'pass', 'break', 'continue'],
+    'javascript': ['function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return', 'class', 'import', 'export', 'from', 'async', 'await', 'try', 'catch', 'throw', 'new', 'this', 'true', 'false', 'null', 'undefined'],
+    'html': ['html', 'head', 'body', 'div', 'span', 'script', 'style', 'link', 'meta', 'title', 'header', 'footer', 'nav', 'main', 'section', 'article', 'aside'],
+    'css': ['color', 'background', 'margin', 'padding', 'border', 'font', 'width', 'height', 'display', 'position', 'top', 'left', 'right', 'bottom', 'flex', 'grid'],
+  };
+  
+  const lang = language.toLowerCase();
+  if (keywords[lang]) {
+    keywords[lang].forEach(kw => {
+      const regex = new RegExp('\b(' + kw + ')\b', 'g');
+      html = html.replace(regex, '<span class=kw>$1</span>');
+    });
+  }
+  
+  // Strings
+  html = html.replace(/(['"])([^'"]*)/g, '<span class=str>$1$2$1</span>');
+  
+  // Comments
+  html = html.replace(/(\/\/.*$)/gm, '<span class=cmt>$1</span>');
+  html = html.replace(/(#.*$)/gm, '<span class=cmt>$1</span>');
+  html = html.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class=cmt>$1</span>');
+  
+  return html;
+}
+
+function copyCode(language) {
+  const code = document.querySelector('#code-panel-body code');
+  if (code) {
+    navigator.clipboard.writeText(code.textContent);
+    noorToast('Copied to clipboard!');
+  }
+}
+
+function closeCodePanel() {
+  const panel = document.getElementById('chat-code-panel');
+  if (panel) panel.classList.add('hidden');
+}
 
