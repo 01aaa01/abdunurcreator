@@ -22,7 +22,7 @@ let msgColor='green';
 
 // === THEME & PRO USER HELPERS ===
 function isProUser() {
-  return isAdmin || currentUser === 'muslim' || currentUser === 'abdunurcreator';
+  return true; // All users are pro
 }
 
 function initTheme() {
@@ -111,7 +111,7 @@ function restoreSession(){
       return false;
     }
     currentUser=s.username;isAdmin=!!s.admin;
-    document.getElementById('welcome-name').textContent=currentUser==='guest'?'Guest':('@'+currentUser);
+    document.getElementById('welcome-name').textContent = currentUser ? '@'+currentUser : 'Guest';
     document.getElementById('admin-nav-btn').style.display = isAdmin ? 'inline-flex' : 'none';
     document.body.classList.add('chat-active');
     showStage('stage-chat', false);

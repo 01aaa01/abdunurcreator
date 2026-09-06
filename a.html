@@ -769,6 +769,57 @@ function setMsgColor(c){
       </div>
     </div>
   </div>
+
+<!-- LOGIN MODAL (optional) -->
+<div class=overlay id=login-modal-overlay>
+  <div class=glass ad-modal panel style=max-width:400px;padding:32px;>
+    <button class=close-modal onclick=closeLoginModal()>&times;</button>
+    <div style=text-align:center;margin-bottom:24px;>
+      <img src=cat.png alt=Logo style=width:64px;height:64px;border-radius:50%;>
+      <h2 style=margin:12px 0 4px;>Welcome to Noor AI</h2>
+      <p style=color:var(--td);font-size:.9rem;>Sign in to save your chats</p>
+    </div>
+    <div class=field>
+      <label>Username</label>
+      <input type=text id=login-modal-username placeholder=Enter username autocomplete=username>
+    </div>
+    <div class=field>
+      <label>Password</label>
+      <input type=password id=login-modal-password placeholder=Enter password autocomplete=current-password>
+    </div>
+    <button class=btn style=width:100%;margin-top:8px; onclick=doModalLogin()>Sign In</button>
+    <p style=text-align:center;margin-top:16px;color:var(--td);font-size:.85rem;>
+      Demo: abdunurcreator/0101 or muslim/1111
+    </p>
+  </div>
+</div>
+
+<script>
+function showLoginModal() {
+  document.getElementById("login-modal-overlay").classList.add("active");
+}
+function closeLoginModal() {
+  document.getElementById("login-modal-overlay").classList.remove("active");
+}
+function doModalLogin() {
+  const u = document.getElementById("login-modal-username").value.trim();
+  const p = document.getElementById("login-modal-password").value;
+  const err = document.getElementById("login-err");
+  
+  const user = verifyUser(u, p);
+  if (user) {
+    currentUser = user.username;
+    isAdmin = user.admin;
+    saveSession(currentUser, isAdmin);
+    document.getElementById("welcome-name").textContent = "@" + currentUser;
+    document.getElementById("admin-nav-btn").style.display = isAdmin ? "inline-flex" : "none";
+    closeLoginModal();
+    noorToast("Welcome, " + currentUser + "!");
+  } else {
+    noorToast("Invalid username or password");
+  }
+}
+</script>
 </body>
 </html>
 <!-- PLACEHOLDER -->
