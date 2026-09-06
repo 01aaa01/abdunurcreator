@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Noor AI</title>
+<link rel="icon" type="image/png" sizes="64x64" href="cat.png?v=2">
+<link rel="icon" type="image/x-icon" href="favicon.ico?v=2">
+<link rel="shortcut icon" href="favicon.ico?v=2">
+<link rel="apple-touch-icon" href="cat.png?v=2">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00d4ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<!-- background elements o'chirilgan (Claude style) -->
+
+<!-- ======= LOGIN / SIGNUP (O'CHIRILGAN - to'g'ridan-to'g'ri chat) ======= -->
+<div class="stage" id="stage-login" style="display:none !important;">
+  <div class="glass panel">
+    <div class="lang-switch" id="lang-switch-login">
+      <button type="button" class="lang-btn" data-lang="uz">UZ</button>
+      <button type="button" class="lang-btn" data-lang="ru">RU</button>
+      <button type="button" class="lang-btn" data-lang="en">EN</button>
+    </div>
+    <div class="logo">
+      <img src="cat.png" alt="Logo" class="logo-img">
+      <span style="white-space:nowrap;">NOOR AI</span>
+    </div>
+
+    <div class="tabs" style="margin-bottom:20px;">
+      <button class="tab active" id="auth-tab-login" onclick="switchAuthTab('login')" data-i18n="auth.tabLogin">Kirish</button>
+      <button class="tab" id="auth-tab-signup" onclick="switchAuthTab('signup')" data-i18n="auth.tabSignup">Ro'yxatdan o'tish</button>
+    </div>
+
+    <!-- LOGIN PANE -->
+    <div id="auth-pane-login">
+      <p class="sub" data-i18n="auth.identifierHint">Email yoki Telegram username'ingizni kiriting, so'ng usulni tanlang.</p>
+
+      <div class="auth-methods" id="login-methods">
+        <button class="btn auth-btn tg" onclick="chooseAuthMethod('login','telegram')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 4L2.5 11l6 2.2m12.5-9.2L15 20l-6.5-6.8m12.5-9.2L8.5 13.2" stroke="#fff" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/></svg>
+          <span data-i18n="auth.viaTelegram">Telegram bilan kirish</span>
+        </button>
+        <button class="btn ghost auth-btn" onclick="chooseAuthMethod('login','password')">
+          <span data-i18n="auth.viaPassword">Login va parol bilan</span>
+        </button>
+        <div class="google-btn-wrap">
+          <button type="button" class="btn auth-btn google" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            <span data-i18n="auth.viaGoogle">Google bilan kirish</span>
+          </button>
+          <div id="google-btn-overlay-login" class="google-btn-overlay"></div>
+        </div>
+      </div>
+
+      <!-- Telegram OTP sub-form -->
+      <div class="auth-subform hidden" id="login-sub-telegram">
+        <div class="field">
+          <label data-i18n="login.usernameLabel">Telegram username</label>
+          <span class="prefix">@</span>
+          <input type="text" id="tg-username" class="with-prefix" placeholder="username" autocomplete="off">
+        </div>
+        <div class="field">
+          <label data-i18n="login.codeLabel">Kod</label>
+          <input type="text" id="login-code" maxlength="6" placeholder="123456" style="text-align:center;letter-spacing:.3em;font-weight:bold;">
+        </div>
+        <button class="btn" id="login-btn" data-i18n="login.btn">Kirish</button>
+        <p class="hint" data-i18n="login.hint">Avval botga <b>/start</b> yuborgan bo'lishingiz kerak.</p>
+      </div>
+
+      <!-- Username/password sub-form -->
+      <div class="auth-subform hidden" id="login-sub-password">
+        <div class="field">
+          <label data-i18n="auth.identifierLabel">Email yoki Telegram username</label>
+          <input type="text" id="pw-identifier" placeholder="username yoki email" autocomplete="username">
+        </div>
+        <div class="field">
+          <label data-i18n="login.passwordLabel">Parol</label>
+          <input type="password" id="pw-password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn" id="pw-login-btn" data-i18n="login.btn">Kirish</button>
+        <p class="hint" data-i18n="auth.passwordHint">Parolni Telegram botimiz orqali olasiz (/start bosing).</p>
+      </div>
+
+      <div class="err" id="login-err"></div>
+    </div>
+
+    <!-- SIGNUP PANE -->
+    <div id="auth-pane-signup" class="hidden">
+      <p class="sub" data-i18n="auth.signupHint">Ro'yxatdan o'tish uchun usulni tanlang — ikkalasi ham bepul.</p>
+      <div class="auth-methods">
+        <a class="btn auth-btn tg" href="https://t.me/abdunurcreator_bot" target="_blank">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 4L2.5 11l6 2.2m12.5-9.2L15 20l-6.5-6.8m12.5-9.2L8.5 13.2" stroke="#fff" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/></svg>
+          <span data-i18n="auth.signupTelegram">Telegram orqali ro'yxatdan o'tish</span>
+        </a>
+        <div class="google-btn-wrap">
+          <button type="button" class="btn auth-btn google" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            <span data-i18n="auth.signupGoogle">Google orqali ro'yxatdan o'tish</span>
+          </button>
+          <div id="google-btn-overlay-signup" class="google-btn-overlay"></div>
+        </div>
+      </div>
+      <p class="hint" data-i18n="auth.signupTelegramNote">Telegram: botga <b>/start</b> yuboring, admin sizga kirish kodini yuboradi.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ======= MAIN ======= -->
+<div class="main-wrap" id="main-content">
+  <div class="nav-bar">
+    <div class="lang-switch" id="lang-switch-main">
+      <button type="button" class="lang-btn" data-lang="uz">UZ</button>
+      <button type="button" class="lang-btn" data-lang="ru">RU</button>
+      <button type="button" class="lang-btn" data-lang="en">EN</button>
+    </div>
+    <button class="nav-btn glass" id="theme-toggle-btn" onclick="toggleTheme()">
+      <span id="theme-icon">🌙</span> <span id="theme-label">Tungi rejim</span>
+    </button>
+    <button class="nav-btn glass" onclick="openApiKeyModal()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span>API Key</span>
+    </button>
+    <button class="nav-btn glass" id="admin-nav-btn" onclick="openAdminPanel()" style="display:none">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span data-i18n="nav.admin">Admin</span>
+    </button>
+    <button class="nav-btn glass" onclick="openProfile()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+      <span data-i18n="nav.profile">Profil</span>
+    </button>
+    <button class="nav-btn glass" onclick="logout()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      <span data-i18n="nav.logout">Chiqish</span>
+    </button>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow" data-i18n="hero.eyebrow">The Future is Now</div>
+    <h1>Noor AI</h1>
+    <p data-i18n="hero.sub">Noor AI (1.0 dan 3.0 gacha) bilan suhbatlashing, rasm yarating va eng so'nggi AI vositalarini bir joyda kashf eting.</p>
+    <div class="welcome-tag"><span data-i18n="hero.welcome">Xush kelibsiz,</span> <b id="welcome-name">@user</b></div>
+  </div>
+
+  <!-- AI CHATBOT — endi to'liq ekranli sahifada ochiladi -->
+  <div class="sec-title" data-i18n="chat.sectionTitle">Noor AI bilan suhbat</div>
+  <div style="text-align:center;margin-bottom:50px;">
+    <button class="btn new-chat-btn" onclick="openNewChat()" style="width:auto;padding:16px 36px;font-size:1rem;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      <span data-i18n="chat.newChat">Yangi suhbat</span>
+    </button>
+  </div>
+
+  <!-- TEXT AI -->
+  <div class="sec-title" data-i18n="text.sectionTitle">Matn va Kod AI'lari</div>
+  <div class="grid">
+    <div class="glass card">
+      <div class="ico"><img src="https://www.google.com/s2/favicons?domain=claude.ai&sz=128" alt="Claude (Anthropic)" loading="lazy" onerror="this.parentElement.textContent='C'"></div>
+      <h3>Claude (Anthropic)</h3>
+      <p data-i18n="card.claude">Xavfsizlik va intellekt uyg'unligida etakchi AI. Uzoq hujjatlarni o'qib tahlil qilish, kod yozish va murakkab vazifalarni hal qilishda ustun.</p>
+      <a href="https://claude.ai" target="_blank" class="btn" data-i18n="common.visitSite">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico"><img src="https://www.google.com/s2/favicons?domain=gemini.google.com&sz=128" alt="Google Gemini" loading="lazy" onerror="this.parentElement.textContent='G'"></div>
+      <h3>Google Gemini</h3>
+      <p data-i18n="card.gemini">Google'ning multi-modal AI modeli. Rasm, video, matn va ovozni birga tahlil qilish va ishlov berish imkoniyatiga ega kuchli platforma.</p>
+      <a href="https://gemini.google.com" target="_blank" class="btn" data-i18n="common.visitSite">Saytiga o'tish</a>
+    </div>
+    <div class="glass card">
+      <div class="ico"><img src="https://www.google.com/s2/favicons?domain=llama.meta.com&sz=128" alt="Meta Llama" loading="lazy" onerror="this.parentElement.textContent='M'"></div>
+      <h3>Meta Llama</h3>
+      <p data-i18n="card.llama">Meta tomonidan ochiq manbali qilib chiqarilgan kuchli til modeli. O'z serveringizda ishlata olasiz — maxfiylik va nazorat to'liq sizda.</p>
+      <a href="https://llama.meta.com" target="_blank" class="btn" data-i18n="common.visitSite">Saytiga o'tish</a>
+    </div>
+  </div>
+
+  <!-- SOCIALS -->
+  <div class="sec-title" data-i18n="social.sectionTitle">Bog'lanish</div>
+  <div class="socials">
+    <a class="social-btn glass" href="https://t.me/abdunurcreator_bot" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 4L2.5 11l6 2.2m12.5-9.2L15 20l-6.5-6.8m12.5-9.2L8.5 13.2" stroke="#6c5ce7" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      Telegram Bot
+    </a>
+    <a class="social-btn glass" href="https://www.instagram.com/abdunurcreator/" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5" stroke="#ff6ec7" stroke-width="1.3"/><circle cx="12" cy="12" r="4" stroke="#ff6ec7" stroke-width="1.3"/><circle cx="17.2" cy="6.8" r="1" fill="#ff6ec7"/></svg>
+      Instagram
+    </a>
+    <a class="social-btn glass" href="https://discord.gg/EXkrvcYwx" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 7.5c-1.4-1-3-1.6-4.6-1.9l-.3.6c1.4.3 2.7.9 3.9 1.7-2-1-4.2-1.5-6.5-1.5s-4.5.5-6.5 1.5c1.2-.8 2.5-1.4 3.9-1.7l-.3-.6C8 5.9 6.4 6.5 5 7.5 3 10.6 2 14.1 2.3 17.5c1.6 1.2 3.2 1.9 4.7 2.4l.6-1c-.8-.3-1.6-.7-2.3-1.2.2-.1.4-.3.6-.4 3.5 1.6 7.4 1.6 10.9 0 .2.1.4.3.6.4-.7.5-1.5.9-2.3 1.2l.6 1c1.5-.5 3.1-1.2 4.7-2.4.4-4-.6-7.4-2.4-10z" stroke="#00d4ff" stroke-width="1.3" stroke-linejoin="round"/><circle cx="9" cy="13" r="1.3" fill="#00d4ff"/><circle cx="15" cy="13" r="1.3" fill="#00d4ff"/></svg>
+      Discord
+    </a>
+  <div style="text-align:center;margin:35px 0 20px;">
+    <button type="button" class="btn download-win-main-btn" onclick="installWindowsApp()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      <span>Download for Windows</span>
+    </button>
+  </div>
+
+  <footer data-i18n="footer.text">© 2026 NOOR AI — AI orqali yaratilgan dunyo</footer>
+</div>
+
+<!-- ======= FULLSCREEN CHAT (Noor AI) - ASOSIY SAHIFA ======= -->
+<div class="stage chat-stage" id="stage-chat">
+  <div class="chat-app">
+    <div class="chat-sidebar">
+      <button class="btn new-chat-btn sidebar-new" onclick="startNewChatSession()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        <span data-i18n="chat.newChat">Yangi suhbat</span>
+      </button>
+      <div class="sidebar-sessions" id="sidebar-sessions"></div>
+      <button class="btn download-win-btn" id="pwaInstallBtnSidebar" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span>📲 App o'rnatish</span>
+      </button>
+    </div>
+
+    <div class="chat-main">
+      <div class="chat-main-header">
+        <div class="logo chat-header-logo">
+          <img src="cat.png" alt="Logo" class="logo-img">
+          <span class="chat-app-title" style="white-space:nowrap;">Noor AI</span>
+        </div>
+      </div>
+      <p class="chat-note" id="chat-note" data-i18n="chat.noteGeneral">Noor AI 1.5 — suhbat, kodlash va rasmni tushunish uchun eng yaxshi bepul modelni o'zi avtomatik tanlaydi. Rasm tashlang yoki yuklang — u rasmni ham tushunadi.</p>
+
+      <div class="chat-messages" id="chat-msg-container">
+        <div class="chat-msg system" data-i18n="chat.welcomeMsg">Suhbatni boshlash uchun quyida xabar yozing yoki rasm tashlang. Noor AI sizga yordam berishga tayyor.</div>
+      </div>
+
+      <div class="chat-attach-preview hidden" id="chat-attach-preview"></div>
+
+      <div class="chat-input-bar claude-style">
+        <div class="attach-menu-wrap">
+          <button class="attach-plus-btn" id="chat-attach-btn" type="button" title="Biriktirish">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <div class="attach-menu hidden" id="attach-menu">
+            <div class="attach-menu-note hidden" id="attach-menu-vision-note" data-i18n="attach.visionNote">Rasm yuklash faqat Noor AI 2.5 va Noor AI 3.0 rejimlarida ishlaydi.</div>
+            <button type="button" class="attach-menu-item" id="attach-item-image">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              <span data-i18n="attach.image">Rasm yuklash</span>
+            </button>
+            <button type="button" class="attach-menu-item" id="attach-item-camera">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span data-i18n="attach.camera">Kameraga tushirish</span>
+            </button>
+            <button type="button" class="attach-menu-item" id="attach-item-screenshot">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              <span data-i18n="attach.screenshot">Skrinshot olish</span>
+            </button>
+            <button type="button" class="attach-menu-item disabled" id="attach-item-file" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+              <span data-i18n="attach.file">Fayl yuklash (tez orada)</span>
+            </button>
+            <button type="button" class="attach-menu-item" id="attach-item-create">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h.01M15 9h.01M8 15c1 1.3 2.4 2 4 2s3-.7 4-2"/></svg>
+              <span data-i18n="attach.createImage">Rasm yaratish</span>
+            </button>
+          </div>
+          <div class="create-img-panel hidden" id="create-img-panel">
+            <div class="create-img-row">
+              <label data-i18n="createImg.ai">AI</label>
+              <select id="create-img-ai-select">
+                <option value="noorimg">Noor AI IMG 1.0</option>
+                <option value="noorimg15">Noor AI IMG 1.5</option>
+              </select>
+            </div>
+            <div class="create-img-row">
+              <label data-i18n="createImg.size">O'lcham</label>
+              <select id="create-img-size-select">
+                <option value="square" data-i18n="createImg.square">Kvadrat (1:1)</option>
+                <option value="portrait" data-i18n="createImg.portrait">Portret (3:4)</option>
+                <option value="landscape" data-i18n="createImg.landscape">Landshaft (16:9)</option>
+              </select>
+            </div>
+            <button type="button" class="create-img-close" id="create-img-close-btn" title="Yopish">&times;</button>
+          </div>
+          <div class="create-video-panel hidden" id="create-video-panel">
+            <div class="video-studio-header">
+              <div class="video-studio-title">
+                <span class="video-icon-badge">🎬</span>
+                <span>Noor AI Video 1.0 Studio</span>
+              </div>
+              <div class="video-studio-actions">
+                <button type="button" class="btn-video-history-toggle" id="btn-video-history-toggle" title="Video Tarixi">📜 Tarix</button>
+                <button type="button" class="create-img-close" id="create-video-close-btn" title="Yopish">&times;</button>
+              </div>
+            </div>
+
+            <!-- Video Studio Controls -->
+            <div class="video-studio-grid">
+              <div class="create-img-row">
+                <label data-i18n="noorVideo.ai">AI Model</label>
+                <select id="create-video-ai-select">
+                  <option value="noorvideo10">Noor AI Video 1.0 (Seedance 2.0)</option>
+                  <option value="noorvideo15">Noor AI Video 1.5 (Veo 1080p PRO)</option>
+                </select>
+              </div>
+
+              <!-- Duration selector -->
+              <div class="create-img-row">
+                <label>Davomiyligi</label>
+                <div class="video-pill-group" id="video-duration-pills">
+                  <button type="button" class="video-pill active" data-value="5">5 soniya</button>
+                  <button type="button" class="video-pill" data-value="10">10 soniya</button>
+                  <button type="button" class="video-pill" data-value="15">15 soniya</button>
+                </div>
+              </div>
+
+              <!-- Aspect Ratio selector -->
+              <div class="create-img-row">
+                <label>Format (Aspect Ratio)</label>
+                <div class="video-pill-group" id="video-ratio-pills">
+                  <button type="button" class="video-pill active" data-value="16:9">📺 16:9 (Desktop)</button>
+                  <button type="button" class="video-pill" data-value="9:16">📱 9:16 (Shorts/Reels)</button>
+                  <button type="button" class="video-pill" data-value="1:1">🔲 1:1 (Kvadrat)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Collapsible Advanced Settings -->
+            <details class="video-advanced-details">
+              <summary class="video-advanced-summary">⚙️ Kengaytirilgan Sozlamalar (Style, FPS, Camera Motion)</summary>
+              <div class="video-advanced-body">
+                <div class="create-img-row">
+                  <label>Uslub (Style)</label>
+                  <select id="video-style-select">
+                    <option value="cinematic">Cinematic Realism (Kinematografik)</option>
+                    <option value="cyberpunk">Cyberpunk Neon (Kiberpank)</option>
+                    <option value="anime">Anime / Stylized Animation</option>
+                    <option value="3d">Photorealistic 3D Render</option>
+                    <option value="minimalist">Minimalist Motion Graphics</option>
+                  </select>
+                </div>
+                <div class="create-img-row">
+                  <label>Kamera Harakati</label>
+                  <select id="video-camera-select">
+                    <option value="pan">Pan & Smooth Zoom (Silliq yaqinlashuv)</option>
+                    <option value="spin">Orbital Spin (Aylanma 360)</option>
+                    <option value="forward">Forward Tracking (Oldinga harakat)</option>
+                    <option value="static">Static Floating (Sokin suzuvchi)</option>
+                  </select>
+                </div>
+                <div class="create-img-row">
+                  <label>Kadr Tezligi (FPS)</label>
+                  <select id="video-fps-select">
+                    <option value="30">30 FPS (Standart Silliq)</option>
+                    <option value="60">60 FPS (Ultra Ultra-Silliq)</option>
+                    <option value="24">24 FPS (Kino Sifat)</option>
+                  </select>
+                </div>
+                <div class="create-img-row">
+                  <label>Inkor etuvchi matn (Negative Prompt)</label>
+                  <input type="text" id="video-negative-prompt" placeholder="blur, low quality, noise, artifacts..." autocomplete="off">
+                </div>
+              </div>
+            </details>
+
+            <!-- Video Generation History Modal/Drawer -->
+            <div class="video-history-panel hidden" id="video-history-panel">
+              <div class="video-history-title">📜 Yaratilgan Videolar Tarixi</div>
+              <div class="video-history-list" id="video-history-list">
+                <div class="video-history-empty">Hali hech qanday video yaratilmagan.</div>
+              </div>
+            </div>
+          </div>
+          <div class="create-audio-panel hidden" id="create-audio-panel">
+            <div class="create-img-row">
+              <label data-i18n="noorAudio.voice">Ovoz</label>
+              <select id="audio-voice-select">
+                <option value="standard" data-i18n="noorAudio.voiceStandard">Standart</option>
+                <option value="male" data-i18n="noorAudio.voiceMale">Erkak</option>
+                <option value="female" data-i18n="noorAudio.voiceFemale">Ayol</option>
+              </select>
+            </div>
+            <button type="button" class="create-img-close" id="create-audio-close-btn" title="Yopish">&times;</button>
+          </div>
+        </div>
+        <input type="file" id="chat-attach-input" accept="image/*" class="hidden">
+        <input type="file" id="chat-camera-input" accept="image/*" capture="environment" class="hidden">
+        <input type="text" id="chat-user-input" placeholder="AI ga savol bering yoki rasm tashlang..." autocomplete="off" data-i18n-ph="chat.inputPh">
+        <button class="chat-mic-btn" id="chat-mic-btn" type="button" title="Ovozli gapirish (Mikrofon)" onclick="toggleVoiceRecording()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </button>
+        <div class="model-picker" id="model-picker">
+          <button type="button" class="model-picker-btn" id="model-picker-btn">
+            <span class="model-picker-label" id="model-picker-label">Noor AI 1.5</span>
+            <svg class="model-picker-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="model-picker-menu hidden" id="model-picker-menu">
+            <div class="model-picker-group-label" data-i18n-label="chat.groupPro">Kuchli · Rasmni tushunadi</div>
+            <button type="button" class="model-picker-item" data-value="noor60" data-label="Noor AI 6.0" data-vision="1"><span class="mp-label">Noor AI 6.0</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor55" data-label="Noor AI 5.5" data-vision="1"><span class="mp-label">Noor AI 5.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor50" data-label="Noor AI 5.0" data-vision="1"><span class="mp-label">Noor AI 5.0</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor45" data-label="Noor AI 4.5" data-vision="1"><span class="mp-label">Noor AI 4.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor40" data-label="Noor AI 4.0" data-vision="1"><span class="mp-label">Noor AI 4.0</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor35" data-label="Noor AI 3.5" data-vision="1"><span class="mp-label">Noor AI 3.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor30" data-label="Noor AI 3.0" data-vision="1"><span class="mp-label">Noor AI 3.0</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noor25" data-label="Noor AI 2.5" data-vision="1"><span class="mp-label">Noor AI 2.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupChat">Tezkor · Bepul</div>
+            <button type="button" class="model-picker-item" data-value="usebrowser" data-label="Noor Browser Agent"><span class="mp-label">🌐 Noor Browser Agent (Use Browser)</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-audio">AGENT</span></span></button>
+            <button type="button" class="model-picker-item" data-value="coder2" data-label="Noor AI 2.0 (Coder)"><span class="mp-label">Noor AI 2.0 (Coder)</span><span class="mp-right"></span></button>
+            <button type="button" class="model-picker-item" data-value="general" data-label="Noor AI 1.5"><span class="mp-label">Noor AI 1.5</span><span class="mp-right"></span></button>
+            <button type="button" class="model-picker-item" data-value="coder" data-label="Noor AI 1.0 (Coder)"><span class="mp-label">Noor AI 1.0 (Coder)</span><span class="mp-right"></span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupImg">Rasm yaratish</div>
+            <button type="button" class="model-picker-item" data-value="noorimg" data-label="Noor AI IMG 1.0"><span class="mp-label">Noor AI IMG 1.0</span><span class="mp-right"></span></button>
+            <button type="button" class="model-picker-item" data-value="noorimg15" data-label="Noor AI IMG 1.5"><span class="mp-label">Noor AI IMG 1.5</span><span class="mp-right"></span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupVideo">Video yaratish</div>
+            <button type="button" class="model-picker-item" data-value="noorvideo10" data-label="Noor AI Video 1.0"><span class="mp-label">Noor AI Video 1.0</span><span class="mp-right"><span class="model-picker-tag">LIMITED</span></span></button>
+            <button type="button" class="model-picker-item" data-value="noorvideo15" data-label="Noor AI Video 1.5"><span class="mp-label">Noor AI Video 1.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
+            <div class="model-picker-group-label" data-i18n-label="chat.groupAudio">Ovoz yaratish</div>
+            <button type="button" class="model-picker-item" data-value="nooraudio1" data-label="Noor Audio 1.0 (Fish)"><span class="mp-label">Noor Audio 1.0 (Fish Audio)</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-audio">FREE</span></span></button>
+            <button type="button" class="model-picker-item" data-value="nooraudio2" data-label="Noor Audio 2.0 (Deepgram)"><span class="mp-label">Noor Audio 2.0 (Deepgram)</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-audio">FREE</span></span></button>
+            <div id="model-picker-media-group"></div>
+          </div>
+          <select id="chat-model-select" class="hidden" onchange="setChatMode(this.value)">
+            <option value="noor60">Noor AI 6.0</option>
+            <option value="noor55">Noor AI 5.5</option>
+            <option value="noor50">Noor AI 5.0</option>
+            <option value="noor45">Noor AI 4.5</option>
+            <option value="noor40">Noor AI 4.0</option>
+            <option value="noor35">Noor AI 3.5</option>
+            <option value="noor30">Noor AI 3.0</option>
+            <option value="noor25">Noor AI 2.5</option>
+            <option value="coder2">Noor AI 2.0 (Coder)</option>
+            <option value="general">Noor AI 1.5</option>
+            <option value="coder">Noor AI 1.0 (Coder)</option>
+          </select>
+        </div>
+        <button class="chat-send-arrow" id="chat-send-btn" onclick="sendChatMsg()" title="Yuborish">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+      </div>
+      <!-- Chat input qo'shimcha tugmalar (Settings, Plugins) -->
+      <div class="chat-extra-tools">
+        <button class="extra-tool-btn" id="openSettingsBtn" onclick="openSettingsModal()" title="Sozlamalar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Sozlamalar</span>
+        </button>
+        <button class="extra-tool-btn" id="openPluginsBtn" onclick="openPluginsModal()" title="Pluginlar (MCP)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          <span>Pluginlar</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="chat-code-panel hidden" id="chat-code-panel">
+      <div class="code-panel-header">
+        <span data-i18n="chat.codePanelTitle">Kod</span>
+        <button type="button" class="code-panel-close" onclick="closeCodePanel()">&times;</button>
+      </div>
+      <div class="code-panel-body" id="code-panel-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= PROFILE MODAL ======= -->
+<div class="overlay" id="profile-overlay">
+  <div class="glass ad-modal panel" style="padding:28px 20px;max-width:420px;">
+    <button class="close-modal" id="close-profile" onclick="document.getElementById('profile-overlay').classList.remove('active')">&times;</button>
+    <h2 style="font-family:var(--dp);margin-bottom:20px;" data-i18n="profile.title">Profil</h2>
+    <div style="text-align:center;margin-bottom:18px;">
+      <img id="profile-photo-preview" src="cat.png" alt="avatar" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid var(--gb);">
+      <br>
+      <input type="file" id="profile-photo-input" accept="image/*" class="hidden">
+      <button class="btn ghost sm" style="width:auto;margin-top:10px;" onclick="document.getElementById('profile-photo-input').click()" data-i18n="profile.changePhoto">Rasmni o'zgartirish</button>
+    </div>
+    <div class="field">
+      <label data-i18n="profile.usernameLabel">Username (o'zgartirib bo'lmaydi)</label>
+      <input type="text" id="profile-username" disabled style="opacity:.6;">
+    </div>
+    <div class="field">
+      <label data-i18n="profile.nameLabel">Ism</label>
+      <input type="text" id="profile-name" placeholder="Ismingiz">
+    </div>
+    <button class="btn" onclick="saveProfile()" data-i18n="profile.save">Saqlash</button>
+    <div class="err" id="profile-err"></div>
+    <div class="ok" id="profile-ok"></div>
+
+  </div>
+</div>
+
+<!-- ======= API KEY MODAL ======= -->
+<div class="overlay" id="api-key-overlay">
+  <div class="glass ad-modal panel" style="padding:28px 24px;max-width:650px;text-align:left;">
+    <button class="close-modal" onclick="document.getElementById('api-key-overlay').classList.remove('active')">&times;</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+      <div style="font-size:2rem;background:rgba(0,212,255,0.12);padding:10px 14px;border-radius:14px;border:1px solid var(--gb);">🔑</div>
+      <div>
+        <h2 style="font-family:var(--dp);margin:0;font-size:1.4rem;">Noor AI Developer API</h2>
+        <p style="margin:2px 0 0;font-size:.82rem;color:var(--td);">Dasturingizdan Noor AI modellariga ulanish uchun API kalit va qo'llanma</p>
+      </div>
+    </div>
+
+    <!-- API Key Display Box -->
+    <div style="background:rgba(0,0,0,0.35);padding:16px;border-radius:14px;border:1px solid var(--gb);margin-bottom:18px;">
+      <label style="display:block;margin-bottom:6px;color:var(--td);font-size:.85rem;font-weight:600;">Sizning API Kalitingiz:</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="dedicated-api-key" readonly placeholder="•••• hali yaratilmagan" style="flex:1;font-family:var(--mn);font-size:.85rem;">
+        <button class="btn ghost sm" style="width:auto;flex-shrink:0;" onclick="copyApiKeyDedicated()">📋 Nusxa</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="btn sm" style="width:auto;" onclick="createDedicatedApiKey()">⚡ API Kalit Yaratish</button>
+        <button class="btn ghost sm" style="width:auto;" onclick="testApiKeyDedicated()">🧪 Test qilish</button>
+      </div>
+      <p class="hint" id="dedicated-api-test-result" style="margin-top:8px;"></p>
+    </div>
+
+    <!-- Notice on Free vs Pro Models -->
+    <div style="background:rgba(0, 212, 255, 0.08);border:1px solid rgba(0, 212, 255, 0.25);padding:14px 18px;border-radius:12px;margin-bottom:20px;font-size:.85rem;line-height:1.6;">
+      💡 <b>Tariflar va Qoidalar:</b><br>
+      • <b>Oddiy modellar (noor-ai-1.0, noor-ai-1.5):</b> API kalitingiz bilan 100% BEPUL ishlatishingiz mumkin.<br>
+      • <b>PRO modellar (noor-ai-2.0, noor-ai-3.0-pro):</b> PRO obuna yoki hisob balansi talab qiladi.
+    </div>
+
+    <!-- Step-by-step Code Instructions -->
+    <h3 style="font-family:var(--dp);font-size:1.05rem;margin-bottom:10px;">🚀 Dasturlarga o'rnatish va foydalanish qo'llanmasi</h3>
+    
+    <div class="tabs" style="margin-bottom:12px;">
+      <button class="tab active" id="tab-code-python" onclick="switchCodeTab('python')">Python</button>
+      <button class="tab" id="tab-code-js" onclick="switchCodeTab('js')">JavaScript / Node.js</button>
+      <button class="tab" id="tab-code-curl" onclick="switchCodeTab('curl')">cURL</button>
+    </div>
+
+    <!-- Python Code -->
+    <div id="code-snippet-python">
+      <p style="font-size:.8rem;color:var(--td);margin-bottom:6px;">1-qadam: Kutubxonani o'rnating: <code>pip install requests</code></p>
+      <pre style="background:#0f172a;padding:14px;border-radius:10px;font-family:var(--mn);font-size:.78rem;overflow-x:auto;color:#e2e8f0;border:1px solid var(--gb);line-height:1.5;">import requests
+
+url = "http://localhost:3000/api/v1/chat/completions"
+headers = {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+payload = {
+    "model": "noor-ai-1.5",
+    "messages": [{"role": "user", "content": "Salom Noor AI!"}]
+}
+
+response = requests.post(url, headers=headers, json=payload)
+print(response.json())</pre>
+    </div>
+
+    <!-- JavaScript Code -->
+    <div id="code-snippet-js" class="hidden">
+      <p style="font-size:.8rem;color:var(--td);margin-bottom:6px;">1-qadam: Node.js yoki brauzerdan so'rov yuborish:</p>
+      <pre style="background:#0f172a;padding:14px;border-radius:10px;font-family:var(--mn);font-size:.78rem;overflow-x:auto;color:#e2e8f0;border:1px solid var(--gb);line-height:1.5;">const response = await fetch("http://localhost:3000/api/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    model: "noor-ai-1.5",
+    messages: [{ role: "user", content: "Salom Noor AI!" }]
+  })
+});
+
+const data = await response.json();
+console.log(data);</pre>
+    </div>
+
+    <!-- cURL Code -->
+    <div id="code-snippet-curl" class="hidden">
+      <p style="font-size:.8rem;color:var(--td);margin-bottom:6px;">Terminal orqali sinash:</p>
+      <pre style="background:#0f172a;padding:14px;border-radius:10px;font-family:var(--mn);font-size:.78rem;overflow-x:auto;color:#e2e8f0;border:1px solid var(--gb);line-height:1.5;">curl -X POST http://localhost:3000/api/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"noor-ai-1.5","messages":[{"role":"user","content":"Salom Noor AI!"}]}'</pre>
+    </div>
+
+  </div>
+</div>
+
+<!-- ======= ADMIN PASSWORD MODAL ======= -->
+<div class="overlay" id="admin-pass-overlay">
+  <div class="glass ad-modal panel" style="padding:28px 20px;max-width:380px;text-align:center;">
+    <button class="close-modal" onclick="document.getElementById('admin-pass-overlay').classList.remove('active')">&times;</button>
+    <div style="font-size:2.5rem;margin-bottom:10px;">🔐</div>
+    <h2 style="font-family:var(--dp);margin-bottom:10px;">Admin Paneli</h2>
+    <p class="sub" style="font-size:.85rem;margin-bottom:20px;color:var(--td);">Admin panelga kirish uchun parolni kiriting (Standart: 0101):</p>
+    <div class="field">
+      <input type="password" id="admin-pass-input" placeholder="Parolni kiriting..." style="text-align:center;font-size:1.2rem;letter-spacing:4px;" onkeyup="if(event.key==='Enter')verifyAdminPassword()">
+    </div>
+    <button class="btn" onclick="verifyAdminPassword()" style="margin-top:10px;">Kirish</button>
+    <div class="err" id="admin-pass-err" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- ======= ADMIN PANEL ======= -->
+<div class="stage hidden" id="stage-admin-dash">
+  <div class="glass panel panel-lg" style="animation:rise .6s cubic-bezier(.2,.8,.2,1);">
+    <div class="logo"><span class="dot"></span>ADMIN PANEL</div>
+    <h1 class="title" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+      Noor AI
+      <!-- Ko'k verified badge -->
+      <svg class="verified-badge" viewBox="0 0 24 24" fill="#1D9BF0"><path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91-1.01-1-2.52-1.27-3.91-.81C14.67 2.88 13.43 2 12 2c-1.43 0-2.67.88-3.34 2.19-1.39-.46-2.9-.2-3.91.81-1 1.01-1.27 2.52-.81 3.91C2.88 9.33 2 10.57 2 12c0 1.43.88 2.67 2.19 3.34-.46 1.39-.2 2.9.81 3.91 1.01 1 2.52 1.27 3.91.81C9.33 21.12 10.57 22 12 22c1.43 0 2.67-.88 3.34-2.19 1.39.46 2.9.2 3.91-.81 1-1.01 1.27-2.52.81-3.91C21.12 14.67 22 13.43 22 12zm-6.16-2.14l-4.45 5.38-2.78-2.77a.75.75 0 0 0-1.06 1.06l3.36 3.36a.75.75 0 0 0 1.09-.04l5-6.06a.75.75 0 0 0-1.16-.93z"/></svg>
+    </h1>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-users" onclick="switchTab('tab-users')" data-i18n="admin.tabUsers">Foydalanuvchilar</button>
+      <button class="tab" id="tab-ads" onclick="switchTab('tab-ads')" data-i18n="admin.tabAds">Reklama</button>
+    </div>
+
+    <!-- USERS SECTION -->
+    <div id="sec-tab-users" class="admin-section">
+      <div class="user-count" id="user-count" data-i18n="admin.loading">Yuklanmoqda...</div>
+      <button class="btn ghost" style="margin:0 0 14px;padding:8px;" onclick="loadPendingUsers()" data-i18n="admin.refresh">🔄 Yangilash</button>
+      <div class="user-list" id="user-list-container">
+        <p style="color:var(--td);font-size:.85rem;text-align:center;" data-i18n="admin.loading">Yuklanmoqda...</p>
+      </div>
+
+      <!-- MESSAGE COMPOSER -->
+      <div class="msg-composer hidden" id="msg-composer">
+        <div class="msg-target" id="msg-target-label" data-i18n="admin.selectUser">Foydalanuvchi tanlang</div>
+        <div class="field" style="margin-bottom:10px;">
+          <label data-i18n="admin.usernameEditable">Username (o'zgartirish mumkin)</label>
+          <span class="prefix">@</span>
+          <input type="text" id="msg-username" class="with-prefix" placeholder="username">
+        </div>
+        <div class="field" style="margin-bottom:10px;">
+          <label data-i18n="admin.msgText">Xabar matni</label>
+          <textarea id="msg-text" placeholder="Xabar yozing..." data-i18n-ph="admin.msgTextPh"></textarea>
+        </div>
+        <div class="field" style="margin-bottom:10px;">
+          <label data-i18n="admin.msgCode">Kod (ixtiyoriy — kirish kodi yuborish uchun)</label>
+          <input type="text" id="msg-code" maxlength="6" placeholder="123456">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:.72rem;color:var(--td);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-family:var(--mn);" data-i18n="admin.msgColor">Xabar rangi</label>
+          <div class="btn-row">
+            <button class="btn green sm" id="color-green" onclick="setMsgColor('green')" style="flex:1" data-i18n="admin.colorGreen">✅ Yashil (Kod/Tasdiqlash)</button>
+            <button class="btn red sm" id="color-red" onclick="setMsgColor('red')" style="flex:1" data-i18n="admin.colorRed">❌ Qizil (Xatolik/Rad etish)</button>
+          </div>
+        </div>
+        <button class="btn" onclick="sendMsg()" data-i18n="admin.sendMsg">📨 Xabar Yuborish</button>
+        <div class="err" id="msg-err"></div>
+        <div class="ok" id="msg-ok"></div>
+      </div>
+    </div>
+
+    <!-- ADS SECTION -->
+    <div id="sec-tab-ads" class="admin-section hidden">
+      <p class="sub" style="text-align:left;" data-i18n="admin.adsDesc">Reklama joylang — barcha obunachilarga bot orqali avtomatik tarqatiladi.</p>
+      <div class="field"><label data-i18n="admin.adImg">Rasm URL</label><input type="text" id="ad-img" placeholder="https://..."></div>
+      <div class="field"><label data-i18n="admin.adCompany">Kompaniya nomi</label><input type="text" id="ad-company" placeholder="OpenAI"></div>
+      <div class="field"><label data-i18n="admin.adLink">Kompaniya sayti (link)</label><input type="text" id="ad-link" placeholder="https://openai.com"></div>
+      <div class="field"><label data-i18n="admin.adText">Reklama matni</label><textarea id="ad-text" placeholder="Reklama haqida..." data-i18n-ph="admin.adTextPh"></textarea></div>
+      <button class="btn" onclick="postAd()" data-i18n="admin.adPost">📢 Joylash va Barchaga Yuborish</button>
+      <div class="err" id="ad-err"></div>
+      <div class="ok" id="ad-ok"></div>
+    </div>
+
+    <button class="btn ghost" onclick="closeAdminPanel()" data-i18n="admin.back">← Asosiy sahifaga</button>
+  </div>
+</div>
+
+<!-- Floating News -->
+<div class="news-floater" id="news-floater">📰</div>
+
+<!-- Ads Modal -->
+<div class="overlay" id="ads-overlay">
+  <div class="glass ad-modal panel" style="padding:28px 20px;">
+    <button class="close-modal" id="close-ads">&times;</button>
+    <h2 style="font-family:var(--dp);margin-bottom:20px;">📰 Reklamalar</h2>
+    <div id="ads-container"><p style="color:var(--td);text-align:center;">Hali reklama yo'q.</p></div>
+  </div>
+</div>
+
+<script>
+// Inline color button highlight
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('color-green').style.outline='3px solid #00b894';
+});
+function setMsgColor(c){
+  msgColor=c;
+  const g=document.getElementById('color-green');
+  const r=document.getElementById('color-red');
+  g.style.outline=c==='green'?'3px solid #00b894':'none';
+  r.style.outline=c==='red'?'3px solid #e74c3c':'none';
+}
+</script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+<div id="modals-container"></div>
+<script>
+  fetch('settings-modals.html').then(r=>r.text()).then(html=>{
+    document.getElementById('modals-container').innerHTML = html;
+  }).catch(e=>console.error(e));
+</script>
+  <div class="noor-panda hidden" id="noor-panda">
+    <div class="noor-panda-glow"></div>
+    <div class="noor-panda-card">
+      <div class="noor-panda-head-wrap">
+        <svg viewBox="0 0 120 120" width="80" height="80" class="noor-panda-svg">
+          <defs>
+            <radialGradient id="pandaHeadGrad" cx="35%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="70%" stop-color="#f0f3f8"/>
+              <stop offset="100%" stop-color="#d6dce5"/>
+            </radialGradient>
+            <radialGradient id="pandaEarGrad" cx="30%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#2a2e3d"/>
+              <stop offset="100%" stop-color="#11131a"/>
+            </radialGradient>
+            <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#00d4ff"/>
+              <stop offset="100%" stop-color="#ff6ec7"/>
+            </linearGradient>
+          </defs>
+          
+          <!-- Outer Aura / Ears -->
+          <ellipse cx="28" cy="24" rx="15" ry="15" fill="url(#pandaEarGrad)"/>
+          <ellipse cx="92" cy="24" rx="15" ry="15" fill="url(#pandaEarGrad)"/>
+          <ellipse cx="28" cy="24" rx="9" ry="9" fill="#ff6ec7" opacity="0.3"/>
+          <ellipse cx="92" cy="24" rx="9" ry="9" fill="#ff6ec7" opacity="0.3"/>
+
+          <!-- Panda Head -->
+          <circle cx="60" cy="62" r="44" fill="url(#pandaHeadGrad)" filter="drop-shadow(0 4px 10px rgba(0,0,0,0.3))"/>
+          
+          <!-- Eye Patches -->
+          <ellipse cx="40" cy="54" rx="13" ry="16" fill="url(#pandaEarGrad)" transform="rotate(-10 40 54)"/>
+          <ellipse cx="80" cy="54" rx="13" ry="16" fill="url(#pandaEarGrad)" transform="rotate(10 80 54)"/>
+
+          <!-- Eyes (Blinking & Expression) -->
+          <g class="noor-panda-eyes">
+            <circle cx="41" cy="54" r="5" fill="#ffffff"/>
+            <circle cx="79" cy="54" r="5" fill="#ffffff"/>
+            <circle cx="42" cy="53" r="2.5" fill="#0a0d16"/>
+            <circle cx="80" cy="53" r="2.5" fill="#0a0d16"/>
+            <circle cx="43.5" cy="51.5" r="1" fill="#ffffff"/>
+            <circle cx="81.5" cy="51.5" r="1" fill="#ffffff"/>
+          </g>
+
+          <!-- Cute Cheeks -->
+          <circle cx="30" cy="68" r="7" fill="#ff6ec7" opacity="0.45"/>
+          <circle cx="90" cy="68" r="7" fill="#ff6ec7" opacity="0.45"/>
+
+          <!-- Nose -->
+          <path d="M54 67 C 54 64, 66 64, 66 67 C 66 71, 54 71, 54 67 Z" fill="#11131a"/>
+          <ellipse cx="58" cy="66" rx="2" ry="1" fill="#ffffff" opacity="0.6"/>
+
+          <!-- Dynamic Talking Mouth -->
+          <path id="noor-panda-mouth" class="noor-panda-mouth" d="M 48 76 Q 60 82 72 76" stroke="#11131a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="noor-panda-info">
+        <div class="noor-panda-name">
+          <span class="panda-dot"></span>
+          <span>Noor Audio</span>
+        </div>
+        <!-- Audio Visualizer Wave Animation -->
+        <div class="noor-panda-wave">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+<!-- PLACEHOLDER -->
