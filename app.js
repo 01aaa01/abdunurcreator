@@ -2345,43 +2345,4 @@ document.addEventListener('input', function(e){
 renderMCPServers();
 
 
-// ===== PWA INSTALL =====
-let deferredPwaPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPwaPrompt = e;
-  const btn1 = document.getElementById('pwaInstallBtn');
-  const btn2 = document.getElementById('pwaInstallBtnSidebar');
-  if (btn1) btn1.style.display = 'inline-flex';
-  if (btn2) btn2.style.display = 'flex';
-});
 
-function installPWA() {
-  if (!deferredPwaPrompt) {
-    noorToast('Brauzeringiz PWA o'rnatishni qo'llab-quvvatlamaydi. Chrome/Edge ishlatib ko'ring.');
-    return;
-  }
-  deferredPwaPrompt.prompt();
-  deferredPwaPrompt.userChoice.then((choice) => {
-    if (choice.outcome === 'accepted') {
-      noorToast('✅ App o'rnatilmoqda...');
-    } else {
-      noorToast('Bekor qilindi');
-    }
-    deferredPwaPrompt = null;
-    const btn1 = document.getElementById('pwaInstallBtn');
-    const btn2 = document.getElementById('pwaInstallBtnSidebar');
-    if (btn1) btn1.style.display = 'none';
-    if (btn2) btn2.style.display = 'none';
-  });
-}
-
-window.addEventListener('appinstalled', () => {
-  noorToast('🎉 Noor AI muvaffaqiyatli o'rnatildi!');
-});
-
-// PWA tugmalariga click
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('pwaInstallBtn')?.addEventListener('click', installPWA);
-  document.getElementById('pwaInstallBtnSidebar')?.addEventListener('click', installPWA);
-});
