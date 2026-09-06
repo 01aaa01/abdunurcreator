@@ -2083,7 +2083,7 @@ async function installWindowsApp() {
   if (deferredPwaPrompt) {
     installPWA();
   } else {
-    noorToast('Brauzeringiz PWA qo'llab-quvvatlamaydi. Chrome/Edge ishlatib ko'ring yoki "App o'rnatish" tugmasini bosing.');
+    noorToast("Brauzeringiz PWA qo'llab-quvvatlamaydi. Chrome/Edge ishlatib ko'ring yoki \"App o'rnatish\" tugmasini bosing.");
   }
 }
 function showDownloadModal() {
