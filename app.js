@@ -741,7 +741,7 @@ function renderAiMessageHTML(text) {
     out += `<div class="code-block-wrap">
       <div class="code-block-header"><span class="code-lang">${escapeHtml(lang || 'code')}</span>
         <span class="code-block-actions">
-          <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">📋 Nusxa</button>
+          <button type="button" class="code-dl-btn" onclick="downloadCodeBlock(`$id`, this)">&#11015; Yuklab olish</button> <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">📋 Nusxa</button>
           ${runnable ? `<button type="button" class="code-run-btn" onclick="runCodeBlock('${id}')">▶ Ishga tushirish</button>` : ''}
         </span>
       </div>
@@ -1587,7 +1587,7 @@ function renderCodePanel(blocks) {
     block.className = 'code-block-wrap';
     block.innerHTML = `<div class="code-block-header"><span class="code-lang">${escapeHtml(b.lang || 'code')}</span>
       <span class="code-block-actions">
-        <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">Nusxa</button>
+        <button type="button" class="code-dl-btn" onclick="downloadCodeBlock(`$id`, this)">&#11015; Yuklab olish</button> <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">Nusxa</button>
         ${runnable ? `<button type="button" class="code-run-btn" onclick="runCodeBlock('${id}')">Ishga tushirish</button>` : ''}
       </span></div>
       <pre class="code-block"><code>${escapeHtml(b.code)}</code></pre>
@@ -2431,5 +2431,73 @@ function copyCode(language) {
 function closeCodePanel() {
   const panel = document.getElementById('chat-code-panel');
   if (panel) panel.classList.add('hidden');
+}
+
+// === IMAGE UPLOAD HANDLERS ===
+let pendingImageData = null;
+
+document.addEventListener("DOMContentLoaded", function() {
+  const attachInput = document.getElementById("chat-attach-input");
+  if (attachInput) {
+    attachInput.addEventListener("change", function(e) {
+      if (this.files && this.files[0]) {
+        handleChatAttach(this.files[0]);
+        this.value = "";
+      }
+    });
+  }
+});
+
+function handleChatAttach(file) {
+  if (!file.type.startsWith("image/")) {
+    noorToast("Iltimos, rasm tanlang");
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const imageData = e.target.result;
+    const preview = document.getElementById("chat-attach-preview");
+    if (preview) {
+      preview.innerHTML = `<img src="${imageData}" alt="preview" style="max-width:120px;max-height:120px;border-radius:8px;"><button type="button" onclick="clearChatAttach()" style="position:absolute;top:-8px;right:-8px;background:#e74c3c;color:white;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;">&times;</button>`;
+      preview.style.position = "relative";
+    }
+    pendingImageData = imageData;
+    noorToast("Rasm tayyor. Yuborish uchun Enter bosing.");
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearChatAttach() {
+  const preview = document.getElementById("chat-attach-preview");
+  if (preview) preview.innerHTML = "";
+  pendingImageData = null;
+}
+
+// Modify sendMessage to include images
+const originalSendMessage = window.sendMessage;
+if (originalSendMessage) {
+  window.sendMessage = async function() {
+    const inputEl = document.getElementById("chat-user-input");
+    if (!inputEl) { originalSendMessage(); return; }
+    const text = inputEl.value.trim();
+    const hasImage = pendingImageData !== null;
+    
+    if (!text && !hasImage) return;
+    
+    // If there's an image, show it in chat
+    if (hasImage) {
+      const container = document.getElementById("chat-msg-container");
+      const imgBubble = document.createElement("div");
+      imgBubble.className = "chat-msg user";
+      imgBubble.innerHTML = `<img src="${pendingImageData}" class="chat-attached-img" alt="Yuklangan rasm" style="max-width:250px;max-height:250px;border-radius:8px;">`;
+      container.appendChild(imgBubble);
+      container.scrollTop = container.scrollHeight;
+      clearChatAttach();
+    }
+    
+    // Call original
+    originalSendMessage();
+  };
 }
 
