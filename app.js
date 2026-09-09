@@ -14,7 +14,7 @@ const BASE_URL = (location.protocol === 'file:') ? 'http://localhost:3000' : '';
 // (AI nomlari background'da ko'rinmasin)
 
 // === STATE ===
-let currentUser='guest'; // AUTO-LOGIN: login oynasini o'tkazib yuborish
+let currentUser=''; // Foydalanuvchi hali tizimga kirmagan
 let isAdmin=false;
 let adminPass='0101';
 let selectedMsgUser='';
@@ -147,114 +147,225 @@ function showStage(id, pushRoute = true){
 
 
 // ============================
-// === NEW AUTH SYSTEM (English) ===
+// === AUTH SYSTEM (Login / Signup) ===
 // ============================
 
-// State
 let pendingSignupData = null;
 let pendingSessionId = null;
 
+// --- Tabs ---
 function switchAuthTab(tab) {
   document.getElementById('auth-tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('auth-tab-signup').classList.toggle('active', tab === 'signup');
-  document.getElementById('auth-pane-login').style.display = tab === 'login' ? 'block' : 'none';
-  document.getElementById('auth-pane-signup').style.display = tab === 'signup' ? 'block' : 'none';
+  document.getElementById('auth-pane-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('auth-pane-signup').classList.toggle('hidden', tab !== 'signup');
+  if (tab === 'login') showLoginMethods();
 }
 
-function chooseAuthMethod(paneKind, method) {
+// --- Login method picker ---
+function chooseAuthMethod(kind, method) {
   document.querySelectorAll('.auth-subform').forEach(el => el.classList.add('hidden'));
-  if (paneKind === 'login') {
-    document.getElementById('login-methods').style.display = 'none';
-    if (method === 'telegram') {
-      document.getElementById('login-sub-telegram').classList.remove('hidden');
-    } else if (method === 'password') {
-      document.getElementById('login-sub-password').classList.remove('hidden');
-    } else if (method === 'email') {
-      document.getElementById('login-sub-email').classList.remove('hidden');
-    }
-  }
+  if (kind !== 'login') return;
+  document.getElementById('login-methods').style.display = 'none';
+  document.getElementById('login-sub-' + method).classList.remove('hidden');
 }
 
 function showLoginMethods() {
   document.querySelectorAll('.auth-subform').forEach(el => el.classList.add('hidden'));
-  document.getElementById('login-methods').style.display = 'block';
-  const errEl = document.getElementById('login-error');
-  if (errEl) errEl.style.display = 'none';
+  const methods = document.getElementById('login-methods');
+  if (methods) methods.style.display = 'block';
 }
 
+function showForgotPassword() {
+  chooseAuthMethod('login', 'forgot');
+}
+
+// --- Login success ---
 function onLoginSuccess(username, admin) {
   currentUser = username;
-  isAdmin = admin;
+  isAdmin = !!admin;
   document.getElementById('welcome-name').textContent = '@' + username;
   document.getElementById('admin-nav-btn').style.display = isAdmin ? 'inline-flex' : 'none';
   saveSession(username, isAdmin);
   showStage('main-content');
   fetchAds();
+  noorToast('Xush kelibsiz, @' + username + '!');
 }
 
+// --- Password login ---
 async function handleLoginSubmit() {
-  const identifier = document.getElementById('login-identifier')?.value.trim();
-  const password = document.getElementById('login-password')?.value;
-  const tgUsername = document.getElementById('login-tg-username')?.value.trim().replace('@', '');
-  const code = document.getElementById('login-code')?.value.trim();
-  const errEl = document.getElementById('login-error');
-  
-  if (identifier && password) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Signing in...';
+  const identifier = document.getElementById('login-identifier').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error-password');
+  errEl.textContent = '';
+  if (!identifier || !password) { errEl.textContent = 'Username/email va parolni kiriting.'; return; }
+  errEl.textContent = 'Tekshirilmoqda...';
+  try {
+    const r = await fetch(BASE_URL + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password })
+    });
+    const d = await r.json();
+    if (r.ok && d.success) onLoginSuccess(d.username, d.isAdmin);
+    else errEl.textContent = d.error || 'Login xatosi.';
+  } catch (e) {
+    errEl.textContent = "Server bilan aloqa yo'q. Node.js server yoniqmi?";
+  }
+}
+
+// --- Email code login ---
+async function handleLoginEmailSubmit() {
+  const email = document.getElementById('login-email').value.trim();
+  const code = document.getElementById('login-email-code').value.trim();
+  const errEl = document.getElementById('login-email-error');
+  const codeWrap = document.getElementById('login-email-code-wrap');
+  const btn = document.getElementById('login-email-btn');
+  errEl.textContent = '';
+  if (!code && email) {
+    errEl.textContent = 'Kod yuborilmoqda...';
     try {
-      const r = await fetch(BASE_URL + '/api/login', {
+      const r = await fetch(BASE_URL + '/api/send-login-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password })
+        body: JSON.stringify({ identifier: email, method: 'email' })
       });
       const d = await r.json();
       if (r.ok && d.success) {
-        onLoginSuccess(d.username, d.isAdmin);
+        errEl.textContent = 'Kod emailingizga yuborildi.';
+        codeWrap.classList.remove('hidden');
+        btn.textContent = 'Kirish';
       } else {
-        errEl.textContent = d.error || 'Login failed';
+        errEl.textContent = d.error || 'Kod yuborilmadi.';
       }
-    } catch (e) {
-      errEl.textContent = 'Server error. Is Node.js running?';
+    } catch (e) { errEl.textContent = 'Server xatoligi.'; }
+    return;
+  }
+  if (code) {
+    errEl.textContent = 'Tekshirilmoqda...';
+    try {
+      const r = await fetch(BASE_URL + '/api/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const d = await r.json();
+      if (r.ok && d.success) onLoginSuccess(d.username, d.isAdmin);
+      else errEl.textContent = d.error || 'Kod xato yoki muddati tugagan.';
+    } catch (e) { errEl.textContent = 'Server xatoligi.'; }
+  }
+}
+
+// --- Telegram code login ---
+async function handleTelegramLogin() {
+  const tgUsername = document.getElementById('login-tg-username').value.trim().replace('@', '');
+  const code = document.getElementById('login-code').value.trim();
+  const errEl = document.getElementById('login-error-tg');
+  const codeWrap = document.getElementById('login-code-wrap');
+  const btn = document.getElementById('login-tg-btn');
+  errEl.textContent = '';
+  if (!tgUsername) { errEl.textContent = 'Telegram username kiriting.'; return; }
+  if (!code) {
+    errEl.textContent = 'Kod yuborilmoqda...';
+    try {
+      const r = await fetch(BASE_URL + '/api/send-login-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: tgUsername, method: 'telegram' })
+      });
+      const d = await r.json();
+      if (r.ok && d.success) {
+        errEl.textContent = 'Kod Telegram bot orqali yuborildi. Endi kodingizni kiriting.';
+        codeWrap.classList.remove('hidden');
+        btn.textContent = 'Kirish';
+      } else {
+        errEl.textContent = d.error || 'Kod yuborilmadi.';
+      }
+    } catch (e) { errEl.textContent = 'Server xatoligi.'; }
+    return;
+  }
+  errEl.textContent = 'Tekshirilmoqda...';
+  try {
+    const r = await fetch(BASE_URL + '/api/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    const d = await r.json();
+    if (r.ok && d.success) onLoginSuccess(d.username, d.isAdmin);
+    else errEl.textContent = d.error || 'Kod xato yoki muddati tugagan.';
+  } catch (e) { errEl.textContent = 'Server xatoligi.'; }
+}
+
+// --- Forgot password ---
+async function handleForgotSubmit() {
+  const identifier = document.getElementById('forgot-identifier').value.trim();
+  const code = document.getElementById('forgot-code').value.trim();
+  const newPassword = document.getElementById('forgot-password').value;
+  const errEl = document.getElementById('forgot-error');
+  const okEl = document.getElementById('forgot-ok');
+  const codeWrap = document.getElementById('forgot-code-wrap');
+  const passWrap = document.getElementById('forgot-password-wrap');
+  const btn = document.getElementById('forgot-btn');
+  errEl.textContent = ''; okEl.textContent = '';
+  if (!identifier) { errEl.textContent = 'Username yoki email kiriting.'; return; }
+  if (!code) {
+    errEl.textContent = 'Kod yuborilmoqda...';
+    try {
+      const r = await fetch(BASE_URL + '/api/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier })
+      });
+      const d = await r.json();
+      if (r.ok && d.success) {
+        errEl.textContent = 'Kod yuborildi (' + d.method + ').';
+        codeWrap.classList.remove('hidden');
+        btn.textContent = 'Davom etish';
+      } else {
+        errEl.textContent = d.error || 'Kod yuborilmadi.';
+      }
+    } catch (e) { errEl.textContent = 'Server xatoligi.'; }
+    return;
+  }
+  if (!newPassword) {
+    errEl.textContent = 'Yangi parolni kiriting.';
+    passWrap.classList.remove('hidden');
+    btn.textContent = 'Parolni tiklash';
+    return;
+  }
+  if (newPassword.length < 6) { errEl.textContent = "Parol kamida 6 belgi bo'lishi kerak."; return; }
+  errEl.textContent = 'Tiklanmoqda...';
+  try {
+    const r = await fetch(BASE_URL + '/api/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, newPassword })
+    });
+    const d = await r.json();
+    if (r.ok && d.success) {
+      okEl.textContent = 'Parol tiklandi! Endi yangi parol bilan kiring.';
+      setTimeout(() => { showLoginMethods(); chooseAuthMethod('login', 'password'); }, 1500);
+    } else {
+      errEl.textContent = d.error || 'Tiklashda xatolik.';
     }
-    return;
-  }
-  
+  } catch (e) { errEl.textContent = 'Server xatoligi.'; }
+}
 
-// ============================
-// === SIGNUP HANDLERS ===
-// ============================
-
+// --- Signup step 1 ---
 function handleSignupStep1() {
-  const name = document.getElementById('signup-name')?.value.trim();
-  const username = document.getElementById('signup-username')?.value.trim().replace('@', '');
-  const email = document.getElementById('signup-email')?.value.trim();
-  const password = document.getElementById('signup-password')?.value;
-  const password2 = document.getElementById('signup-password2')?.value;
+  const name = document.getElementById('signup-name').value.trim();
+  const username = document.getElementById('signup-username').value.trim().replace('@', '');
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const password2 = document.getElementById('signup-password2').value;
   const errEl = document.getElementById('signup-step1-error');
-  
-  errEl.style.display = 'none';
-  if (!name || !username || !password) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Please fill in all required fields';
-    return;
-  }
-  if (password.length < 6) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Password must be at least 6 characters';
-    return;
-  }
-  if (password !== password2) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Passwords do not match';
-    return;
-  }
-  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Username can only contain letters, numbers, and underscores';
-    return;
-  }
-  
+  errEl.textContent = '';
+  if (!name || !username || !password) { errEl.textContent = "Barcha majburiy maydonlarni to'ldiring."; return; }
+  if (password.length < 6) { errEl.textContent = "Parol kamida 6 belgi bo'lishi kerak."; return; }
+  if (password !== password2) { errEl.textContent = 'Parollar mos kelmadi.'; return; }
+  if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) { errEl.textContent = 'Username faqat harflar, raqamlar va _ dan iborat bo\'lishi kerak (3-30 belgi).'; return; }
+  if (username.toLowerCase() === 'abdunurcreator') { errEl.textContent = 'Bu username band (reserved).'; return; }
   pendingSignupData = { name, username, email, password };
   document.getElementById('signup-form-step1').classList.add('hidden');
   document.getElementById('signup-form-step2').classList.remove('hidden');
@@ -263,200 +374,49 @@ function handleSignupStep1() {
 function showSignupStep1() {
   document.getElementById('signup-form-step1').classList.remove('hidden');
   document.getElementById('signup-form-step2').classList.add('hidden');
-  document.getElementById('signup-form-telegram-code').classList.add('hidden');
-  document.getElementById('signup-form-email-code').classList.add('hidden');
+  document.getElementById('signup-form-telegram').classList.add('hidden');
+  document.getElementById('signup-form-email').classList.add('hidden');
 }
 
 function showSignupStep2() {
   document.getElementById('signup-form-step2').classList.remove('hidden');
-  document.getElementById('signup-form-telegram-code').classList.add('hidden');
-  document.getElementById('signup-form-email-code').classList.add('hidden');
+  document.getElementById('signup-form-telegram').classList.add('hidden');
+  document.getElementById('signup-form-email').classList.add('hidden');
 }
 
+// --- Signup step 2: choose verification ---
 async function handleSignupMethod(method) {
   if (!pendingSignupData) return;
   const errEl = document.getElementById('signup-step2-error');
-  errEl.style.display = 'none';
-  
-  if (method === 'google') {
-    document.getElementById('google-signup-btn')?.click();
-
-async function handleSignupTelegramSubmit() {
-  if (!pendingSignupData) return;
-  const tgUsername = document.getElementById('signup-tg-username')?.value.trim().replace('@', '');
-  const errEl = document.getElementById('signup-tg-error');
-  errEl.style.display = 'none';
-  
-  if (!tgUsername) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Please enter your Telegram username';
-    return;
-  }
-  
-  errEl.style.display = 'block';
-  errEl.textContent = 'Sending code to bot...';
-  
-  try {
-    const r = await fetch(BASE_URL + '/api/send-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: pendingSignupData.name,
-        username: pendingSignupData.username,
-        email: pendingSignupData.email,
-        password: pendingSignupData.password,
-        method: 'telegram'
-      })
-    });
-    const d = await r.json();
-    if (r.ok && d.success && d.sessionId) {
-      pendingSessionId = d.sessionId;
-      errEl.style.display = 'block';
-      errEl.textContent = 'Success! Now send /start to @abdunurcreator_bot, then click Continue';
-      const btn = document.querySelector('#signup-form-telegram-code .btn');
-      if (btn) {
-        btn.textContent = 'Continue to Login';
-        btn.onclick = () => { onLoginSuccess(pendingSignupData.username, false); };
-      }
-    } else {
-      errEl.textContent = d.error || 'Failed to start verification';
-    }
-  } catch (e) {
-    errEl.textContent = 'Server error';
-  }
-}
-
-async function handleSignupEmailVerify() {
-  if (!pendingSignupData) return;
-  const code = document.getElementById('signup-email-code')?.value.trim();
-  const errEl = document.getElementById('signup-email-error');
-  errEl.style.display = 'none';
-  
-  if (!code) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Please enter the verification code';
-    return;
-  }
-  
-  errEl.style.display = 'block';
-  errEl.textContent = 'Verifying...';
-  
-  try {
-    const r = await fetch(BASE_URL + '/api/verify-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code })
-    });
-    const d = await r.json();
-    if (r.ok && d.success) {
-      onLoginSuccess(d.username, false);
-    } else {
-      errEl.textContent = d.error || 'Invalid code';
-    }
-  } catch (e) {
-    errEl.textContent = 'Server error';
-  }
-}
-
-// ============================
-// === GOOGLE AUTH ===
-// ============================
-
-let googleClientIdCache = null;
-
-async function getGoogleClientId() {
-  if (googleClientIdCache !== null) return googleClientIdCache;
-  try {
-    const r = await fetch(BASE_URL + '/api/config');
-    const d = await r.json();
-    googleClientIdCache = d.googleClientId || '';
-  } catch (e) {
-    googleClientIdCache = '';
-  }
-  return googleClientIdCache;
-}
-
-async function handleGoogleCredential(response) {
-  const errEl = document.getElementById('login-error') || document.getElementById('signup-step2-error');
-  if (errEl) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Signing in...';
-  }
-  
-  try {
-    const r = await fetch(BASE_URL + '/api/google-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential: response.credential })
-    });
-    const d = await r.json();
-    if (r.ok && d.success) {
-      onLoginSuccess(d.username, d.isAdmin);
-    } else {
-      if (errEl) errEl.textContent = d.error || 'Google login failed';
-    }
-  } catch (e) {
-    if (errEl) errEl.textContent = 'Server error';
-  }
-}
-
-let googleInitialized = false;
-
-async function initGoogleButton() {
-  const clientId = await getGoogleClientId();
-  if (!clientId || typeof google === 'undefined' || !google.accounts) return;
-  
-  if (!googleInitialized) {
-    google.accounts.id.initialize({
-      client_id: clientId,
-      callback: handleGoogleCredential,
-      ux_mode: 'popup'
-    });
-    googleInitialized = true;
-  }
-  
-  const loginBtn = document.getElementById('google-login-btn');
-  if (loginBtn) {
-    google.accounts.id.renderButton(loginBtn, { theme: 'outline', size: 'large', width: '100%' });
-  }
-  
-  const signupBtn = document.getElementById('google-signup-btn');
-  if (signupBtn) {
-    google.accounts.id.renderButton(signupBtn, { theme: 'outline', size: 'large', width: '100%' });
-  }
-}
-
-function logout() {
-  currentUser = '';
-  isAdmin = false;
-  clearSession();
-  showStage('stage-login');
-  switchAuthTab('login');
-  showLoginMethods();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  restoreSession();
-  initGoogleButton();
-});
-
-    return;
-  }
-  
+  errEl.textContent = '';
   if (method === 'telegram') {
-    document.getElementById('signup-form-step2').classList.add('hidden');
-    document.getElementById('signup-form-telegram-code').classList.remove('hidden');
-    return;
-  }
-  
-  if (method === 'email') {
-    if (!pendingSignupData.email) {
-      errEl.style.display = 'block';
-      errEl.textContent = 'Please enter your email first';
-      return;
-    }
-    errEl.style.display = 'block';
-    errEl.textContent = 'Sending code...';
+    errEl.textContent = "Ro'yxatdan o'tkazilmoqda...";
+    try {
+      const r = await fetch(BASE_URL + '/api/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: pendingSignupData.name,
+          username: pendingSignupData.username,
+          email: pendingSignupData.email,
+          password: pendingSignupData.password,
+          method: 'telegram'
+        })
+      });
+      const d = await r.json();
+      if (r.ok && d.success && d.sessionId) {
+        pendingSessionId = d.sessionId;
+        document.getElementById('signup-tg-verify-link').href = d.verifyUrl || 'https://t.me/abdunurcreator_bot';
+        document.getElementById('signup-form-step2').classList.add('hidden');
+        document.getElementById('signup-form-telegram').classList.remove('hidden');
+        errEl.textContent = '';
+      } else {
+        errEl.textContent = d.error || 'Xatolik yuz berdi.';
+      }
+    } catch (e) { errEl.textContent = 'Server xatoligi.'; }
+  } else if (method === 'email') {
+    if (!pendingSignupData.email) { errEl.textContent = 'Avval email kiriting (1-qadamda).'; return; }
+    errEl.textContent = 'Kod yuborilmoqda...';
     try {
       const r = await fetch(BASE_URL + '/api/send-verification', {
         method: 'POST',
@@ -471,201 +431,84 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const d = await r.json();
       if (r.ok && d.success) {
-        document.getElementById('signup-form-step2').classList.add('hidden');
-        document.getElementById('signup-form-email-code').classList.remove('hidden');
         document.getElementById('signup-email-display').textContent = pendingSignupData.email;
-        errEl.style.display = 'none';
+        document.getElementById('signup-form-step2').classList.add('hidden');
+        document.getElementById('signup-form-email').classList.remove('hidden');
+        errEl.textContent = '';
       } else {
-        errEl.textContent = d.error || 'Failed to send code';
+        errEl.textContent = d.error || 'Kod yuborilmadi.';
       }
-    } catch (e) {
-      errEl.textContent = 'Server error';
-    }
+    } catch (e) { errEl.textContent = 'Server xatoligi.'; }
   }
 }
 
-  if (tgUsername && code) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Verifying...';
-    try {
-      const r = await fetch(BASE_URL + '/api/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
-      });
-      const d = await r.json();
-      if (r.ok && d.success) {
-        onLoginSuccess(d.username, false);
-      } else {
-        errEl.textContent = d.error || 'Invalid code';
-      }
-    } catch (e) {
-      errEl.textContent = 'Server error';
-    }
-  }
-}
-
-async function handleLoginEmailSubmit() {
-  const email = document.getElementById('login-email')?.value.trim();
-  const code = document.getElementById('login-email-code')?.value.trim();
-  const errEl = document.getElementById('login-email-error');
-  const codeWrap = document.getElementById('login-email-code-wrap');
-  const btn = document.getElementById('login-email-btn');
-  
-  if (!code && email) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Sending code...';
-    try {
-      const checkR = await fetch(BASE_URL + '/api/check-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: email })
-      });
-      const checkD = await checkR.json();
-      if (!checkD.exists) {
-        errEl.textContent = 'User not found. Please sign up first.';
-        return;
-      }
-      const r = await fetch(BASE_URL + '/api/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: email })
-      });
-      const d = await r.json();
-      if (r.ok && d.success) {
-        errEl.textContent = 'Code sent to your ' + d.method;
-        codeWrap.classList.remove('hidden');
-        btn.textContent = 'Verify Code';
-      } else {
-        errEl.textContent = d.error || 'Failed to send code';
-      }
-    } catch (e) {
-      errEl.textContent = 'Server error';
-    }
-    return;
-  }
-  
-  if (code) {
-    errEl.style.display = 'block';
-    errEl.textContent = 'Verifying...';
-    try {
-      const r = await fetch(BASE_URL + '/api/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
-      });
-      const d = await r.json();
-      if (r.ok && d.success) {
-        onLoginSuccess(d.username, false);
-      } else {
-        errEl.textContent = d.error || 'Invalid code';
-      }
-    } catch (e) {
-      errEl.textContent = 'Server error';
-    }
-  }
-}
-
-function showForgotPassword() {
-  const passwordForm = document.getElementById('login-sub-password');
-  const forgotForm = document.getElementById('login-sub-email');
-  if (passwordForm) passwordForm.classList.add('hidden');
-  if (forgotForm) {
-    forgotForm.classList.remove('hidden');
-    document.getElementById('login-email-code-wrap').classList.add('hidden');
-    document.getElementById('login-email-btn').textContent = 'Send Code';
-  }
-}
-
-// === AUTH TABS (Kirish / Ro'yxatdan o'tish) ===
-function switchAuthTab(tab) {
-  document.getElementById('auth-tab-login').classList.toggle('active', tab === 'login');
-  document.getElementById('auth-tab-signup').classList.toggle('active', tab === 'signup');
-  document.getElementById('auth-pane-login').classList.toggle('hidden', tab !== 'login');
-  document.getElementById('auth-pane-signup').classList.toggle('hidden', tab !== 'signup');
-}
-
-function chooseAuthMethod(paneKind, method) {
-  document.getElementById('login-err').textContent = '';
-  if (paneKind === 'login') {
-    document.getElementById('login-sub-telegram').classList.toggle('hidden', method !== 'telegram');
-    document.getElementById('login-sub-password').classList.toggle('hidden', method !== 'password');
-  }
-}
-
-function onLoginSuccess(username, admin) {
-  currentUser = username; isAdmin = admin;
-  document.getElementById('welcome-name').textContent = '@' + username;
-  document.getElementById('admin-nav-btn').style.display = isAdmin ? 'inline-flex' : 'none';
-  saveSession(username, isAdmin);
-  showStage('main-content');
-  fetchAds();
-}
-
-// === LOGIN (Telegram OTP) ===
-async function doLogin(){
-  const uEl=document.getElementById('tg-username');
-  const cEl=document.getElementById('login-code');
-  const err=document.getElementById('login-err');
-  const username=uEl.value.trim().replace('@','');
-  const code=cEl.value.trim();
-  if(!username||!code){err.textContent='Username va kodni kiriting.';return;}
-  err.textContent='Tekshirilmoqda...';
-  try{
-    const r=await fetch(BASE_URL+'/api/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,code})});
-    const d=await r.json();
-    if(r.ok){ err.textContent=''; onLoginSuccess(username, d.isAdmin); }
-    else{err.textContent=d.error||'Xatolik.';}
-  }catch(e){err.textContent='Server bilan aloqa yo\'q. Node.js server yoniqmi?';}
-}
-document.getElementById('login-btn').addEventListener('click',doLogin);
-document.getElementById('login-code').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-
-// === LOGIN (username/parol) ===
-async function doPasswordLogin() {
-  const identifier = document.getElementById('pw-identifier').value.trim();
-  const password = document.getElementById('pw-password').value;
-  const err = document.getElementById('login-err');
-  if (!identifier || !password) { err.textContent = 'Login va parolni kiriting.'; return; }
-  err.textContent = 'Tekshirilmoqda...';
+// --- Signup: email code verify ---
+async function handleSignupEmailVerify() {
+  const code = document.getElementById('signup-email-code').value.trim();
+  const errEl = document.getElementById('signup-email-error');
+  errEl.textContent = '';
+  if (!code) { errEl.textContent = 'Kodni kiriting.'; return; }
+  errEl.textContent = 'Tasdiqlanmoqda...';
   try {
-    const r = await fetch(BASE_URL + '/api/password-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier, password }) });
+    const r = await fetch(BASE_URL + '/api/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
     const d = await r.json();
-    if (r.ok) { err.textContent = ''; onLoginSuccess(d.username, d.isAdmin); }
-    else { err.textContent = d.error || 'Xatolik.'; }
-  } catch (e) { err.textContent = 'Server bilan aloqa yo\'q.'; }
+    if (r.ok && d.success) onLoginSuccess(d.username, d.isAdmin);
+    else errEl.textContent = d.error || 'Kod xato yoki muddati tugagan.';
+  } catch (e) { errEl.textContent = 'Server xatoligi.'; }
 }
-document.getElementById('pw-login-btn').addEventListener('click', doPasswordLogin);
-document.getElementById('pw-password').addEventListener('keydown', e => { if (e.key === 'Enter') doPasswordLogin(); });
 
-// === GOOGLE SIGN-IN ===
+// --- Signup: telegram verify status check ---
+async function handleSignupTelegramCheck() {
+  const errEl = document.getElementById('signup-tg-error');
+  errEl.textContent = '';
+  if (!pendingSessionId) { errEl.textContent = 'Avval tasdiqlashni boshlang.'; return; }
+  errEl.textContent = 'Tekshirilmoqda...';
+  try {
+    const r = await fetch(BASE_URL + '/api/verify-status?sessionId=' + encodeURIComponent(pendingSessionId));
+    const d = await r.json();
+    if (r.ok && d.verified) {
+      onLoginSuccess(d.username, d.isAdmin);
+    } else {
+      errEl.textContent = "Hali tasdiqlanmadi. Botdagi havolani bosing, so'ng qayta urinib ko'ring.";
+    }
+  } catch (e) { errEl.textContent = 'Server xatoligi.'; }
+}
+
+// --- Google auth ---
 let googleClientIdCache = null;
 async function getGoogleClientId() {
   if (googleClientIdCache !== null) return googleClientIdCache;
   try {
-    const r = await fetch(BASE_URL + '/api/google-client-id');
+    const r = await fetch(BASE_URL + '/api/config');
     const d = await r.json();
-    googleClientIdCache = d.clientId || '';
+    googleClientIdCache = d.googleClientId || '';
   } catch (e) { googleClientIdCache = ''; }
   return googleClientIdCache;
 }
+
 async function handleGoogleCredential(response) {
-  const err = document.getElementById('login-err');
-  err.textContent = 'Tekshirilmoqda...';
   try {
-    const r = await fetch(BASE_URL + '/api/google-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: response.credential }) });
+    const r = await fetch(BASE_URL + '/api/google-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential })
+    });
     const d = await r.json();
-    if (r.ok) { err.textContent = ''; onLoginSuccess(d.username, d.isAdmin); }
-    else { err.textContent = d.error || 'Google orqali kirishda xatolik.'; }
-  } catch (e) { err.textContent = 'Server bilan aloqa yo\'q.'; }
+    if (r.ok && d.success) onLoginSuccess(d.username, d.isAdmin);
+    else noorToast(d.error || 'Google orqali kirishda xatolik.');
+  } catch (e) { noorToast('Server xatoligi.'); }
 }
+
 let googleInitialized = false;
 async function renderGoogleOverlay(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const clientId = await getGoogleClientId();
-  if (!clientId) return; // hali sozlanmagan — jim turadi, xato ko'rsatmaymiz
-  if (typeof google === 'undefined' || !google.accounts) return;
+  if (!clientId || typeof google === 'undefined' || !google.accounts) return;
   if (!googleInitialized) {
     google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleCredential, ux_mode: 'popup' });
     googleInitialized = true;
@@ -675,22 +518,29 @@ async function renderGoogleOverlay(containerId) {
   google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', width: w, text: 'continue_with' });
 }
 
-function logout(){
-  currentUser='';isAdmin=false;
+// --- Logout ---
+function logout() {
+  currentUser = '';
+  isAdmin = false;
   clearSession();
-  document.getElementById('tg-username').value='';
-  document.getElementById('login-code').value='';
-  document.getElementById('login-err').textContent='';
   showStage('stage-login');
+  switchAuthTab('login');
+  showLoginMethods();
 }
 
-// Sahifa ochilganda avval saqlangan sessiya bormi tekshiramiz, va Google tugmalarini
-// (login/signup) darhol, ko'rinmas holda chizib qo'yamiz — sizning chiroyli tugmangiz
-// tepada ko'rinadi, bosilganda esa aynan shu joydagi haqiqiy Google oynasi ochiladi.
-document.addEventListener('DOMContentLoaded',()=>{
+// --- Wire up: Enter keys, Google buttons, restore session ---
+document.addEventListener('DOMContentLoaded', () => {
   restoreSession();
   renderGoogleOverlay('google-btn-overlay-login');
   renderGoogleOverlay('google-btn-overlay-signup');
+  ['login-password', 'login-identifier'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') handleLoginSubmit(); });
+  });
+  const tgCode = document.getElementById('login-code');
+  if (tgCode) tgCode.addEventListener('keydown', e => { if (e.key === 'Enter') handleTelegramLogin(); });
+  const emailCode = document.getElementById('login-email-code');
+  if (emailCode) emailCode.addEventListener('keydown', e => { if (e.key === 'Enter') handleLoginEmailSubmit(); });
 });
 
 // === PROFIL (rasm + ism, username o'zgarmaydi) ===
@@ -1173,7 +1023,7 @@ function renderAiMessageHTML(text) {
     out += `<div class="code-block-wrap">
       <div class="code-block-header"><span class="code-lang">${escapeHtml(lang || 'code')}</span>
         <span class="code-block-actions">
-          <button type="button" class="code-dl-btn" onclick="downloadCodeBlock(`$id`, this)">&#11015; Yuklab olish</button> <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">📋 Nusxa</button>
+          <button type="button" class="code-dl-btn" onclick="downloadCodeBlock('${id}', this)">&#11015; Yuklab olish</button> <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">📋 Nusxa</button>
           ${runnable ? `<button type="button" class="code-run-btn" onclick="runCodeBlock('${id}')">▶ Ishga tushirish</button>` : ''}
         </span>
       </div>
@@ -2019,7 +1869,7 @@ function renderCodePanel(blocks) {
     block.className = 'code-block-wrap';
     block.innerHTML = `<div class="code-block-header"><span class="code-lang">${escapeHtml(b.lang || 'code')}</span>
       <span class="code-block-actions">
-        <button type="button" class="code-dl-btn" onclick="downloadCodeBlock(`$id`, this)">&#11015; Yuklab olish</button> <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">Nusxa</button>
+        <button type="button" class="code-dl-btn" onclick="downloadCodeBlock('${id}', this)">&#11015; Yuklab olish</button> <button type="button" class="code-copy-btn" onclick="copyCodeBlock('${id}', this)">Nusxa</button>
         ${runnable ? `<button type="button" class="code-run-btn" onclick="runCodeBlock('${id}')">Ishga tushirish</button>` : ''}
       </span></div>
       <pre class="code-block"><code>${escapeHtml(b.code)}</code></pre>
