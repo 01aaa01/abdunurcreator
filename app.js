@@ -561,8 +561,8 @@ async function openProfile() {
   try {
     const r2 = await fetch(BASE_URL + '/api/keys/mine?username=' + encodeURIComponent(currentUser));
     const d2 = await r2.json();
-    document.getElementById('profile-api-key').value = (r2.ok && d2.apiKey) ? d2.apiKey : '';
-  } catch (e) {}
+    if (r2.ok) document.getElementById('profile-api-key').value = d2.apiKey || '';
+  } catch (e) { /* API keys endpoint not available */ }
   document.getElementById('profile-overlay').classList.add('active');
 }
 document.getElementById('profile-photo-input').addEventListener('change', async (e) => {
@@ -608,7 +608,10 @@ async function createOrShowApiKey() {
     const r = await fetch(BASE_URL + '/api/keys/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: currentUser }) });
     const d = await r.json();
     if (r.ok) { input.value = d.apiKey; ok.textContent = 'API kalit yaratildi!'; }
-    else err.textContent = d.error || 'Xatolik.';
+    else {
+      err.textContent = 'API kalit yaratish hozircha mavjud emas. Bearer kalit sifatida OpenRouter kalitingizni ishlating.';
+      noorToast('API kalit endpoint Hasan, OpenRouter kalitingizni olib inputga qo'ying.');
+    }
   } catch (e) { err.textContent = 'Server xatoligi.'; }
 }
 function copyApiKey() {
@@ -1381,16 +1384,16 @@ async function speakText(text, btnEl, modelOverride) {
   if (btnEl) { btnEl.disabled = true; btnEl.classList.add('speaking'); }
   try {
     const audioModel = modelOverride || (currentChatMode.startsWith('nooraudio') ? currentChatMode : 'nooraudio1');
-    const r = await fetch(BASE_URL + '/api/chat/generate-audio', {
+    const r = await fetch(BASE_URL + '/api/v1/audio/generations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: cleanSpeechText, voice: 'standard', model: audioModel })
+      body: JSON.stringify({ input: cleanSpeechText, voice: 'standard' })
     });
     const d = await r.json();
-    if (r.ok) {
-      playNoorAudio(d.audioUrl, () => { if (btnEl) { btnEl.disabled = false; btnEl.classList.remove('speaking'); } });
+    if (r.ok && d.data && d.data[0]) {
+      playNoorAudio(d.data[0].url, () => { if (btnEl) { btnEl.disabled = false; btnEl.classList.remove('speaking'); } });
     } else {
-      noorToast(d.error || t('noorAudio.error', "Ovoz yaratib bo'lmadi."));
+      noorToast(d.error || d.message || t('noorAudio.error', "Ovoz yaratib bo'lmadi."));
       if (btnEl) { btnEl.disabled = false; btnEl.classList.remove('speaking'); }
     }
   } catch (e) {
@@ -1420,18 +1423,18 @@ async function sendNoorAudioGenRequest(text) {
   const voice = voiceSel ? voiceSel.value : 'standard';
 
   try {
-    const r = await fetch(BASE_URL + '/api/chat/generate-audio', {
+    const r = await fetch(BASE_URL + '/api/v1/audio/generations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice, model: currentChatMode })
+      body: JSON.stringify({ input: text, voice })
     });
     const d = await r.json();
     document.getElementById('chat-typing-indicator')?.remove();
-    if (r.ok) {
-      appendGeneratedAudioBubble(d.audioUrl, text);
+    if (r.ok && d.data && d.data[0]) {
+      appendGeneratedAudioBubble(d.data[0].url, text);
       persistActiveSession(text);
     } else {
-      appendChatBubble('Xatolik: ' + (d.error || "Ovoz yaratib bo'lmadi."), 'system');
+      appendChatBubble('Xatolik: ' + (d.error || d.message || "Ovoz yaratib bo'lmadi."), 'system');
     }
   } catch (e) {
     document.getElementById('chat-typing-indicator')?.remove();
@@ -1476,10 +1479,7 @@ async function sendNoorVideoGenRequest(prompt) {
   const ratioActive = document.querySelector('#video-ratio-pills .video-pill.active');
   const duration = durActive ? durActive.dataset.value : '5';
   const aspectRatio = ratioActive ? ratioActive.dataset.value : '16:9';
-  const fps = (document.getElementById('video-fps-select') || {}).value || '30';
-  const style = (document.getElementById('video-style-select') || {}).value || 'cinematic';
-  const cameraMovement = (document.getElementById('video-camera-select') || {}).value || 'pan';
-  const negativePrompt = (document.getElementById('video-negative-prompt') || {}).value || '';
+  // fps, style, cameraMovement, negativePrompt — server currently ignores these
 
   inputEl.disabled = true;
 
@@ -1543,41 +1543,26 @@ async function sendNoorVideoGenRequest(prompt) {
   }
 
   try {
-    const r = await fetch(BASE_URL + '/api/chat/generate-video', {
+    const r = await fetch(BASE_URL + '/api/v1/videos/generations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, ai, duration, aspectRatio, fps, style, cameraMovement, negativePrompt })
+      body: JSON.stringify({ prompt })
     });
     const d = await r.json();
 
-    if (!r.ok) { onVideoError(d.error || "Video yaratib bo'lmadi."); return; }
+    const indicator = document.getElementById('video-progress-bubble');
+    if (indicator) indicator.remove();
 
-    // If server returned completed immediately
-    if (d.status === 'completed') { onVideoReady(d.job || d); return; }
-
-    jobId = d.id;
-
-    // Start status polling
-    pollInterval = setInterval(async () => {
-      try {
-        const sr = await fetch(BASE_URL + '/api/chat/video-status/' + jobId);
-        const sj = await sr.json();
-        updateProgress(sj);
-        if (sj.status === 'completed') { onVideoReady(sj); }
-        else if (sj.status === 'failed') { onVideoError(sj.error || sj.statusText); }
-      } catch (pe) {
-        console.warn('[Noor Video] Status poll error:', pe);
-      }
-    }, 1200);
-
-    // Safety timeout — 5 minutes
-    setTimeout(() => {
-      if (pollInterval) {
-        stopPolling();
-        onVideoError("Video yaratish juda ko'p vaqt oldi. Qayta urinib ko'ring.");
-      }
-    }, 5 * 60 * 1000);
-
+    if (r.ok && d.data && d.data[0]) {
+      appendGeneratedVideoBubble(d.data[0].url, d.data[0].url, prompt, duration, aspectRatio);
+      persistActiveSession(prompt);
+      inputEl.disabled = false;
+      inputEl.focus();
+    } else {
+      appendChatBubble('Xatolik: ' + (d.error || d.message || "Video yaratib bo'lmadi."), 'system');
+      inputEl.disabled = false;
+      inputEl.focus();
+    }
   } catch (e) {
     document.getElementById('video-progress-bubble')?.remove();
     appendChatBubble('Server bilan ulanishda xatolik yuz berdi.', 'system');
@@ -1662,48 +1647,20 @@ async function loadVideoHistory() {
   const listEl = document.getElementById('video-history-list');
   if (!listEl) return;
   try {
-    const r = await fetch(BASE_URL + '/api/chat/video-history');
-    if (!r.ok) return;
-    const d = await r.json();
-    const history = d.history || [];
-    if (!history.length) {
-      listEl.innerHTML = '<div class="video-history-empty" style="font-size:.72rem;color:var(--td);padding:8px 0;">Hali hech qanday video yaratilmagan.</div>';
+    const r = await fetch(BASE_URL + '/api/v1/videos/generations');
+    if (!r.ok) {
+      listEl.innerHTML = '<div class="video-history-empty" style="font-size:.72rem;color:var(--td);padding:8px 0;">Video tarixi hozircha mavjud emas.</div>';
       return;
     }
-    listEl.innerHTML = history.map(item => {
-      const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '';
-      const shortPrompt = (item.prompt || '').slice(0, 50);
-      return `<div class="video-history-item" style="color:var(--t);">
-        <div style="flex:1;overflow:hidden;">
-          <div style="font-size:.73rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(shortPrompt)}</div>
-          <div style="font-size:.68rem;color:var(--td);">${date} · ${item.duration || '5'}s · ${item.aspectRatio || '16:9'}</div>
-        </div>
-        <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;">
-          <a href="${item.videoUrl}" download style="background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);color:var(--c);padding:4px 10px;border-radius:8px;font-size:.68rem;text-decoration:none;white-space:nowrap;">⬇ Yuklab</a>
-          <button type="button" class="video-history-delete" data-video-id="${escapeHtml(item.id)}" title="Tarixdan o'chirish" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#ff8a80;padding:4px 8px;border-radius:8px;font-size:.68rem;cursor:pointer;white-space:nowrap;">O'chirish</button>
-        </div>
-      </div>`;
-    }).join('');
-    listEl.querySelectorAll('.video-history-delete').forEach(btn => {
-      btn.addEventListener('click', () => deleteVideoHistory(btn.dataset.videoId));
-    });
+    // Server hozircha video tarixini saqlamaydi, faqat pollinations URLs atrofida
+    listEl.innerHTML = '<div class="video-history-empty" style="font-size:.72rem;color:var(--td);padding:8px 0;">Video tarixi hozircha mavjud emas.</div>';
   } catch (e) {
     listEl.innerHTML = '<div style="font-size:.72rem;color:var(--td);">Tarix yuklanmadi.</div>';
   }
 }
 
 async function deleteVideoHistory(id) {
-  const ok = await noorConfirm('Ushbu videoni tarixdan o\'chirishga ishonchingiz komilmi?', { danger: true, confirmText: "O'chirish" });
-  if (!ok) return;
-  try {
-    const r = await fetch(BASE_URL + '/api/chat/video-history/' + encodeURIComponent(id), { method: 'DELETE' });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Video o\'chirilmadi.');
-    noorToast('Video tarixdan o\'chirildi.');
-    loadVideoHistory();
-  } catch (e) {
-    noorToast(e.message || 'Video o\'chirilmadi.');
-  }
+  noorToast('Video tarixi hozircha saqlanmaydi, o\'chirish imkonsiz.');
 }
 
 async function sendNoorImgGenRequest(prompt) {
@@ -1729,18 +1686,18 @@ async function sendNoorImgGenRequest(prompt) {
   const ai = aiSel ? aiSel.value : 'noorimg';
 
   try {
-    const r = await fetch(BASE_URL + '/api/chat/generate-image', {
+    const r = await fetch(BASE_URL + '/api/v1/images/generations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, size, ai })
+      body: JSON.stringify({ prompt, size })
     });
     const d = await r.json();
     document.getElementById('chat-typing-indicator')?.remove();
-    if (r.ok) {
-      appendGeneratedImageBubble(d.imageUrl, d.shareUrl, prompt);
+    if (r.ok && d.data && d.data[0]) {
+      appendGeneratedImageBubble(d.data[0].url, d.data[0].url, prompt);
       persistActiveSession(prompt);
     } else {
-      appendChatBubble('Xatolik: ' + (d.error || "Rasm yaratib bo'lmadi."), 'system');
+      appendChatBubble('Xatolik: ' + (d.error || d.message || "Rasm yaratib bo'lmadi."), 'system');
     }
   } catch (e) {
     document.getElementById('chat-typing-indicator')?.remove();
@@ -2033,23 +1990,23 @@ async function sendMediaGenRequest(prompt) {
   sendBtn.disabled = true;
 
   const kind = mediaKindOf(currentChatMode); // 'image' | 'video' | 'audio'
-  const endpoint = kind === 'video' ? '/api/generate/video' : (kind === 'audio' ? '/api/generate/audio' : '/api/generate/image');
+  const endpoint = kind === 'video' ? '/api/v1/videos/generations' : (kind === 'audio' ? '/api/v1/audio/generations' : '/api/v1/images/generations');
 
   try {
     const r = await fetch(BASE_URL + endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, modelId: currentChatMode })
+      body: JSON.stringify({ prompt })
     });
     const d = await r.json();
     const indicator = document.getElementById('chat-typing-indicator');
     if (indicator) indicator.remove();
-    const mediaUrl = d.image || d.video || d.audio;
+    const mediaUrl = d.data && d.data[0] ? d.data[0].url : (d.image || d.video || d.audio);
     if (r.ok && mediaUrl) {
       appendChatMedia(mediaUrl, kind || 'image');
       persistActiveSession(prompt);
     } else {
-      appendChatBubble('Xatolik: ' + (d.error || 'Yaratib bo\'lmadi.'), 'system');
+      appendChatBubble('Xatolik: ' + (d.error || d.message || 'Yaratib bo\'lmadi.'), 'system');
     }
   } catch (e) {
     const indicator = document.getElementById('chat-typing-indicator');
@@ -2136,10 +2093,10 @@ async function sendChatMsg() {
   sendBtn.disabled = true;
 
   try {
-    const r = await fetch(BASE_URL + '/api/chat', {
+    const r = await fetch(BASE_URL + '/api/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: chatHistory, mode: currentChatMode, username: currentUser, password: isAdmin ? adminPass : '' })
+      body: JSON.stringify({ model: currentChatMode, messages: chatHistory })
     });
     const d = await r.json();
 
@@ -2147,10 +2104,10 @@ async function sendChatMsg() {
     const indicator = document.getElementById('chat-typing-indicator');
     if (indicator) indicator.remove();
 
-    if (r.ok) {
+    if (r.ok && d.choices && d.choices[0]) {
       const aiReply = d.choices[0].message.content;
       const autoSpeak = isVoiceSession;
-      displayAiReply(aiReply, autoSpeak); // Microfon ishlatilsa "Tinglash" tugmasi bo'lmaydi
+      displayAiReply(aiReply, autoSpeak);
       chatHistory.push({ role: 'assistant', content: aiReply });
       persistActiveSession(text || 'Rasm bilan suhbat');
       if (autoSpeak) {
@@ -2158,7 +2115,7 @@ async function sendChatMsg() {
         isVoiceSession = false;
       }
     } else {
-      appendChatBubble('Xatolik: ' + (d.error || 'Ulanib bo\'lmadi.'), 'system');
+      appendChatBubble('Xatolik: ' + (d.error?.message || d.error || 'Ulanib bo\'lmadi.'), 'system');
     }
   } catch (e) {
     const indicator = document.getElementById('chat-typing-indicator');
@@ -2188,21 +2145,22 @@ async function loadMediaModelOptions() {
   const select = document.getElementById('chat-model-select');
   if (!group) return;
   try {
-    const r = await fetch(BASE_URL + '/api/generate/models');
+    const r = await fetch(BASE_URL + '/api/v1/models');
     const d = await r.json();
+    const models = d.data || [];
     const sections = [
-      { list: d.image || [], tagClass: 'model-picker-tag-img', tagText: 'RASM' },
-      { list: d.video || [], tagClass: 'model-picker-tag-vid', tagText: 'VIDEO' },
-      { list: d.audio || [], tagClass: 'model-picker-tag-audio', tagText: 'AUDIO' }
+      { list: models.filter(m => m.type === 'image'), tagClass: 'model-picker-tag-img', tagText: 'RASM' },
+      { list: models.filter(m => m.type === 'video'), tagClass: 'model-picker-tag-vid', tagText: 'VIDEO' },
+      { list: models.filter(m => m.type === 'audio'), tagClass: 'model-picker-tag-audio', tagText: 'AUDIO' }
     ];
     let html = '';
     sections.forEach((sec) => {
       sec.list.forEach((m) => {
-        html += `<button type="button" class="model-picker-item" data-value="${escapeHtml(m.id)}" data-label="${escapeHtml(m.label)}"><span class="mp-label">${escapeHtml(m.label)}</span><span class="mp-right"><span class="model-picker-tag ${sec.tagClass}">${sec.tagText}</span></span></button>`;
+        html += `<button type="button" class="model-picker-item" data-value="${escapeHtml(m.id)}" data-label="${escapeHtml(m.name)}"><span class="mp-label">${escapeHtml(m.name)}</span><span class="mp-right"><span class="model-picker-tag ${sec.tagClass}">${sec.tagText}</span></span></button>`;
         if (select && !select.querySelector(`option[value="${m.id}"]`)) {
           const opt = document.createElement('option');
           opt.value = m.id;
-          opt.textContent = m.label;
+          opt.textContent = m.name;
           select.appendChild(opt);
         }
       });
