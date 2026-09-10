@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#111;color:#eee;font-family:monospace;">
+<div id="out">loading...</div>
+<script>
+const out = document.getElementById('out');
+const f = document.createElement('iframe');
+f.style.width = '600px';
+f.style.height = '500px';
+f.src = '/';
+f.onload = () => {
+  setTimeout(() => {
+    try {
+      const doc = f.contentDocument;
+      const win = f.contentWindow;
+      const results = [];
+      // Force login and open chat
+      win.currentUser = 'test';
+      win.onLoginSuccess('test', false);
+      setTimeout(() => {
+        try {
+          const input = doc.getElementById('chat-user-input');
+          const csInp = getComputedStyle(input);
+          results.push('CHAT INPUT color: ' + csInp.color + ' (bg of bar: ' + getComputedStyle(input.closest('.chat-input-bar')).backgroundColor + ')');
+          // add a fake message
+          win.appendChatBubble('Test message hello', 'user');
+          win.appendChatBubble('AI reply test', 'ai');
+          setTimeout(() => {
+            const msgs = doc.querySelectorAll('#stage-chat .chat-msg');
+            const u = msgs[0], a = msgs[1];
+            results.push('USER bubble color: ' + getComputedStyle(u).color + ' bg: ' + getComputedStyle(u).backgroundColor);
+            results.push('AI bubble color: ' + getComputedStyle(a).color);
+            // login inputs
+            win.showStage('stage-login', false);
+            setTimeout(() => {
+              const li = doc.getElementById('login-identifier');
+              if (li) results.push('LOGIN input color: ' + getComputedStyle(li).color + ' bg: ' + getComputedStyle(li).backgroundColor);
+              const su = doc.getElementById('signup-username');
+              if (su) results.push('SIGNUP input color: ' + getComputedStyle(su).color + ' bg: ' + getComputedStyle(su).backgroundColor);
+              out.textContent = results.join('\n');
+            }, 200);
+          }, 200);
+        } catch (e) { out.textContent = results.join('\n') + '\nERR2: ' + e.message; }
+      }, 300);
+    } catch (e) {
+      out.textContent = 'ERR: ' + e.message;
+    }
+  }, 2500);
+};
+document.body.appendChild(f);
+</script>
+</body>
+</html>

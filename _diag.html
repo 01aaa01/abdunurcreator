@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#111;color:#eee;font-family:monospace;">
+<div id="out">loading...</div>
+<script>
+const out = document.getElementById('out');
+const f = document.createElement('iframe');
+f.style.width = '400px';
+f.style.height = '300px';
+f.src = '/';
+f.onload = () => {
+  try {
+    const doc = f.contentDocument;
+    doc.body.classList.add('light-mode');
+    doc.dispatchEvent(new Event('DOMContentLoaded'));
+    const inp = doc.getElementById('login-identifier');
+    if (!inp) { out.textContent = 'login-identifier NOT FOUND'; return; }
+    const cs = getComputedStyle(inp);
+    const bodyCls = doc.body.className;
+    const panelBg = getComputedStyle(doc.querySelector('.panel') || doc.body).backgroundColor;
+    out.textContent = [
+      'theme(body class): ' + bodyCls,
+      'input color: ' + cs.color,
+      'input bg: ' + cs.backgroundColor,
+      'input caret: ' + cs.caretColor,
+      'placeholder: ' + cs.getPropertyValue('--t') || 'n/a',
+      'panel bg: ' + panelBg,
+      'documentElement attr: ' + doc.documentElement.getAttribute('data-theme')
+    ].join('\n');
+  } catch (e) {
+    out.textContent = 'ERR: ' + e.message;
+  }
+};
+document.body.appendChild(f);
+</script>
+</body>
+</html>

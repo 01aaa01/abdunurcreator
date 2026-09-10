@@ -762,6 +762,100 @@ button:hover,a:hover,div:hover{filter:none!important;}
 }
 [data-theme="dark"] #stage-chat .chat-note{color:#b4b3ad;}
 
+/* ===== FIX: login/signup'da yozilgan harf-raqamlar ko'rinmas edi =====
+   "Claude style" override sahifa fonini och (#faf9f5) qilib qo'ygandi,
+   lekin input matni hali ham oq (var(--t) = #f4f5fa) qolgan edi —
+   oq-oq fonda yozilgan matn ko'rinmas bo'lib qolgan. */
+
+/* Barcha form inputlari: och fonda qorong'u matn */
+.field input,.field textarea{
+  color:#2d2d2c!important;
+  caret-color:#c96442!important;
+  background:#fff!important;
+  border:1px solid #d3d0c5!important;
+}
+.field input::placeholder,.field textarea::placeholder{
+  color:#9a9a93!important;
+  opacity:1!important;
+}
+.field input:focus,.field textarea:focus{
+  border-color:#c96442!important;
+  background:#fff!important;
+}
+.field label{color:#5c5b56!important;}
+
+/* Login/signup paneli — toza oq (Claude uslubida) */
+#stage-login .glass.panel{
+  background:#fff!important;
+  border:1px solid #e8e6e0!important;
+  color:#2d2d2c!important;
+}
+#stage-login p.sub,#stage-login .hint{color:#5c5b56!important;}
+#stage-login .hint b{color:#c96442!important;}
+#stage-login .prefix{color:#9a9a93!important;}
+#stage-login .err{color:#d9534f!important;}
+#stage-login .ok{color:#2f9e44!important;}
+#stage-login .logo{background-image:linear-gradient(135deg,#0f172a 20%,#0284c7 65%,#c026d3 100%)!important;}
+
+/* Tab tugmalari (Kirish / Ro'yxatdan o'tish) */
+#stage-login .tab{
+  background:#f3f1eb!important;
+  border:1px solid #e8e6e0!important;
+  color:#5c5b56!important;
+}
+#stage-login .tab.active{
+  background:rgba(201,100,66,.12)!important;
+  border-color:rgba(201,100,66,.4)!important;
+  color:#c96442!important;
+}
+
+/* Ghost (shaffof) tugmalar — oq fonda ko'rinadigan qilib */
+#stage-login .btn.ghost{
+  background:#f3f1eb!important;
+  border:1px solid #e8e6e0!important;
+  color:#3d3d3a!important;
+}
+#stage-login .btn.ghost:hover{
+  background:#efece4!important;
+  color:#2d2d2c!important;
+}
+
+/* Google tugmasi */
+#stage-login .auth-btn.google{
+  background:#fff!important;
+  color:#3c4043!important;
+  border:1px solid #e8e6e0!important;
+}
+
+/* Til almashtirgich */
+#stage-login .lang-switch{background:#f3f1eb!important;border:1px solid #e8e6e0!important;}
+#stage-login .lang-btn{color:#5c5b56!important;}
+#stage-login .lang-btn.active{color:#fff!important;}
+
+/* ===== DARK THEME (chat ichki sozlamalarida dark tanlangan bo'lsa) ===== */
+[data-theme="dark"] body{background:#262624!important;}
+[data-theme="dark"] .field input,
+[data-theme="dark"] .field textarea{
+  color:#f0eee9!important;
+  caret-color:#d97757!important;
+  background:#1f1f1d!important;
+  border-color:#3a3a37!important;
+}
+[data-theme="dark"] .field input::placeholder,
+[data-theme="dark"] .field textarea::placeholder{color:#7a7975!important;}
+[data-theme="dark"] .field label{color:#b4b3ad!important;}
+[data-theme="dark"] #stage-login .glass.panel{background:#1f1f1d!important;border-color:#3a3a37!important;color:#f0eee9!important;}
+[data-theme="dark"] #stage-login p.sub,
+[data-theme="dark"] #stage-login .hint{color:#b4b3ad!important;}
+[data-theme="dark"] #stage-login .hint b{color:#d97757!important;}
+[data-theme="dark"] #stage-login .prefix{color:#7a7975!important;}
+[data-theme="dark"] #stage-login .tab{background:#262624!important;border-color:#3a3a37!important;color:#b4b3ad!important;}
+[data-theme="dark"] #stage-login .tab.active{background:rgba(201,100,66,.2)!important;border-color:rgba(201,100,66,.5)!important;color:#d97757!important;}
+[data-theme="dark"] #stage-login .btn.ghost{background:#262624!important;border-color:#3a3a37!important;color:#f0eee9!important;}
+[data-theme="dark"] #stage-login .btn.ghost:hover{background:#3a3a37!important;color:#f0eee9!important;}
+[data-theme="dark"] #stage-login .lang-switch{background:#262624!important;border-color:#3a3a37!important;}
+[data-theme="dark"] #stage-login .lang-btn{color:#b4b3ad!important;}
+
 body.chat-active .liquid-bg,
 body.chat-active .grain,
 body.chat-active #ai-bg{display:none!important;}

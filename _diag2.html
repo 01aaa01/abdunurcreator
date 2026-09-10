@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#111;color:#eee;font-family:monospace;">
+<div id="out">loading...</div>
+<script>
+const out = document.getElementById('out');
+const f = document.createElement('iframe');
+f.style.width = '500px';
+f.style.height = '400px';
+f.src = '/';
+f.onload = () => {
+  setTimeout(() => {
+    try {
+      const doc = f.contentDocument;
+      const win = f.contentWindow;
+      const results = [];
+      results.push('typeof openSettingsModal: ' + typeof win.openSettingsModal);
+      results.push('typeof openPluginsModal: ' + typeof win.openPluginsModal);
+      results.push('typeof sendChatMsg: ' + typeof win.sendChatMsg);
+      const cont = doc.getElementById('modals-container');
+      results.push('modals-container children: ' + (cont ? cont.children.length : 'MISSING'));
+      const ov = doc.getElementById('settings-overlay');
+      results.push('settings-overlay exists: ' + !!ov);
+      if (ov) {
+        win.openSettingsModal();
+        setTimeout(() => {
+          results.push('settings-overlay active class: ' + ov.classList.contains('active'));
+          results.push('settings-overlay display: ' + getComputedStyle(ov).display);
+          results.push('settings-overlay visibility: ' + getComputedStyle(ov).visibility);
+          out.textContent = results.join('\n');
+        }, 300);
+      } else {
+        out.textContent = results.join('\n');
+      }
+    } catch (e) {
+      out.textContent = 'ERR: ' + e.message;
+    }
+  }, 2500);
+};
+document.body.appendChild(f);
+</script>
+</body>
+</html>

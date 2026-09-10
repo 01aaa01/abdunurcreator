@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#111;color:#eee;font-family:monospace;">
+<div id="out">loading...</div>
+<script>
+const out = document.getElementById('out');
+const f = document.createElement('iframe');
+f.style.width = '700px';
+f.style.height = '900px';
+f.src = '/';
+f.onload = () => {
+  setTimeout(() => {
+    try {
+      const doc = f.contentDocument;
+      const win = f.contentWindow;
+      const results = [];
+      const cs = (el) => el ? getComputedStyle(el) : null;
+      const fmt = (el, name) => {
+        if (!el) { results.push(name + ': NOT FOUND'); return; }
+        const s = getComputedStyle(el);
+        results.push(name + ': color=' + s.color + ' | bg=' + s.backgroundColor + ' | caret=' + s.caretColor);
+      };
+      // LOGIN tab inputs (default view)
+      fmt(doc.getElementById('login-identifier'), 'LOGIN #login-identifier');
+      fmt(doc.getElementById('login-password'), 'LOGIN #login-password');
+      // SIGNUP tab inputs
+      win.switchAuthTab('signup');
+      setTimeout(() => {
+        fmt(doc.getElementById('signup-name'), 'SIGNUP #signup-name');
+        fmt(doc.getElementById('signup-username'), 'SIGNUP #signup-username');
+        fmt(doc.getElementById('signup-email'), 'SIGNUP #signup-email');
+        fmt(doc.getElementById('signup-password'), 'SIGNUP #signup-password');
+        // back to login tab: buttons/labels
+        win.switchAuthTab('login');
+        setTimeout(() => {
+          fmt(doc.querySelector('#stage-login .tab.active'), 'TAB active');
+          const ghost = doc.querySelector('#auth-pane-login .btn.ghost');
+          fmt(ghost, 'GHOST btn');
+          const label = doc.querySelector('#login-sub-password .field label');
+          if (label) results.push('FIELD LABEL color=' + getComputedStyle(label).color);
+          const panel = doc.querySelector('#stage-login .glass.panel');
+          if (panel) results.push('PANEL bg=' + getComputedStyle(panel).backgroundColor + ' color=' + getComputedStyle(panel).color);
+          const body = doc.body;
+          results.push('BODY bg=' + getComputedStyle(body).backgroundColor);
+          out.textContent = results.join('\n');
+        }, 150);
+      }, 150);
+    } catch (e) {
+      out.textContent = 'ERR: ' + e.message;
+    }
+  }, 2000);
+};
+document.body.appendChild(f);
+</script>
+</body>
+</html>
