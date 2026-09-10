@@ -610,7 +610,7 @@ async function createOrShowApiKey() {
     if (r.ok) { input.value = d.apiKey; ok.textContent = 'API kalit yaratildi!'; }
     else {
       err.textContent = 'API kalit yaratish hozircha mavjud emas. Bearer kalit sifatida OpenRouter kalitingizni ishlating.';
-      noorToast('API kalit endpoint Hasan, OpenRouter kalitingizni olib inputga qo'ying.');
+      noorToast("API kalit endpoint yo'q, OpenRouter kalitingizni olib inputga qo'ying.");
     }
   } catch (e) { err.textContent = 'Server xatoligi.'; }
 }
@@ -2093,10 +2093,10 @@ async function sendChatMsg() {
   sendBtn.disabled = true;
 
   try {
-    const r = await fetch(BASE_URL + '/api/v1/chat/completions', {
+    const r = await fetch(BASE_URL + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: currentChatMode, messages: chatHistory })
+      body: JSON.stringify({ mode: currentChatMode, messages: chatHistory })
     });
     const d = await r.json();
 

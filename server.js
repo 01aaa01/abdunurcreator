@@ -28,7 +28,7 @@ const token = process.env.BOT_TOKEN;
 if (!token) { console.error('BOT_TOKEN required'); process.exit(1); }
 const bot = new TelegramBot(token, { polling: true });
 
-const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
+let OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const SITE_URL = process.env.SITE_URL || 'http://localhost:3000';
 const ADMIN_PASSWORD = '0101';
@@ -51,6 +51,11 @@ function saveDB() {
 loadDB();
 db.telegramUsers = db.telegramUsers || {};
 db.ads = db.ads || [];
+
+// OPENROUTER_KEY .env da bo'lmasa — data.json > config.openRouterKey dan olamiz
+if (!OPENROUTER_KEY && db.config && db.config.openRouterKey) {
+  OPENROUTER_KEY = db.config.openRouterKey;
+}
 
 const verificationCodes = {};
 const pendingRegistrations = {};
@@ -386,31 +391,176 @@ app.get('/api/profile', (req, res) => {
   res.json({ name: user?.name || '', photo: user?.photo || '', email: user?.email || '', chatId: user?.chatId || null });
 });
 
-// Chat API
-const FREE_MODELS = ['anthropic/claude-3.5-haiku', 'google/gemini-2.0-flash-exp', 'deepseek/deepseek-chat-v3-0324'];
-const PRO_MODELS_25 = ['anthropic/claude-sonnet-4-20250514', 'google/gemini-2.5-pro-preview-06-05'];
-const PRO_MODELS_30 = ['anthropic/claude-opus-4-20250514', 'google/gemini-3-ultra'];
+// === CHAT TIZIMI (eski ishlaydigan server_backup.js dan qaytarildi) ===
+// Frontend ('general'/'coder'/'coder2'/'noor25'...'noor60') bilan bir xil rejim nomlari.
+// Hamma foydalanuvchi Pro (isProUser() => true) — shuning uchun Pro cheklovi o'chirilgan.
 
-function pickModel(model) {
-  if (model === 'noor-ai-1.5') return FREE_MODELS[Math.floor(Math.random() * FREE_MODELS.length)];
-  if (model === 'noor-ai-2.5') return PRO_MODELS_25[Math.floor(Math.random() * PRO_MODELS_25.length)];
-  if (model === 'noor-ai-3.0') return PRO_MODELS_30[Math.floor(Math.random() * PRO_MODELS_30.length)];
-  return model;
+function fakeChatResponse(text) {
+  return { choices: [{ message: { role: 'assistant', content: text } }] };
 }
+
+function messagesContainImage(messages) {
+  return (messages || []).some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image_url'));
+}
+
+function noorSystemPrompt(versionLabel) {
+  return {
+    role: 'system',
+    content: `Sening isming Noor AI ${versionLabel}. Seni AbdunurCreator ishlab chiqargan. Sen suhbat, kodlash va rasm/skrinshotlarni tushunish (vision) bo'yicha kuchli, aniq va tezkor javob beruvchi modelsan. Agar kimdir isming nima, seni kim yaratgan, qaysi kompaniya yoki qaysi model ekaningni so'rasa, faqat shunday javob ber: "Men Noor AI ${versionLabel} man, meni AbdunurCreator ishlab chiqqan." Hech qachon asl AI model nomini aytma. Kod yozib berishing kerak bo'lsa, HAR DOIM markdown kod bloki ichida ber. Rasm yuborilsa, uni diqqat bilan tahlil qilib, aniq va foydali javob ber. Foydalanuvchi o'zbek, rus yoki ingliz tilida yozsa, o'sha tilda javob ber.`
+  };
+}
+
+// Noor AI 1.5 (umumiy suhbat) — OpenRouter bepul modellar zanjiri
+const NOOR_MODEL_CHAIN = [
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'qwen/qwen3-14b:free',
+  'openrouter/free'
+];
+
+// Noor AI 1.0 (Coder) — kodlashga ixtisoslashgan bepul modellar
+const CODER_MODEL_CHAIN = [
+  'qwen/qwen3-coder:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'openrouter/free'
+];
+
+// Noor AI 2.0 (Coder) — kod + rasm/skrinshotni tushunadigan (vision) zanjir
+const CODER2_MODEL_CHAIN = ['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'qwen/qwen3-coder:free', 'openrouter/free'];
+
+// Pro versiyalar (2.5 dan 6.0 gacha) — har biriga aniq NVIDIA/OpenRouter model
+const NVIDIA_MODEL_POOL = [
+  { version: '2.5', model: 'nvidia/nemotron-3-nano-30b-a3b:free' },
+  { version: '3.0', model: 'nvidia/nemotron-3-super-120b-a12b:free' },
+  { version: '3.5', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+  { version: '4.0', model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free' },
+  { version: '4.5', model: 'nvidia/nemotron-3-super-120b-a12b:free' },
+  { version: '5.0', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+  { version: '5.5', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+  { version: '6.0', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' }
+];
+const PRO_TIERS = NVIDIA_MODEL_POOL.map(entry => ({
+  version: entry.version,
+  mode: 'noor' + entry.version.replace('.', ''),
+  model: entry.model
+}));
+const PRO_TIER_BY_MODE = {};
+PRO_TIERS.forEach((t) => { PRO_TIER_BY_MODE[t.mode] = t; });
+
+async function callOpenRouter(model, messages, apiKey) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': SITE_URL,
+      'X-Title': 'Noor AI'
+    },
+    body: JSON.stringify({ model, messages })
+  });
+  const data = await response.json();
+  return { ok: response.ok, status: response.status, data };
+}
+
+// Ichki chat UI VA tashqi ommaviy API (/api/v1/chat/completions) ikkalasi ham shu funksiyani ishlatadi.
+async function runNoorChat(mode, messages) {
+  const tier = PRO_TIER_BY_MODE[mode];
+
+  // Eski uchta bepul rejim (1.0 Coder / 1.5 / 2.0 Coder) haqiqiy vision modellarga ega emas.
+  if (!tier && messagesContainImage(messages)) {
+    const modeLabel = mode === 'coder' ? 'Noor AI 1.0 (Coder)' : (mode === 'coder2' ? 'Noor AI 2.0 (Coder)' : 'Noor AI 1.5');
+    return { status: 200, data: fakeChatResponse(`Kechirasiz, men (${modeLabel}) rasm o'qiy olmayman. Rasmni tushuntirib berishimni xohlasangiz, iltimos Noor AI 2.5 yoki undan yuqori Pro rejimni sinab ko'ring.`) };
+  }
+
+  const versionLabel = tier ? tier.version : (mode === 'coder' ? '1.0 (Coder)' : (mode === 'coder2' ? '2.0 (Coder)' : '1.5'));
+  const outgoingMessages = [noorSystemPrompt(versionLabel), ...(messages || [])];
+  let lastError = null;
+
+  if (!OPENROUTER_KEY) {
+    return { status: 500, data: { error: "Serverda OPENROUTER_KEY sozlanmagan. .env faylga kalitni kiriting yoki data.json > config.openRouterKey ga joylang." } };
+  }
+
+  let chain;
+  if (tier) {
+    // Avval versiyaga tegishli model, ishlamasa eng kuchli Ultra, oxirida openrouter/free
+    chain = [...new Set([tier.model, 'nvidia/nemotron-3-ultra-550b-a55b:free', 'openrouter/free'].filter(Boolean))];
+  } else if (mode === 'coder') {
+    chain = CODER_MODEL_CHAIN;
+  } else if (mode === 'coder2') {
+    chain = CODER2_MODEL_CHAIN;
+  } else {
+    chain = NOOR_MODEL_CHAIN;
+  }
+
+  for (const model of chain) {
+    try {
+      const { ok, data } = await callOpenRouter(model, outgoingMessages, OPENROUTER_KEY);
+      if (ok) return { status: 200, data };
+      lastError = (data.error && data.error.message) || JSON.stringify(data.error || data);
+      console.error(`Noor AI: "${model}" javob bermadi, keyingisiga o'tilmoqda:`, lastError);
+    } catch (e) {
+      lastError = e.message;
+      console.error(`Noor AI: "${model}" ulanish xatosi, keyingisiga o'tilmoqda:`, lastError);
+    }
+  }
+  return { status: 502, data: { error: `Noor AI hozircha band (barcha modellar javob bermadi): ${lastError || "noma'lum xatolik"}` } };
+}
+
+// Saytning o'z chati uchun endpoint (frontend /api/chat ga so'rov yuboradi)
+app.post('/api/chat', async (req, res) => {
+  const { messages, mode } = req.body || {};
+  if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'messages massivi kerak.' });
+  if (typeof fetch !== 'function') return res.status(500).json({ error: "Node.js 18+ kerak." });
+  const result = await runNoorChat(mode || 'general', messages);
+  res.status(result.status).json(result.data);
+});
+
+// === OMMAVIY API — dasturchilar shaxsiy API kaliti bilan Noor AI'ga murojaat qilishi uchun ===
+function genApiKey() {
+  return 'noor_' + crypto.randomBytes(24).toString('hex');
+}
+
+app.post('/api/keys/create', (req, res) => {
+  const { username } = req.body || {};
+  if (!username) return res.status(400).json({ error: 'username kerak.' });
+  const key = String(username).toLowerCase().replace('@', '');
+  if (!db.users[key]) db.users[key] = { username: key, chatId: null, code: null };
+  if (!db.users[key].apiKey) {
+    db.users[key].apiKey = genApiKey();
+    saveDB();
+  }
+  res.json({ apiKey: db.users[key].apiKey });
+});
+
+app.get('/api/keys/mine', (req, res) => {
+  const { username } = req.query || {};
+  if (!username) return res.status(400).json({ error: 'username kerak.' });
+  const key = String(username).toLowerCase().replace('@', '');
+  const u = db.users[key];
+  res.json({ apiKey: (u && u.apiKey) || null });
+});
+
+const PUBLIC_MODEL_MAP = { 'noor-ai-1.0': 'coder', 'noor-ai-1.5': 'general', 'noor-ai-2.0': 'coder2' };
+PRO_TIERS.forEach((t) => { PUBLIC_MODEL_MAP['noor-ai-' + t.version] = t.mode; });
 
 app.post('/api/v1/chat/completions', async (req, res) => {
   try {
-    const { model, messages } = req.body;
-    if (!OPENROUTER_KEY && model?.includes('noor')) return res.status(503).json({ error: { message: 'API key not configured' } });
-    
-    const targetModel = pickModel(model);
-    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + OPENROUTER_KEY, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://noor-ai.com', 'X-Title': 'Noor AI' },
-      body: JSON.stringify({ model: targetModel, messages })
-    });
-    const data = await resp.json();
-    res.json(data);
+    const authHeader = req.headers['authorization'] || '';
+    const apiKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : String(req.headers['x-api-key'] || '');
+    if (!apiKey) return res.status(401).json({ error: { message: "API kalit kerak. Header: Authorization: Bearer <kalit>" } });
+
+    const ownerKey = Object.keys(db.users).find(k => db.users[k].apiKey === apiKey);
+    if (!ownerKey) return res.status(401).json({ error: { message: "API kalit noto'g'ri yoki bekor qilingan." } });
+
+    const { model, messages } = req.body || {};
+    const mode = PUBLIC_MODEL_MAP[model];
+    if (!mode) return res.status(400).json({ error: { message: `Noma'lum model "${model}". Quyidagilardan birini tanlang: ${Object.keys(PUBLIC_MODEL_MAP).join(', ')}` } });
+    if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: { message: 'messages massivi kerak.' } });
+
+    const result = await runNoorChat(mode, messages);
+    res.status(result.status).json(result.data);
   } catch (e) {
     res.status(500).json({ error: { message: e.message } });
   }
