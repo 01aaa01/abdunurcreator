@@ -343,10 +343,22 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
               <span data-i18n="attach.file">Fayl yuklash (tez orada)</span>
             </button>
-            <button type="button" class="attach-menu-item" id="attach-item-create">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h.01M15 9h.01M8 15c1 1.3 2.4 2 4 2s3-.7 4-2"/></svg>
-              <span data-i18n="attach.createImage">Rasm yaratish</span>
+            <button type="button" class="attach-menu-item" id="attach-item-generate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5l2.6 5.7 6.2.7-4.6 4.2 1.2 6.1L12 16.2l-5.4 3 1.2-6.1-4.6-4.2 6.2-.7z"/><path d="M19 3l.5 1.1L20.6 4.6l-1.1.5L19 6.2l-.5-1.1-1.1-.5 1.1-.5z"/></svg>
+              <span>Generate Video or Image</span>
+              <span class="attach-item-chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></span>
             </button>
+            <div class="attach-submenu hidden" id="attach-generate-submenu">
+              <button type="button" class="attach-submenu-item" id="attach-generate-ai1">
+                <span class="attach-submenu-badge">AI 1</span>
+                <span class="attach-submenu-label">Qwen Chat</span>
+                <svg class="attach-submenu-ext" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+              </button>
+              <button type="button" class="attach-submenu-item" id="attach-generate-ai2">
+                <span class="attach-submenu-badge">AI 2</span>
+                <span class="attach-submenu-label">Dola AI</span>
+              </button>
+            </div>
           </div>
           <div class="create-img-panel hidden" id="create-img-panel">
             <div class="create-img-row">
@@ -502,12 +514,6 @@
             <button type="button" class="model-picker-item" data-value="coder2" data-label="Noor AI 2.0 (Coder)"><span class="mp-label">Noor AI 2.0 (Coder)</span><span class="mp-right"></span></button>
             <button type="button" class="model-picker-item" data-value="general" data-label="Noor AI 1.5"><span class="mp-label">Noor AI 1.5</span><span class="mp-right"></span></button>
             <button type="button" class="model-picker-item" data-value="coder" data-label="Noor AI 1.0 (Coder)"><span class="mp-label">Noor AI 1.0 (Coder)</span><span class="mp-right"></span></button>
-            <div class="model-picker-group-label" data-i18n-label="chat.groupImg">Rasm yaratish</div>
-            <button type="button" class="model-picker-item" data-value="noorimg" data-label="Noor AI IMG 1.0"><span class="mp-label">Noor AI IMG 1.0</span><span class="mp-right"></span></button>
-            <button type="button" class="model-picker-item" data-value="noorimg15" data-label="Noor AI IMG 1.5"><span class="mp-label">Noor AI IMG 1.5</span><span class="mp-right"></span></button>
-            <div class="model-picker-group-label" data-i18n-label="chat.groupVideo">Video yaratish</div>
-            <button type="button" class="model-picker-item" data-value="noorvideo10" data-label="Noor AI Video 1.0"><span class="mp-label">Noor AI Video 1.0</span><span class="mp-right"><span class="model-picker-tag">LIMITED</span></span></button>
-            <button type="button" class="model-picker-item" data-value="noorvideo15" data-label="Noor AI Video 1.5"><span class="mp-label">Noor AI Video 1.5</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-pro">PRO</span></span></button>
             <div class="model-picker-group-label" data-i18n-label="chat.groupAudio">Ovoz yaratish</div>
             <button type="button" class="model-picker-item" data-value="nooraudio1" data-label="Noor Audio 1.0 (Fish)"><span class="mp-label">Noor Audio 1.0 (Fish Audio)</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-audio">FREE</span></span></button>
             <button type="button" class="model-picker-item" data-value="nooraudio2" data-label="Noor Audio 2.0 (Deepgram)"><span class="mp-label">Noor Audio 2.0 (Deepgram)</span><span class="mp-right"><span class="model-picker-tag model-picker-tag-audio">FREE</span></span></button>
@@ -780,6 +786,28 @@ function setMsgColor(c){
   r.style.outline=c==='red'?'3px solid #e74c3c':'none';
 }
 </script>
+<!-- ======= FULLSCREEN AI WINDOW (Dola / Qwen) ======= -->
+<div class="ai-window-overlay hidden" id="ai-window-overlay">
+  <div class="ai-window">
+    <iframe class="ai-window-frame" id="ai-window-frame" title="Noor AI — Generator" allow="clipboard-read; clipboard-write; microphone; camera" referrerpolicy="no-referrer"></iframe>
+    <div class="ai-window-topbar">
+      <div class="ai-window-logo-cover"><span class="ai-window-brand">Noor AI</span></div>
+      <div class="ai-window-actions">
+        <button type="button" class="ai-window-btn" id="ai-window-open-tab" title="Yangi tabda ochish">↗</button>
+        <button type="button" class="ai-window-btn" id="ai-window-close" title="Yopish">&times;</button>
+      </div>
+    </div>
+    <div class="ai-window-blocked hidden" id="ai-window-blocked">
+      <div class="ai-window-blocked-card">
+        <div class="ai-window-blocked-icon">🔒</div>
+        <h3>Bu sayt ichki oynada ochilishiga ruxsat bermaydi</h3>
+        <p>Sayt xavfsizligi tufayli yangi tabda oching:</p>
+        <button type="button" class="btn" id="ai-window-blocked-open" style="width:auto;">Yangi tabda ochish ↗</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="i18n.js"></script>
 <script src="app.js"></script>
 <div id="modals-container"></div>

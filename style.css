@@ -1387,3 +1387,51 @@ body.light-mode .chat-msg.ai .chat-msg-bubble {
   padding:12px 16px!important;margin:0 auto!important;
 }
 [data-theme="dark"] #stage-chat .chat-note{color:#b4b3ad!important;}
+
+/* ===== "+" TUGMASI BOSILGANDA KULRANG (to'qroq) KO'RINISH ===== */
+#stage-chat .attach-plus-btn.pressed{background:#d9d5c9!important;color:#4a4a45!important;box-shadow:inset 0 1px 3px rgba(0,0,0,.18)!important;}
+[data-theme="dark"] #stage-chat .attach-plus-btn.pressed{background:#4a4a46!important;color:#e8e6df!important;box-shadow:inset 0 1px 3px rgba(0,0,0,.4)!important;}
+
+/* ===== "+" MENYUSIDAGI "Generate Video or Image" + AI 1/AI 2 SUBMENYU ===== */
+#stage-chat .attach-menu{overflow:visible;}
+#stage-chat .attach-item-chevron{margin-left:auto;opacity:.45;display:inline-flex;align-items:center;}
+#stage-chat .attach-submenu{margin:2px 4px 2px 42px;border-left:2px solid #e8e6e0;padding:2px 0 2px 8px;display:flex;flex-direction:column;gap:2px;}
+#stage-chat .attach-submenu.hidden{display:none;}
+[data-theme="dark"] #stage-chat .attach-submenu{border-left-color:#3a3a37;}
+#stage-chat .attach-submenu-item{width:100%;display:flex;align-items:center;gap:8px;background:none;border:none;color:#52524d;font-family:var(--bd);font-size:.8rem;padding:8px 10px;border-radius:8px;cursor:pointer;text-align:left;}
+#stage-chat .attach-submenu-item:hover{background:#f3f1eb;color:#2d2d2c;}
+[data-theme="dark"] #stage-chat .attach-submenu-item{color:#d8d6cf;}
+[data-theme="dark"] #stage-chat .attach-submenu-item:hover{background:#2d2d2b;color:#f0eee9;}
+#stage-chat .attach-submenu-badge{background:#c96442;color:#fff;font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.03em;flex-shrink:0;}
+#stage-chat .attach-submenu-label{flex:1;}
+#stage-chat .attach-submenu-ext{opacity:.5;flex-shrink:0;}
+
+/* ===== FULLSCREEN AI WINDOW (Dola / Qwen) ===== */
+.ai-window-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;}
+.ai-window-overlay.hidden{display:none;}
+.ai-window{position:relative;width:min(96vw,1100px);height:92vh;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.5);display:flex;flex-direction:column;}
+.ai-window-frame{flex:1;width:100%;border:none;background:#fff;display:block;visibility:visible;}
+.ai-window-topbar{position:absolute;top:0;left:0;right:0;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 0;z-index:10;pointer-events:none;}
+.ai-window-logo-cover{pointer-events:auto;position:absolute;top:0;left:0;height:44px;min-width:190px;padding:0 16px;display:flex;align-items:center;background:#fff;border-bottom:1px solid rgba(0,0,0,.04);}
+.ai-window-logo-cover::after{content:'';position:absolute;top:0;left:100%;width:100vw;height:44px;background:#fff;}
+.ai-window-brand{font-family:var(--dp);font-weight:700;font-size:1.02rem;color:#2d2d2c;letter-spacing:.01em;white-space:nowrap;}
+.ai-window-actions{pointer-events:auto;position:absolute;top:0;right:0;height:44px;display:flex;align-items:center;gap:6px;padding:0 10px;background:#fff;}
+.ai-window-btn{width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:#6b6b66;font-size:1.15rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.ai-window-btn:hover{background:#efece4;color:#2d2d2c;}
+[data-theme="dark"] .ai-window{background:#1f1f1d;}
+[data-theme="dark"] .ai-window-logo-cover{background:#1f1f1d;}
+[data-theme="dark"] .ai-window-logo-cover::after{background:#1f1f1d;}
+[data-theme="dark"] .ai-window-actions{background:#1f1f1d;}
+[data-theme="dark"] .ai-window-brand{color:#f0eee9;}
+[data-theme="dark"] .ai-window-btn{color:#b4b3ad;}
+[data-theme="dark"] .ai-window-btn:hover{background:#3a3a37;color:#f0eee9;}
+.ai-window-blocked{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:#fff;}
+.ai-window-blocked.hidden{display:none;}
+.ai-window-blocked-card{text-align:center;padding:30px;max-width:380px;}
+.ai-window-blocked-icon{font-size:2.4rem;margin-bottom:12px;}
+.ai-window-blocked-card h3{font-family:var(--dp);font-size:1.1rem;color:#2d2d2c;margin:0 0 8px;}
+.ai-window-blocked-card p{font-size:.88rem;color:#6b6b66;margin:0 0 18px;}
+[data-theme="dark"] .ai-window-blocked{background:#1f1f1d;}
+[data-theme="dark"] .ai-window-blocked-card h3{color:#f0eee9;}
+[data-theme="dark"] .ai-window-blocked-card p{color:#b4b3ad;}
+@media(max-width:600px){.ai-window{width:100vw;height:100vh;border-radius:0;}}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'abdunurcreator-v2';
+const CACHE_NAME = 'abdunurcreator-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/a.html',

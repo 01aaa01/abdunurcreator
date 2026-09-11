@@ -1243,9 +1243,87 @@ function enterNoorVideoMode(preferredAi) {
   }
 }
 
-document.getElementById('attach-item-create')?.addEventListener('click', () => {
+// === "Generate Video or Image" (+ menyusidagi AI 1 / AI 2) ===
+const AI_WINDOW_URLS = {
+  ai1: 'https://chat.qwen.ai/',
+  ai2: 'https://www.dola.com/chat/'
+};
+const AI_WINDOW_NAMES = { ai1: 'AI 1 — Qwen', ai2: 'AI 2 — Dola' };
+let aiWindowCurrent = null;
+
+function setAttachPlusPressed(isPressed) {
+  const plusBtn = document.getElementById('chat-attach-btn');
+  if (plusBtn) plusBtn.classList.toggle('pressed', isPressed);
+}
+
+function closeGenerateSubmenu() {
+  const sub = document.getElementById('attach-generate-submenu');
+  if (sub) sub.classList.add('hidden');
+  setAttachPlusPressed(false);
+}
+
+function openAiWindow(kind) {
+  const overlay = document.getElementById('ai-window-overlay');
+  const frame = document.getElementById('ai-window-frame');
+  const blocked = document.getElementById('ai-window-blocked');
+  if (!overlay || !frame) return;
+  aiWindowCurrent = kind;
+  const url = AI_WINDOW_URLS[kind];
+  if (!url) return;
+  frame.src = url;
+  if (blocked) blocked.classList.add('hidden');
+  overlay.classList.remove('hidden');
+  setAttachPlusPressed(false);
+  closeGenerateSubmenu();
+  // AI 1 (Qwen) iframe'ga ruxsat bermaydi (x-frame-options) — yangi tabda ochamiz
+  if (kind === 'ai1') {
+    window.open(url, '_blank');
+    closeAiWindow();
+    noorToast(AI_WINDOW_NAMES.ai1 + " yangi tabda ochildi (sayt ichki oynaga ruxsat bermaydi).");
+  }
+}
+
+function closeAiWindow() {
+  const overlay = document.getElementById('ai-window-overlay');
+  const frame = document.getElementById('ai-window-frame');
+  if (overlay) overlay.classList.add('hidden');
+  if (frame) setTimeout(() => { frame.src = 'about:blank'; }, 200);
+  aiWindowCurrent = null;
+}
+
+(function initAiWindowControls() {
+  const overlay = document.getElementById('ai-window-overlay');
+  if (!overlay) return;
+  const btnClose = document.getElementById('ai-window-close');
+  const btnOpenTab = document.getElementById('ai-window-open-tab');
+  const btnBlockedOpen = document.getElementById('ai-window-blocked-open');
+  if (btnClose) btnClose.addEventListener('click', closeAiWindow);
+  if (btnOpenTab) btnOpenTab.addEventListener('click', () => {
+    if (aiWindowCurrent && AI_WINDOW_URLS[aiWindowCurrent]) window.open(AI_WINDOW_URLS[aiWindowCurrent], '_blank');
+  });
+  if (btnBlockedOpen) btnBlockedOpen.addEventListener('click', () => {
+    if (aiWindowCurrent && AI_WINDOW_URLS[aiWindowCurrent]) window.open(AI_WINDOW_URLS[aiWindowCurrent], '_blank');
+  });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeAiWindow(); });
+})();
+
+document.getElementById('attach-item-generate')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const sub = document.getElementById('attach-generate-submenu');
+  if (!sub) return;
+  sub.classList.toggle('hidden');
+});
+document.getElementById('attach-generate-ai1')?.addEventListener('click', (e) => {
+  e.stopPropagation();
   document.getElementById('attach-menu')?.classList.add('hidden');
-  enterNoorImgMode();
+  closeGenerateSubmenu();
+  openAiWindow('ai1');
+});
+document.getElementById('attach-generate-ai2')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('attach-menu')?.classList.add('hidden');
+  closeGenerateSubmenu();
+  openAiWindow('ai2');
 });
 document.getElementById('create-img-close-btn')?.addEventListener('click', exitGenPanelsToGeneral);
 document.getElementById('create-audio-close-btn')?.addEventListener('click', exitGenPanelsToGeneral);
@@ -2148,9 +2226,9 @@ async function loadMediaModelOptions() {
     const r = await fetch(BASE_URL + '/api/v1/models');
     const d = await r.json();
     const models = d.data || [];
+    // Diqqat: rasm va video generator modellari olib tashlandi —
+    // endi ular "Generate Video or Image" (AI 1 / AI 2) oynasi orqali ishlaydi.
     const sections = [
-      { list: models.filter(m => m.type === 'image'), tagClass: 'model-picker-tag-img', tagText: 'RASM' },
-      { list: models.filter(m => m.type === 'video'), tagClass: 'model-picker-tag-vid', tagText: 'VIDEO' },
       { list: models.filter(m => m.type === 'audio'), tagClass: 'model-picker-tag-audio', tagText: 'AUDIO' }
     ];
     let html = '';
@@ -2210,16 +2288,6 @@ function syncModelPickerUI(mode) {
     if (!item) return;
     e.stopPropagation();
     if (item.disabled || item.classList.contains('is-disabled')) return; // ishlamaydigan variantlar bosilmaydi
-    if (item.dataset.value === 'noorimg' || item.dataset.value === 'noorimg15') {
-      enterNoorImgMode(item.dataset.value);
-      closeMenu();
-      return;
-    }
-    if (item.dataset.value === 'noorvideo10' || item.dataset.value === 'noorvideo15') {
-      enterNoorVideoMode(item.dataset.value);
-      closeMenu();
-      return;
-    }
     if (item.dataset.value === 'nooraudio') {
       enterNoorAudioMode();
       closeMenu();
@@ -2247,10 +2315,16 @@ if (attachPlusBtn && attachMenu) {
   attachPlusBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     attachMenu.classList.toggle('hidden');
+    const isOpen = !attachMenu.classList.contains('hidden');
+    // "+" bosilganda rangi to'qroq (kulrang) bo'ladi
+    attachPlusBtn.classList.toggle('pressed', isOpen);
+    if (!isOpen) closeGenerateSubmenu();
   });
   document.addEventListener('click', (e) => {
-    if (!attachMenu.classList.contains('hidden') && !attachMenu.contains(e.target) && e.target !== attachPlusBtn) {
+    if (!attachMenu.classList.contains('hidden') && !attachMenu.contains(e.target) && e.target !== attachPlusBtn && !attachPlusBtn.contains(e.target)) {
       attachMenu.classList.add('hidden');
+      attachPlusBtn.classList.remove('pressed');
+      closeGenerateSubmenu();
     }
   });
 }
